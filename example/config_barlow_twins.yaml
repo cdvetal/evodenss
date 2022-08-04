@@ -1,0 +1,89 @@
+checkpoints_path: ./experiments/
+evolutionary:
+  generations: 2
+  lambda: 3
+  max_epochs: 10000
+  mutation:
+    add_connection: 0.3
+    remove_connection: 0.3
+    add_layer: 0.85
+    reuse_layer: 0.75
+    remove_layer: 0.85
+    dsge_layer: 0.75
+    macro_layer: 0.9
+    train_longer: 0.5
+network:
+  architecture:
+    reuse_layer: 0.15
+    network_structure:
+      - 
+        - features
+        - 1
+        - 2
+      - 
+        - classification
+        - 1
+        - 2
+    macro_structure:
+      - learning
+    output: softmax
+    network_structure_init: {features: [1], classification:[1]}
+    levels_back: {features: 1, classification: 1}
+  learning:
+    learning_type: self-supervised
+    augmentation:
+      train:
+        input_a:
+          random_resized_crop:
+            size: 28
+            scale: (0.8, 0.9)
+          random_horizontal_flip:
+            probability: 0.0
+          color_jitter:
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.2
+            hue: 0.1
+            probability: 0.1
+          random_grayscale:
+            probability: 0.1
+          gaussian_blur:
+            probability: 0.1
+          random_solarize:
+            probability: 0.1
+          normalize:
+            mean: [0.485]
+            std: [0.229]
+          resize:
+            size: 32
+        input_b:
+          random_resized_crop:
+            size: 28
+            scale: (0.85, 0.95)
+          random_horizontal_flip:
+            probability: 0.0
+          color_jitter:
+            brightness: 0.45
+            contrast: 0.2
+            saturation: 0.5
+            hue: 0.3
+            probability: 0.4
+          random_grayscale:
+            probability: 0.4
+          gaussian_blur:
+            probability: 0.4
+          random_solarize:
+            probability: 0.4
+          normalize:
+            mean: [0.485]
+            std: [0.229]
+          resize:
+            size: 32
+      test:
+        normalize:
+          mean: [0.485]
+          std: [0.229]
+        resize:
+          size: 32
+    default_train_time: 300
+    fitness_metric: accuracy

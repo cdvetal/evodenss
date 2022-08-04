@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+from argparse import ArgumentParser
+import os
+import logging
+import random
+import time
+from typing import Any, Callable, Optional, TYPE_CHECKING
+
+import fast_denser
+from fast_denser.config import Config
+from fast_denser.evolution import engine
+from fast_denser.evolution.grammar import Grammar
+from fast_denser.misc import Checkpoint
+from fast_denser.misc.constants import VALID_DATASET_NAMES, STATS_FOLDER_NAME
+from fast_denser.misc.persistence import RestoreCheckpoint, build_overall_best_path
+from fast_denser.misc.utils import is_valid_file, is_yaml_file
+from fast_denser.neural_networks_torch.evaluators import create_evaluator
+
+import numpy as np
+import torch
+
+if TYPE_CHECKING:
+   from fast_denser.neural_networks_torch.evaluators import BaseEvaluator
+
+def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gpu_run: bool) -> Checkpoint:
+
+    fitness_metric: Callable = config['network']['learning']['fitness_metric']
+    learning_type: str = config['network']['learning']['learning_type']
+    evaluator: BaseEvaluator = create_evaluator(dataset_name,
+                                                fitness_metric,
+                                                run,
+                                                learning_type,
+                                                is_gpu_run,
+                                                config['network']['learning']['augmentation']['train'],
+                                                config['network']['learning']['augmentation']['test'])
+
+    os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}"), exist_ok=True)
+    os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}", STATS_FOLDER_NAME), exist_ok=True)
+
+    return Checkpoint(
+        run=run,
+        random_state=random.getstate(),
+        numpy_random_state=np.random.get_state(),
+        torch_random_state=torch.get_rng_state(),
+        last_processed_generation=-1,
+        total_epochs=0,
+        best_fitness=None,
+        evaluator=evaluator
+    )
+
+
+@RestoreCheckpoint
+def main(run: int,
+         dataset_name: str,
+         config: Config,
+         grammar: Grammar,
+         is_gpu_run: bool,
+         possible_checkpoint: Optional[Checkpoint] = None) -> None: #pragma: no cover
+
+    save_path: str = config['checkpoints_path']
+
+    checkpoint: Checkpoint
+    if possible_checkpoint is None:
+        logger.info("Starting fresh run")
+        random.seed(run)
+        np.random.seed(run)
+        torch.manual_seed(run)
+        checkpoint = create_initial_checkpoint(dataset_name, config, run, is_gpu_run)
+    else:
+        logger.info("Loading previous checkpoint")
+        checkpoint = possible_checkpoint
+        random.setstate(checkpoint.random_state)
+        np.random.set_state(checkpoint.numpy_random_state)
+        torch.set_rng_state(checkpoint.torch_random_state)
+
+    total_generations: int = config['evolutionary']['generations']
+    max_epochs: int = config['evolutionary']['max_epochs']
+    for gen in range(checkpoint.last_processed_generation + 1, total_generations):
+        # check the total number of epochs (stop criteria)
+        if checkpoint.total_epochs is not None and checkpoint.total_epochs >= max_epochs:
+            break
+        checkpoint = engine.evolve(run, grammar, gen, checkpoint, config)
+
+    # compute testing performance of the fittest network
+    best_network_path: str = build_overall_best_path(config['checkpoints_path'], run)
+    best_test_acc: float = checkpoint.evaluator.testing_performance(best_network_path)
+    logger.info(f"Best test accuracy: {best_test_acc}")
+
+
+if __name__ == '__main__': #pragma: no cover
+    parser: ArgumentParser = ArgumentParser(allow_abbrev=False)
+    parser.add_argument("--config-path", '-c', required=True, help="Path to the config file to be used",
+                        type=lambda x: is_yaml_file(parser, x))
+    parser.add_argument("--dataset-name", '-d', required=True, help="Name of the dataset to be used",
+                        type=str, choices=VALID_DATASET_NAMES)
+    parser.add_argument("--grammar-path", '-g', required=True, help="Path to the grammar to be used",
+                        type=lambda x: is_valid_file(parser, x))
+    parser.add_argument("--run", "-r", required=False, help="Identifies the run id and seed to be used",
+                        type=int, default=0)
+    parser.add_argument("--cuda-enabled", required=False, help="Runs the experiment in the GPU",
+                        action='store_true')
+    args: Any = parser.parse_args()
+
+
+    logging.setLogRecordFactory(fast_denser.logger_record_factory(args.run))
+    logger = logging.getLogger(__name__)
+
+
+    start = time.time()
+    torch.backends.cudnn.benchmark = True
+    main(run=args.run,
+         dataset_name=args.dataset_name,
+         config=Config(args.config_path),
+         grammar=Grammar(args.grammar_path),
+         is_gpu_run=args.cuda_enabled)
+
+    end = time.time()
+    print((end - start)/60.0)
+    logging.shutdown()
