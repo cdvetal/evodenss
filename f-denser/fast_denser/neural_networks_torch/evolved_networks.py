@@ -1,6 +1,6 @@
 from functools import reduce
 import logging
-from typing import cast, Dict, List, Optional, Set, Tuple
+from typing import cast, Dict, List, Optional, Set, Tuple, Union
 
 # from fast_denser.neural_networks_torch import NetworkValidator
 from fast_denser.misc.enums import LayerType, ProjectorUsage
@@ -105,12 +105,12 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                 nn.Linear(8192, 8192, bias=False)
             )
         elif projector_network_usage == ProjectorUsage.IMPLICIT:
-            raise NotImplementedError(f"projector_network_usage cannot be implicit yet")
+            raise NotImplementedError("Projector_network_usage cannot be implicit yet")
         else:
             self.projector = None
 
 
-    def forward(self, x1: Tensor, x2: Tensor=None, batch_size: int=None) -> Optional[Tensor]:
+    def forward(self, x1: Tensor, x2: Tensor=None, batch_size: int=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
         if x2 is not None:
             assert batch_size is not None
             y1 = super(BarlowTwinsNetwork, self).forward(x1)
@@ -130,26 +130,30 @@ class BarlowTwinsNetwork(EvolvedNetwork):
 
             on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
             off_diag = self._off_diagonal(c).pow_(2).sum()
+
+            #import sys
+            #sys.exit(1)
             loss: Tensor = on_diag + 0.1 * off_diag
-            return loss
+            return on_diag, off_diag, loss
         else:
+            # In case we use the network for inference rather than training
             assert batch_size is None
             return super(BarlowTwinsNetwork, self).forward(x1)
 
-        '''
-        import matplotlib.pyplot as plt
-        figure = plt.figure(figsize=(8, 8))
-        cols, rows = 2, 1
-        print("y1: ", y1)
-        print("y2: ", y2)
-        figure.add_subplot(rows, cols, 1)
-        plt.axis("off")
-        plt.imshow(x1.squeeze())
-        figure.add_subplot(rows, cols, 2)
-        plt.axis("off")
-        plt.imshow(x2.squeeze())
-        plt.show()
-        '''
+            '''
+            import matplotlib.pyplot as plt
+            figure = plt.figure(figsize=(8, 8))
+            cols, rows = 2, 1
+            print("y1: ", y1)
+            print("y2: ", y2)
+            figure.add_subplot(rows, cols, 1)
+            plt.axis("off")
+            plt.imshow(x1.squeeze())
+            figure.add_subplot(rows, cols, 2)
+            plt.axis("off")
+            plt.imshow(x2.squeeze())
+            plt.show()
+            '''
 
     def _off_diagonal(self, x: Tensor) -> Tensor:
         # return a flattened view of the off-diagonal elements of a square matrix
@@ -159,3 +163,31 @@ class BarlowTwinsNetwork(EvolvedNetwork):
         assert n == m
         return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
 
+
+class EvaluationBarlowTwinsNetwork(nn.Module):
+
+    def __init__(self, barlow_twins_trained_model: nn.Module, n_neurons: int) -> None:
+        super(EvaluationBarlowTwinsNetwork, self).__init__()
+        self.barlow_twins_trained_model: nn.Module = barlow_twins_trained_model
+        layer_names: List[str] = list(map(lambda x: str(x[0]), self.barlow_twins_trained_model.named_modules()))
+        
+        last_layer_name: str
+        last_layer_count: int
+
+        last_layer_name, last_layer_count = self._find_last_layer_info(layer_names)
+        index: int = 1 if last_layer_count == 1 else 0
+        last_layer_out_features = getattr(self.barlow_twins_trained_model, f"{last_layer_name}_{last_layer_count}")[index].out_features
+        self.final_layer = nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True)
+        self.barlow_twins_trained_model.requires_grad_(False)
+        # self.barlow_twins_trained_model.fc.requires_grad_(True)
+
+    def _find_last_layer_info(self, layer_names: List[str]) -> Tuple[str, int]:
+        linear_layers: List[str] = list(filter(lambda x: x.startswith(LayerType.FC.value) and "." not in x, layer_names))
+        ids: List[int] = list(map(lambda x: int(x.split("_")[-1].split(".")[0]), linear_layers))
+        return LayerType.FC.value, max(ids)
+
+    def forward(self, x: Tensor) -> Tensor:
+        embs = self.barlow_twins_trained_model.forward(x)
+        assert isinstance(embs, Tensor)
+        y: Tensor = self.final_layer(embs)
+        return y

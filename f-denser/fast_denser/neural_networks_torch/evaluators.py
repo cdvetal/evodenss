@@ -17,6 +17,7 @@ from fast_denser.neural_networks_torch.dataset_loader import DatasetType, load_d
 from fast_denser.neural_networks_torch.trainers import Trainer
 from fast_denser.neural_networks_torch.transformers import BaseTransformer, LegacyTransformer, \
     BarlowTwinsTransformer
+from fast_denser.neural_networks_torch.evolved_networks import EvaluationBarlowTwinsNetwork
 
 import torch
 from torch import nn
@@ -260,28 +261,28 @@ class LegacyEvaluator(BaseEvaluator):
             train_loader, validation_loader, test_loader = self._get_data_loaders(learning_params.batch_size)
 
             trainer = Trainer(model=torch_model,
-                            optimiser=learning_params.torch_optimiser,
-                            loss_function=nn.CrossEntropyLoss(),
-                            train_data_loader=train_loader,
-                            validation_data_loader=validation_loader,
-                            n_epochs=learning_params.epochs,
-                            initial_epoch=num_epochs,
-                            device=device,
-                            callbacks=[EarlyStoppingCallback(patience=learning_params.early_stop),
-                                        ModelCheckpointCallback(model_saving_dir),
-                                        TimedStoppingCallback(max_seconds=train_time)])
+                              optimiser=learning_params.torch_optimiser,
+                              loss_function=nn.CrossEntropyLoss(),
+                              train_data_loader=train_loader,
+                              validation_data_loader=validation_loader,
+                              n_epochs=learning_params.epochs,
+                              initial_epoch=num_epochs,
+                              device=device,
+                              callbacks=[EarlyStoppingCallback(patience=learning_params.early_stop),
+                                         ModelCheckpointCallback(model_saving_dir),
+                                         TimedStoppingCallback(max_seconds=train_time)])
             trainer.train()
             fitness_value = self.compute_fitness(model=torch_model,
-                                                data_loader=test_loader,
-                                                metric=Accuracy().to(device.value, non_blocking=True),
-                                                device=device)    
+                                                 data_loader=test_loader,
+                                                 metric=Accuracy().to(device.value, non_blocking=True),
+                                                 device=device)    
             return EvaluationMetrics(
                 is_valid_solution=True,
                 fitness=fitness_value,
                 n_trainable_parameters=trainable_params_count,
                 n_layers=len(layers),
                 n_epochs=trainer.trained_epochs,
-                validation_losses=trainer.validation_loss,
+                losses=trainer.loss_values,
                 training_time_spent=time()-start
             )
         except InvalidNetwork as e:
@@ -309,19 +310,18 @@ class BarlowTwinsEvaluator(BaseEvaluator):
         dataset: Dict[DatasetType, Dataset] = load_dataset(dataset_name, train_transformer, test_transformer)
         super().__init__(fitness_metric, seed, user_chosen_device, dataset)
 
-
-    #def compute_fitness_temp(self, model: nn.Module, data_loader: DataLoader, metric: Metric, device: Device, batch_size: int) -> float:
-    #    model.eval()
-    #    total_loss = torch.zeros(1,)
-    #    # since we're not training, we don't need to calculate the gradients for our outputs
-    #    counter = 0
-    #    for i, ((y_a, y_b), _) in enumerate(data_loader, 0):
-    #        counter += 1
-    #        inputs_a = y_a.to(device.value)
-    #        inputs_b = y_b.to(device.value)
-    #        loss = model.forward(inputs_a, inputs_b, batch_size)
-    #        total_loss += loss
-    #    return -float(total_loss.data)/counter
+    def compute_fitness_temp(self,
+                             model: nn.Module, data_loader: DataLoader, metric: Metric, device: Device) -> float:
+        model.eval()
+        # since we're not training, we don't need to calculate the gradients for our outputs
+        with torch.no_grad():
+            for data in data_loader:
+                inputs, labels = data[0].to(device.value, non_blocking=True), data[1].to(device.value, non_blocking=True)
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                accuracy_test = metric(predicted, labels)
+        accuracy_test = metric.compute()
+        return float(accuracy_test.data)
 
     def evaluate(self,
                  phenotype: str,
@@ -350,7 +350,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
         try:
             if reuse_parent_weights is True \
                     and parent_dir is not None \
-                    and len(os.listdir(parent_dir)) > 0:
+                    and len(os.listdir(parent_dir)) > 0 and 1<0:
                 torch_model = torch.load(os.path.join(parent_dir, "model.pth"))
                 assert torch_model is not None
                 torch_model.load_state_dict(torch.load(os.path.join(parent_dir, "weights.pth")))
@@ -383,28 +383,43 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             train_loader, validation_loader, test_loader = self._get_data_loaders(learning_params.batch_size)
 
             trainer = Trainer(model=torch_model,
-                            optimiser=learning_params.torch_optimiser,
-                            loss_function=nn.CrossEntropyLoss(),
-                            train_data_loader=train_loader,
-                            validation_data_loader=validation_loader,
-                            n_epochs=learning_params.epochs,
-                            initial_epoch=num_epochs,
-                            device=device,
-                            callbacks=[ModelCheckpointCallback(model_saving_dir),
-                                       TimedStoppingCallback(max_seconds=train_time)])
-                                       #EarlyStoppingCallback(patience=learning_params.early_stop)])
+                              optimiser=learning_params.torch_optimiser,
+                              loss_function=nn.CrossEntropyLoss(),
+                              train_data_loader=train_loader,
+                              validation_data_loader=validation_loader,
+                              n_epochs=learning_params.epochs,
+                              initial_epoch=num_epochs,
+                              device=device,
+                              callbacks=[ModelCheckpointCallback(model_saving_dir),
+                                         TimedStoppingCallback(max_seconds=train_time),
+                                         EarlyStoppingCallback(patience=learning_params.early_stop)])
             trainer.barlow_twins_train(learning_params.batch_size)
-            fitness_value = self.compute_fitness(model=torch_model,
-                                                data_loader=test_loader,
-                                                metric=Accuracy().to(device.value, non_blocking=True),
-                                                device=device)
+
+            complete_model: EvaluationBarlowTwinsNetwork = EvaluationBarlowTwinsNetwork(torch_model, 10)
+
+            params_to_tune = [param for name, param in complete_model.named_parameters() if name in {'final_layer.weight', 'final_layer.bias'}]
+            last_layer_trainer = Trainer(model=complete_model,
+                                         optimiser=torch.optim.SGD(params_to_tune, lr=0.1, momentum=0.9),
+                                         loss_function=nn.CrossEntropyLoss(),
+                                         train_data_loader=test_loader,
+                                         validation_data_loader=test_loader,
+                                         n_epochs=100,
+                                         initial_epoch=0,
+                                         device=device,
+                                         callbacks=[ModelCheckpointCallback(model_saving_dir)])
+            last_layer_trainer.train()
+
+            fitness_value = self.compute_fitness_temp(model=complete_model,
+                                                      data_loader=test_loader,
+                                                      metric=Accuracy().to(device.value, non_blocking=True),
+                                                      device=device)
             return EvaluationMetrics(
                 is_valid_solution=True,
                 fitness=fitness_value,
                 n_trainable_parameters=trainable_params_count,
                 n_layers=len(layers),
                 n_epochs=trainer.trained_epochs,
-                validation_losses=trainer.validation_loss,
+                losses=trainer.loss_values,
                 training_time_spent=time()-start
             )
         except InvalidNetwork as e:

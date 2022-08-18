@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import astuple, dataclass, fields
-from typing import Any, Iterator, List
+from typing import Any, Dict, Iterator, List
 
 @dataclass
 class EvaluationMetrics:
@@ -10,7 +10,7 @@ class EvaluationMetrics:
     n_trainable_parameters: int
     n_layers: int
     training_time_spent: float
-    validation_losses: List[float]
+    losses: Dict[str, List[float]]
     n_epochs: int
 
     @classmethod
@@ -21,7 +21,7 @@ class EvaluationMetrics:
             n_trainable_parameters=-1,
             n_layers=0,
             training_time_spent=0.0,
-            validation_losses=[],
+            losses={},
             n_epochs=0
         )
 

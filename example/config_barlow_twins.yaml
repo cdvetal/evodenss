@@ -1,17 +1,17 @@
-checkpoints_path: ./experiments/
+checkpoints_path: ../experiments/
 evolutionary:
-  generations: 2
+  generations: 4
   lambda: 3
-  max_epochs: 10000
+  max_epochs: 100000
   mutation:
-    add_connection: 0.3
-    remove_connection: 0.3
-    add_layer: 0.85
-    reuse_layer: 0.75
-    remove_layer: 0.85
-    dsge_layer: 0.75
-    macro_layer: 0.9
-    train_longer: 0.5
+    add_connection: 0.0
+    remove_connection: 0.0
+    add_layer: 0.25
+    reuse_layer: 0.15
+    remove_layer: 0.25
+    dsge_layer: 0.15
+    macro_layer: 0.3
+    train_longer: 0.2
 network:
   architecture:
     reuse_layer: 0.15

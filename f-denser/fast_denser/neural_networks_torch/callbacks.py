@@ -50,7 +50,7 @@ class ModelCheckpointCallback(Callback):
     def on_train_end(self, trainer: Trainer) -> None:
         torch.save(trainer.model, os.path.join(self.model_saving_dir, 'model.pth'))
         torch.save(trainer.model.state_dict(), os.path.join(self.model_saving_dir, 'weights.pth'))
-
+        
     def on_epoch_begin(self, trainer: Trainer) -> None:
         pass
 
