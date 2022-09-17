@@ -4,12 +4,14 @@ from abc import ABC, abstractmethod
 import logging
 import os
 from time import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+import traceback
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-from fast_denser.misc.enums import Device
-from fast_denser.misc.evaluation_metrics import EvaluationMetrics
-from fast_denser.misc.utils import InputLayerId, LayerId, InvalidNetwork
 from fast_denser.misc.constants import INPUT_DIMENSIONS
+from fast_denser.misc.enums import Device, FitnessMetricName
+from fast_denser.misc.evaluation_metrics import EvaluationMetrics
+from fast_denser.misc.fitness_metrics import *
+from fast_denser.misc.utils import InputLayerId, LayerId, InvalidNetwork
 from fast_denser.misc.phenotype_parser import parse_phenotype, Layer, Optimiser
 from fast_denser.neural_networks_torch.callbacks import EarlyStoppingCallback, \
     ModelCheckpointCallback, TimedStoppingCallback
@@ -22,19 +24,38 @@ from fast_denser.neural_networks_torch.evolved_networks import EvaluationBarlowT
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-from torchmetrics import Accuracy
 
 if TYPE_CHECKING:
     from fast_denser.neural_networks_torch import LearningParams
-    from torchmetrics.metric import Metric
 
-__all__ = ['create_evaluator', 'Evaluator', 'LegacyEvaluator', 'BarlowTwinsEvaluator']
+__all__ = ['create_evaluator', 'BaseEvaluator', 'BarlowTwinsEvaluator', 'LegacyEvaluator']
 
 
 logger = logging.getLogger(__name__)
 
+def create_fitness_metric(metric_name: FitnessMetricName,
+                          evaluator_type: type['BaseEvaluator'],
+                          batch_size: Optional[int]=None,
+                          loss_function: Optional[Any]=None) -> FitnessMetric:
+    fitness_metric: FitnessMetric
+    if metric_name.value not in FitnessMetricName.enum_values():
+        raise ValueError(f"Invalid fitness metric retrieved from the config: [{metric_name}]")
+    print(evaluator_type, metric_name)
+    if metric_name is FitnessMetricName.ACCURACY:
+        fitness_metric = AccuracyMetric()
+    elif metric_name is FitnessMetricName.LOSS: 
+        if evaluator_type is LegacyEvaluator:
+            assert loss_function is not None
+            fitness_metric = LossMetric(loss_function)
+        elif evaluator_type is BarlowTwinsEvaluator:
+            assert batch_size is not None
+            fitness_metric = BTLossMetric(batch_size)
+    else:
+        raise ValueError(f"Unexpected evaluator type: [{evaluator_type}]")
+    return fitness_metric
+
 def create_evaluator(dataset_name: str,
-                     fitness_metric: Callable,
+                     fitness_metric_name: FitnessMetricName,
                      run: int,
                      learning_type: str,
                      is_gpu_run: bool,
@@ -52,7 +73,7 @@ def create_evaluator(dataset_name: str,
         assert test_augmentation_params is not None
         test_transformer = LegacyTransformer(test_augmentation_params)
         return BarlowTwinsEvaluator(dataset_name,
-                                    fitness_metric,
+                                    fitness_metric_name,
                                     run,
                                     user_chosen_device,
                                     train_transformer,
@@ -63,7 +84,7 @@ def create_evaluator(dataset_name: str,
         test_augmentation_params = {} if test_augmentation_params is None else test_augmentation_params
         test_transformer = LegacyTransformer(test_augmentation_params)
         return LegacyEvaluator(dataset_name,
-                               fitness_metric,
+                               fitness_metric_name,
                                run,
                                user_chosen_device,
                                train_transformer,
@@ -72,7 +93,7 @@ def create_evaluator(dataset_name: str,
 
 class BaseEvaluator(ABC):
     def __init__(self,
-                 fitness_metric: Callable,
+                 fitness_metric_name: FitnessMetricName,
                  seed: int,
                  user_chosen_device: Device,
                  dataset: Dict[DatasetType, Dataset]) -> None:
@@ -84,7 +105,7 @@ class BaseEvaluator(ABC):
             dataset : str
                 dataset to be loaded
         """
-        self.fitness_metric: Callable[..., float] = fitness_metric
+        self.fitness_metric_name: FitnessMetricName = fitness_metric_name
         self.seed: int = seed
         self.user_chosen_device: Device = user_chosen_device
         self.dataset = dataset
@@ -98,30 +119,52 @@ class BaseEvaluator(ABC):
 
 
     @staticmethod
-    def _calculate_invalid_network_fitness() -> float:
-        return -1.0
+    def _calculate_invalid_network_fitness(metric_name: FitnessMetricName,
+                                           evaluator_type: type['BaseEvaluator']) -> Fitness:
+        if metric_name.value not in FitnessMetricName.enum_values():
+            raise ValueError(f"Invalid fitness metric retrieved from the config: [{metric_name}]")
+        if metric_name is FitnessMetricName.ACCURACY:
+            return AccuracyMetric.worst_fitness()
+        elif metric_name is FitnessMetricName.LOSS:
+            if evaluator_type is BarlowTwinsEvaluator:
+                return BTLossMetric.worst_fitness()
+            elif evaluator_type is LegacyEvaluator:
+                return LossMetric.worst_fitness()
+            else:
+                raise ValueError(f"Unexpected evaluator type: [{evaluator_type}]")
+        else:
+            raise ValueError(f"Invalid fitness metric") 
 
+    def _get_data_loaders(self, dataset: Dict[DatasetType, Dataset], batch_size: int) -> Tuple[DataLoader, DataLoader, DataLoader]:
+        train_dataset = dataset[DatasetType.EVO_TRAIN]
+        validation_dataset = dataset[DatasetType.EVO_VALIDATION]
+        test_dataset = dataset[DatasetType.EVO_TEST]
 
-    def _get_data_loaders(self, batch_size: int) -> Tuple[DataLoader, DataLoader, DataLoader]:
-        train_loader = DataLoader(self.dataset[DatasetType.EVO_TRAIN],
+        assert train_dataset is not None
+        assert validation_dataset is not None
+        assert test_dataset is not None
+
+        train_loader = DataLoader(train_dataset,
                                   batch_size=batch_size,
                                   shuffle=False,
                                   num_workers=8,
                                   drop_last=True,
                                   pin_memory=True)
 
-        validation_loader = DataLoader(self.dataset[DatasetType.EVO_VALIDATION],
+        validation_loader = DataLoader(validation_dataset,
                                        batch_size=batch_size,
                                        shuffle=False,
                                        num_workers=8,
                                        drop_last=True,
                                        pin_memory=True)
 
-        test_loader = DataLoader(self.dataset[DatasetType.EVO_TEST],
+        
+        test_loader = DataLoader(test_dataset,
                                  batch_size=batch_size,
                                  shuffle=False,
                                  num_workers=8,
                                  drop_last=True)
+
         return train_loader, validation_loader, test_loader
     
 
@@ -129,8 +172,8 @@ class BaseEvaluator(ABC):
         if self.user_chosen_device == Device.CPU:
             return Device.CPU
         else:
-            if torch.cuda.is_available() is False:
-                logger.warning(f"User chose training in {self.user_chosen_device.name} but CUDA is not available. "
+            if torch.cuda.is_available() is False and torch.backends.mps.is_available() is False:
+                logger.warning(f"User chose training in {self.user_chosen_device.name} but CUDA/MPS is not available. "
                                f"Defaulting training to {Device.CPU.name}")
                 return Device.CPU
             else:
@@ -144,26 +187,24 @@ class BaseEvaluator(ABC):
                  reuse_parent_weights: bool,
                  train_time: float,
                  num_epochs: int,
-                 input_size: Any=(32, 32, 3)) -> EvaluationMetrics:
-        pass
-
-
-    def compute_fitness(self, model: nn.Module, data_loader: DataLoader, metric: Metric, device: Device) -> float:
-        model.eval()
-        # since we're not training, we don't need to calculate the gradients for our outputs
-        with torch.no_grad():
-            for data in data_loader:
-                inputs, labels = data[0].to(device.value, non_blocking=True), data[1].to(device.value, non_blocking=True)
-                outputs = model(inputs)
-                _, predicted = torch.max(outputs.data, 1)
-                accuracy_test = metric(predicted, labels)
-        accuracy_test = metric.compute()
-        return float(accuracy_test.data)
+                 input_size: Any=INPUT_DIMENSIONS) -> EvaluationMetrics:
+        raise NotImplementedError()
 
 
     def testing_performance(self, model_dir: str) -> float:
-        torch_model: nn.Module = torch.load(os.path.join(model_dir, "model.pth"))
-        torch_model.load_state_dict(torch.load(os.path.join(model_dir, "weights.pth")))
+        model_filename: str
+        weights_filename: str
+        if type(self) is BarlowTwinsEvaluator:
+            model_filename = "complete_model.pth"
+            weights_filename = "complete_model_weights.pth"
+        elif type(self) is LegacyEvaluator:
+            model_filename = "model.pth"
+            weights_filename = "weights.pth"
+        else:
+            raise ValueError("Unexpected evaluator")
+        
+        torch_model: nn.Module = torch.load(os.path.join(model_dir, model_filename))
+        torch_model.load_state_dict(torch.load(os.path.join(model_dir, weights_filename)))
         torch_model.eval()
 
         device: Device = self._decide_device()
@@ -171,21 +212,11 @@ class BaseEvaluator(ABC):
             torch_model = nn.DataParallel(torch_model)
         torch_model.to(device.value, non_blocking=True)
 
-        test_loader: DataLoader = DataLoader(self.dataset[DatasetType.TEST],
-                                             batch_size=64,
-                                             shuffle=True)
-
-        metric = Accuracy().to(device.value, non_blocking=True)
-        # since we're not training, we don't need to calculate the gradients for our outputs
-        with torch.no_grad():
-            for data in test_loader:
-                images, labels = data[0].to(device.value, non_blocking=True), data[1].to(device.value, non_blocking=True)
-                outputs = torch_model(images)
-                _, predicted = torch.max(outputs.data, 1)
-                accuracy_test = metric(predicted, labels)
-        accuracy_test = metric.compute()
-
-        return float(accuracy_test.data)
+        test_set = self.dataset[DatasetType.TEST]
+        assert test_set is not None
+        test_loader: DataLoader = DataLoader(test_set, batch_size=64, shuffle=True)
+        metric = AccuracyMetric(batch_size=64)
+        return metric.compute_metric(torch_model, test_loader, device)
 
 
 
@@ -193,7 +224,7 @@ class LegacyEvaluator(BaseEvaluator):
 
     def __init__(self,
                  dataset_name: str,
-                 fitness_metric: Callable,
+                 fitness_metric_name: FitnessMetricName,
                  seed: int,
                  user_chosen_device: Device,
                  train_transformer: BaseTransformer,
@@ -206,8 +237,11 @@ class LegacyEvaluator(BaseEvaluator):
             dataset : str
                 dataset to be loaded
         """
-        dataset: Dict[DatasetType, Dataset] = load_dataset(dataset_name, train_transformer, test_transformer)
-        super().__init__(fitness_metric, seed, user_chosen_device, dataset)
+        dataset: Dict[DatasetType, Dataset] = load_dataset(dataset_name,
+                                                           train_transformer,
+                                                           test_transformer,
+                                                           enable_stratify=True)
+        super().__init__(fitness_metric_name, seed, user_chosen_device, dataset)
 
 
     def evaluate(self,
@@ -226,12 +260,12 @@ class LegacyEvaluator(BaseEvaluator):
         layers_connections: Dict[LayerId, List[InputLayerId]]
         device: Device
         torch_model: nn.Module
-        fitness_value: float
+        fitness_value: Fitness
         start = time()
 
         os.makedirs(model_saving_dir, exist_ok=True)
 
-        print(phenotype)
+        logger.info(phenotype)
         layers, layers_connections, optimiser = parse_phenotype(phenotype)
         print(f"Reuse parents weights: {reuse_parent_weights}, Directory: {parent_dir}")
         try:
@@ -258,11 +292,13 @@ class LegacyEvaluator(BaseEvaluator):
             train_loader: DataLoader
             validation_loader: DataLoader
             test_loader: DataLoader
-            train_loader, validation_loader, test_loader = self._get_data_loaders(learning_params.batch_size)
+            train_loader, validation_loader, test_loader = \
+                self._get_data_loaders(self.dataset, learning_params.batch_size)
 
+            loss_function = nn.CrossEntropyLoss()
             trainer = Trainer(model=torch_model,
                               optimiser=learning_params.torch_optimiser,
-                              loss_function=nn.CrossEntropyLoss(),
+                              loss_function=loss_function,
                               train_data_loader=train_loader,
                               validation_data_loader=validation_loader,
                               n_epochs=learning_params.epochs,
@@ -272,13 +308,21 @@ class LegacyEvaluator(BaseEvaluator):
                                          ModelCheckpointCallback(model_saving_dir),
                                          TimedStoppingCallback(max_seconds=train_time)])
             trainer.train()
-            fitness_value = self.compute_fitness(model=torch_model,
-                                                 data_loader=test_loader,
-                                                 metric=Accuracy().to(device.value, non_blocking=True),
-                                                 device=device)    
+            fitness_metric: FitnessMetric = create_fitness_metric(self.fitness_metric_name,
+                                                                  type(self),
+                                                                  loss_function=loss_function)
+            fitness_value = Fitness(fitness_metric.compute_metric(torch_model, test_loader, device),
+                                    type(fitness_metric))
+            accuracy: Optional[float]
+            if fitness_metric is AccuracyMetric:
+                accuracy = None
+            else:
+                accuracy = AccuracyMetric().compute_metric(torch_model, test_loader, device)
+
             return EvaluationMetrics(
                 is_valid_solution=True,
                 fitness=fitness_value,
+                accuracy=accuracy,
                 n_trainable_parameters=trainable_params_count,
                 n_layers=len(layers),
                 n_epochs=trainer.trained_epochs,
@@ -287,14 +331,16 @@ class LegacyEvaluator(BaseEvaluator):
             )
         except InvalidNetwork as e:
             logger.warning(f"Invalid model. Fitness will be computed as invalid individual. Reason: {e.message}")
-            return EvaluationMetrics.default()
+            fitness_value = self._calculate_invalid_network_fitness(self.fitness_metric_name, type(self))
+            return EvaluationMetrics.default(fitness_value)
+
+
 
 class BarlowTwinsEvaluator(BaseEvaluator):
 
-
     def __init__(self,
                  dataset_name: str,
-                 fitness_metric: Callable,
+                 fitness_metric_name: FitnessMetricName,
                  seed: int,
                  user_chosen_device: Device,
                  train_transformer: BaseTransformer,
@@ -307,21 +353,16 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             dataset : str
                 dataset to be loaded
         """
-        dataset: Dict[DatasetType, Dataset] = load_dataset(dataset_name, train_transformer, test_transformer)
-        super().__init__(fitness_metric, seed, user_chosen_device, dataset)
+        self.pairwise_dataset: Dict[DatasetType, Dataset] = load_dataset(dataset_name,
+                                                                         train_transformer,
+                                                                         test_transformer,
+                                                                         enable_stratify=False)
+        dataset: Dict[DatasetType, Dataset] = load_dataset(dataset_name,
+                                                           test_transformer,
+                                                           test_transformer,
+                                                           enable_stratify=True)
+        super().__init__(fitness_metric_name, seed, user_chosen_device, dataset)
 
-    def compute_fitness_temp(self,
-                             model: nn.Module, data_loader: DataLoader, metric: Metric, device: Device) -> float:
-        model.eval()
-        # since we're not training, we don't need to calculate the gradients for our outputs
-        with torch.no_grad():
-            for data in data_loader:
-                inputs, labels = data[0].to(device.value, non_blocking=True), data[1].to(device.value, non_blocking=True)
-                outputs = model(inputs)
-                _, predicted = torch.max(outputs.data, 1)
-                accuracy_test = metric(predicted, labels)
-        accuracy_test = metric.compute()
-        return float(accuracy_test.data)
 
     def evaluate(self,
                  phenotype: str,
@@ -339,34 +380,30 @@ class BarlowTwinsEvaluator(BaseEvaluator):
         layers_connections: Dict[LayerId, List[InputLayerId]]
         device: Device
         torch_model: Optional[nn.Module]
-        fitness_value: float
+        fitness_value: Fitness
         start = time()
 
         os.makedirs(model_saving_dir, exist_ok=True)
 
-        print(phenotype)
+        logger.info(phenotype)
         layers, layers_connections, optimiser = parse_phenotype(phenotype)
-        print(f"Reuse parents weights: {reuse_parent_weights}, Directory: {parent_dir}")
         try:
+            print(f"Reuse parents weights: {reuse_parent_weights}, Directory: {parent_dir}")
             if reuse_parent_weights is True \
                     and parent_dir is not None \
-                    and len(os.listdir(parent_dir)) > 0 and 1<0:
+                    and len(os.listdir(parent_dir)) > 0:
                 torch_model = torch.load(os.path.join(parent_dir, "model.pth"))
                 assert torch_model is not None
                 torch_model.load_state_dict(torch.load(os.path.join(parent_dir, "weights.pth")))
             else:
                 if reuse_parent_weights is True:
                     num_epochs = 0
+                    print("surprise, num epochs was reset to 0")
                 model_builder: ModelBuilder = ModelBuilder(layers, layers_connections, input_size)
                 torch_model = model_builder.assemble_network(type(self))
-            
-                if torch_model is None:
-                    logger.warning("Invalid model. Fitness will be computed as invalid individual")
-                    fitness_value = self._calculate_invalid_network_fitness()
-                    return EvaluationMetrics.default()
-
             device = self._decide_device()
             self._adapt_model_to_device(torch_model, device)
+            logger.debug(torch_model)
 
             learning_params: LearningParams = ModelBuilder.assemble_optimiser(
                 torch_model.parameters(),
@@ -379,8 +416,10 @@ class BarlowTwinsEvaluator(BaseEvaluator):
 
             train_loader: DataLoader
             validation_loader: DataLoader
-            test_loader: DataLoader
-            train_loader, validation_loader, test_loader = self._get_data_loaders(learning_params.batch_size)
+            pairwise_test_loader: DataLoader
+            normal_test_loader: DataLoader
+            train_loader, validation_loader, pairwise_test_loader = \
+                self._get_data_loaders(self.pairwise_dataset, learning_params.batch_size)
 
             trainer = Trainer(model=torch_model,
                               optimiser=learning_params.torch_optimiser,
@@ -393,29 +432,54 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                               callbacks=[ModelCheckpointCallback(model_saving_dir),
                                          TimedStoppingCallback(max_seconds=train_time),
                                          EarlyStoppingCallback(patience=learning_params.early_stop)])
+            
             trainer.barlow_twins_train(learning_params.batch_size)
 
-            complete_model: EvaluationBarlowTwinsNetwork = EvaluationBarlowTwinsNetwork(torch_model, 10)
+            fitness_metric: FitnessMetric = create_fitness_metric(self.fitness_metric_name,
+                                                                  type(self),
+                                                                  batch_size=learning_params.batch_size)
 
+            accuracy: Optional[float]
+            # Second train for the last layer
+            train_loader, validation_loader, normal_test_loader = \
+                self._get_data_loaders(self.dataset, learning_params.batch_size)
+            n_classes: int = 10 # TODO: valid only for mnist and fashion mnist
+            complete_model: EvaluationBarlowTwinsNetwork = EvaluationBarlowTwinsNetwork(torch_model, n_classes).to(device.value, non_blocking=True)
             params_to_tune = [param for name, param in complete_model.named_parameters() if name in {'final_layer.weight', 'final_layer.bias'}]
+            
             last_layer_trainer = Trainer(model=complete_model,
                                          optimiser=torch.optim.SGD(params_to_tune, lr=0.1, momentum=0.9),
                                          loss_function=nn.CrossEntropyLoss(),
-                                         train_data_loader=test_loader,
-                                         validation_data_loader=test_loader,
-                                         n_epochs=100,
+                                         train_data_loader=train_loader,
+                                         validation_data_loader=validation_loader,
+                                         n_epochs=10,
                                          initial_epoch=0,
                                          device=device,
-                                         callbacks=[ModelCheckpointCallback(model_saving_dir)])
+                                         callbacks=[ModelCheckpointCallback(model_saving_dir,
+                                                                            model_filename="complete_model.pth",
+                                                                            weights_filename="complete_model_weights.pth")])
             last_layer_trainer.train()
+            if type(fitness_metric) is AccuracyMetric:
+                fitness_value = Fitness(
+                    fitness_metric.compute_metric(complete_model, normal_test_loader, device),
+                    type(fitness_metric)
+                )
+                accuracy = None
+            else:
+                try:
+                    fitness_value = Fitness(
+                        fitness_metric.compute_metric(torch_model, pairwise_test_loader, device),
+                        type(fitness_metric)
+                    )
+                except ValueError as e:
+                    logger.warning(f"Error computing fitness, individual will be considered invalid. Reason: {traceback.format_exc()}")
+                    fitness_value = self._calculate_invalid_network_fitness(self.fitness_metric_name, type(self))
+                accuracy = AccuracyMetric().compute_metric(complete_model, normal_test_loader, device)
 
-            fitness_value = self.compute_fitness_temp(model=complete_model,
-                                                      data_loader=test_loader,
-                                                      metric=Accuracy().to(device.value, non_blocking=True),
-                                                      device=device)
             return EvaluationMetrics(
                 is_valid_solution=True,
                 fitness=fitness_value,
+                accuracy=accuracy,
                 n_trainable_parameters=trainable_params_count,
                 n_layers=len(layers),
                 n_epochs=trainer.trained_epochs,
@@ -423,5 +487,6 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                 training_time_spent=time()-start
             )
         except InvalidNetwork as e:
-            logger.warning(f"Invalid model. Fitness will be computed as invalid individual. Reason: {e.message}")
-            return EvaluationMetrics.default()
+            logger.warning(f"Invalid model, error during evaluation. Fitness will be computed as invalid individual. Reason: {traceback.format_exc()}")
+            fitness_value = self._calculate_invalid_network_fitness(self.fitness_metric_name, type(self))
+            return EvaluationMetrics.default(fitness_value)
