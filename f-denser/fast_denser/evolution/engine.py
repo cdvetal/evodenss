@@ -7,6 +7,7 @@ from typing import List
 from fast_denser.config import Config
 from fast_denser.evolution import Grammar, Individual, operators
 from fast_denser.misc import Checkpoint, persistence
+from fast_denser.misc.fitness_metrics import Fitness
 
 import numpy as np
 import torch
@@ -20,10 +21,10 @@ def evolve(run: int,
            checkpoint: Checkpoint,
            config: Config) -> Checkpoint:
 
-    logger.info(f"Performing generation: {generation}")
+    logger.info(f"\n\nPerforming generation: {generation}")
 
     population: List[Individual]
-    population_fits: List[float]
+    population_fits: List[Fitness]
     if generation == 0:
         logger.info("Creating the initial population")
 
@@ -45,8 +46,9 @@ def evolve(run: int,
             ind.current_time = 0
             ind.num_epochs = 0
             ind.total_training_time_spent = 0.0 # TODO: This might not be right
-            ind.train_time = config['network']['learning']['default_train_time']
+            ind.total_allocated_train_time = config['network']['learning']['default_train_time']
             ind.id = idx
+            print("------------> ", ind.id, ind.num_epochs, ind.fitness)
             population_fits.append(
                 ind.evaluate(grammar,
                              checkpoint.evaluator,
@@ -56,6 +58,7 @@ def evolve(run: int,
     else:
         assert checkpoint.parent is not None
 
+        logger.info("Applying mutation operators")
         # generate offspring (by mutation)
         offspring: List[Individual] = \
             [operators.mutation(checkpoint.parent,
@@ -73,9 +76,11 @@ def evolve(run: int,
 
         # evaluate population
         population_fits = []
+        print("population")
         for idx, ind in enumerate(population):
             ind.total_training_time_spent = 0.0 # TODO: This might not be right
             ind.id = idx
+            print("------------> ", ind.id, ind.num_epochs, ind.fitness)
             population_fits.append(
                 ind.evaluate(
                     grammar,
@@ -85,6 +90,7 @@ def evolve(run: int,
                 )
             )
 
+    logger.info("Selecting the fittest individual")
     # select parent
     parent = operators.select_fittest(
                 population,
@@ -95,8 +101,9 @@ def evolve(run: int,
                 generation,
                 config['checkpoints_path'],
                 config['network']['learning']["default_train_time"])
+    assert parent.fitness is not None
 
-    print(population_fits)
+    logger.info(f"Fitnesses: {population_fits}")
 
     # update best individual
     if checkpoint.best_fitness is None or parent.fitness > checkpoint.best_fitness:
