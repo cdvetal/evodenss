@@ -62,7 +62,7 @@ properties:
           default_train_time:
             type: integer
           fitness_metric:
-            type: string
+            enum: [accuracy, loss]
           augmentation:
             type: object
             properties:
