@@ -46,6 +46,7 @@ class Test(unittest.TestCase):
                                   0,
                                   0)
         run=0
+        
         expected_checkpoint: Checkpoint = Checkpoint(run, None, None, None, 0, 0, 0, None, [], fake_parent)
         self.assertEqual(expected_checkpoint, self.restore_checkpoint.restore_checkpoint("tests/utils", run))
 
