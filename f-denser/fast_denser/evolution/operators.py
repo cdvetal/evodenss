@@ -1,11 +1,16 @@
-import random
 from copy import deepcopy
+import logging
+import random
 from typing import Dict
 
 import numpy as np
 
 from fast_denser.evolution import Grammar, Individual
 from fast_denser.misc import persistence
+
+
+logger = logging.getLogger(__name__)
+
 
 def mutation_dsge(layer, grammar: Grammar):
     """
@@ -100,7 +105,7 @@ def mutation(individual: Individual,
 
     #Train individual for longer - no other mutation is applied
     if random.random() <= train_longer_prob:
-        ind.train_time += default_train_time
+        ind.total_allocated_train_time += default_train_time
         return ind
 
 
@@ -108,7 +113,7 @@ def mutation(individual: Individual,
     #the training time is reset
     ind.current_time = 0
     ind.num_epochs = 0
-    ind.train_time = default_train_time
+    ind.total_allocated_train_time = default_train_time
 
     for module in ind.modules:
 
@@ -202,7 +207,7 @@ def select_fittest(population,
                    run: int,
                    generation: int,
                    checkpoint_base_path: str,
-                   default_train_time): #pragma: no cover
+                   default_train_time) -> Individual: #pragma: no cover
 
     #Get best individual just according to fitness
     idx_max = np.argmax(population_fits)
@@ -210,14 +215,14 @@ def select_fittest(population,
 
     #however if the parent is not the elite, and the parent is trained for longer, the elite
     #is granted the same evaluation time.
-    if parent.train_time > default_train_time:
+    if parent.total_allocated_train_time > default_train_time:
         retrain_elite = False
-        #print(f"parent {idx_max}!=0, {parent.train_time}>{default_train_time}, {population[0].train_time}<{parent.train_time}")
-        if idx_max != 0 and population[0].train_time > default_train_time and \
-            population[0].train_time < parent.train_time:
+        if idx_max != 0 and population[0].total_allocated_train_time > default_train_time and \
+            population[0].total_allocated_train_time < parent.total_allocated_train_time:
+            logger.info("Elite train was extended, since parent was trained for longer")
             retrain_elite = True
             elite = population[0]
-            elite.train_time = parent.train_time
+            elite.total_allocated_train_time = parent.total_allocated_train_time
             elite.evaluate(grammar,
                            cnn_eval,
                            persistence.build_individual_path(checkpoint_base_path, run, generation, elite.id),
@@ -228,9 +233,8 @@ def select_fittest(population,
 
         #also retrain the best individual that is trained just for the default time
         retrain_10min = False
-        if min_train_time < parent.train_time:
+        if min_train_time < parent.total_allocated_train_time:
             ids_10min = [ind.current_time == min_train_time for ind in population]
-            #print(f"parent {[ind.current_time for ind in population]}, {min_train_time}<{parent.train_time}, {parent.train_time}>{default_train_time}")
             if sum(ids_10min) > 0:
                 retrain_10min = True
                 indvs_10min = np.array(population)[ids_10min]
@@ -238,8 +242,8 @@ def select_fittest(population,
                 idx_max_10min = np.argmax(max_fitness_10min)
                 parent_10min = indvs_10min[idx_max_10min]
 
-                parent_10min.train_time = parent.train_time
-
+                parent_10min.total_allocated_train_time = parent.total_allocated_train_time
+                logger.info(f"Individual {parent_10min.id} has its train extended ")
                 parent_10min.evaluate(grammar,
                                       cnn_eval,
                                       persistence.build_individual_path(checkpoint_base_path, run, generation, parent_10min.id),
@@ -248,7 +252,7 @@ def select_fittest(population,
                 population_fits[population.index(parent_10min)] = parent_10min.fitness
 
 
-        #select the fittest amont all retrains and the initial parent
+        #select the fittest among all retrains and the initial parent
         if retrain_elite:
             if retrain_10min:
                 if parent_10min.fitness > elite.fitness and parent_10min.fitness > parent.fitness:
