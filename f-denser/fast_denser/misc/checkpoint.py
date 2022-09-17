@@ -7,6 +7,7 @@ from torch import Tensor
 
 if TYPE_CHECKING:
     from fast_denser.evolution import Individual
+    from fast_denser.misc.fitness_metrics import Fitness
     from fast_denser.neural_networks_torch.evaluators import BaseEvaluator
 
 
@@ -18,7 +19,7 @@ class Checkpoint:
     torch_random_state: Tensor
     last_processed_generation: int
     total_epochs: int
-    best_fitness: Optional[float]
+    best_fitness: Optional[Fitness]
     evaluator: BaseEvaluator
     population: Optional[List[Individual]] = field(default=None)
     parent: Optional[Individual] = field(default=None)
