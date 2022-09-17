@@ -8,9 +8,9 @@ from fast_denser.misc.enums import ActivationType, LayerType, OptimiserType, Pro
 from fast_denser.misc.phenotype_parser import Layer
 from fast_denser.misc.utils import InvalidNetwork, InputLayerId, LayerId
 from fast_denser.neural_networks_torch import Dimensions, LearningParams
-from fast_denser.neural_networks_torch.evaluators import BarlowTwinsEvaluator, LegacyEvaluator
 from fast_denser.neural_networks_torch.evolved_networks import BarlowTwinsNetwork, \
     EvolvedNetwork, LegacyNetwork
+from fast_denser.neural_networks_torch.evaluators import *
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -38,6 +38,7 @@ class ModelBuilder():
         }
         self.layer_type_counts: Counter = Counter([])
 
+
     @classmethod
     def assemble_optimiser(cls, model_parameters: Iterable[Tensor], optimiser: Optimiser) -> LearningParams:
         early_stop: int = optimiser.optimiser_parameters.pop("early_stop")
@@ -64,7 +65,7 @@ class ModelBuilder():
         )
 
 
-    def assemble_network(self, evaluation_type: type) -> EvolvedNetwork:
+    def assemble_network(self, evaluation_type: type[BaseEvaluator]) -> EvolvedNetwork:
         layer_to_add: nn.Module
         torch_layers: List[Tuple[str, nn.Module]] = []
         collected_extra_torch_layers: List[Tuple[str, nn.Module]] = []
@@ -100,7 +101,6 @@ class ModelBuilder():
             if evaluation_type is LegacyEvaluator:
                 return LegacyNetwork(torch_layers + collected_extra_torch_layers, self.layers_connections)
             elif evaluation_type is BarlowTwinsEvaluator:
-                #print("-----> ", self.layer_shapes)
                 return BarlowTwinsNetwork(torch_layers + collected_extra_torch_layers,
                                           self.layers_connections,
                                           ProjectorUsage.EXPLICIT)
