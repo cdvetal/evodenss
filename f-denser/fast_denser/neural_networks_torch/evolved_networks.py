@@ -11,6 +11,12 @@ from torch import nn, Tensor
 
 logger = logging.getLogger(__name__)
 
+
+def find_last_layer_info(layer_names: List[str]) -> Tuple[str, int]:
+    linear_layers: List[str] = list(filter(lambda x: x.startswith(LayerType.FC.value) and "." not in x, layer_names))
+    ids: List[int] = list(map(lambda x: int(x.split("_")[-1].split(".")[0]), linear_layers))
+    return LayerType.FC.value, max(ids)
+
 class EvolvedNetwork(nn.Module):
 
     def __init__(self,
@@ -94,20 +100,32 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                  evolved_layers: List[Tuple[str, nn.Module]],
                  layers_connections: Dict[LayerId, List[InputLayerId]],
                  projector_network_usage: ProjectorUsage):
+        
+        # TODO: DO IT MORE EFFICIENTLY
         super(BarlowTwinsNetwork, self).__init__(evolved_layers, layers_connections)
-        self.bn = nn.BatchNorm1d(10, affine=False)
-        self.projector: Optional[nn.Sequential]
-        if projector_network_usage == ProjectorUsage.EXPLICIT:
-            self.projector = nn.Sequential(
-                nn.Linear(10, 8192, bias=False),
-                nn.BatchNorm1d(8192),
-                nn.ReLU(inplace=True),
-                nn.Linear(8192, 8192, bias=False)
-            )
-        elif projector_network_usage == ProjectorUsage.IMPLICIT:
-            raise NotImplementedError("Projector_network_usage cannot be implicit yet")
-        else:
-            self.projector = None
+        layer_names: List[str] = list(map(lambda x: x[0], evolved_layers))
+        
+        last_layer_name: str
+        last_layer_count: int
+        last_layer_name, last_layer_count = find_last_layer_info(layer_names)
+        index: int = 1 if last_layer_count == 1 else 0
+        last_layer = list(filter(lambda x: x[0] == f"{last_layer_name}_{last_layer_count}", evolved_layers))[0][1]
+        
+        last_layer_out_features = last_layer[index].out_features
+        
+        self.bn = nn.BatchNorm1d(last_layer_out_features, affine=False)
+        #self.projector: Optional[nn.Sequential]
+        #if projector_network_usage == ProjectorUsage.EXPLICIT:
+        #    self.projector = nn.Sequential(
+        #        nn.Linear(10, 8192, bias=False),
+        #        nn.BatchNorm1d(8192),
+        #        nn.ReLU(inplace=True),
+        #        nn.Linear(8192, 8192, bias=False)
+        #    )
+        #elif projector_network_usage == ProjectorUsage.IMPLICIT:
+        #    raise NotImplementedError("Projector_network_usage cannot be implicit yet")
+        #else:
+        #    self.projector = None
 
 
     def forward(self, x1: Tensor, x2: Tensor=None, batch_size: int=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
@@ -124,9 +142,10 @@ class BarlowTwinsNetwork(EvolvedNetwork):
 
             # empirical cross-correlation matrix
             c = self.bn(z1).T @ self.bn(z2)
-
+            #print(c)
             # sum the cross-correlation matrix between all gpus
             c.div_(batch_size)
+            #torch.distributed.all_reduce(c)
 
             on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
             off_diag = self._off_diagonal(c).pow_(2).sum()
@@ -174,17 +193,13 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
         last_layer_name: str
         last_layer_count: int
 
-        last_layer_name, last_layer_count = self._find_last_layer_info(layer_names)
+        last_layer_name, last_layer_count = find_last_layer_info(layer_names)
         index: int = 1 if last_layer_count == 1 else 0
+
         last_layer_out_features = getattr(self.barlow_twins_trained_model, f"{last_layer_name}_{last_layer_count}")[index].out_features
         self.final_layer = nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True)
         self.barlow_twins_trained_model.requires_grad_(False)
         # self.barlow_twins_trained_model.fc.requires_grad_(True)
-
-    def _find_last_layer_info(self, layer_names: List[str]) -> Tuple[str, int]:
-        linear_layers: List[str] = list(filter(lambda x: x.startswith(LayerType.FC.value) and "." not in x, layer_names))
-        ids: List[int] = list(map(lambda x: int(x.split("_")[-1].split(".")[0]), linear_layers))
-        return LayerType.FC.value, max(ids)
 
     def forward(self, x: Tensor) -> Tensor:
         embs = self.barlow_twins_trained_model.forward(x)
