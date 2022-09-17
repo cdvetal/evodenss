@@ -23,33 +23,38 @@ class Callback(ABC):
 
     @abstractmethod
     def on_train_begin(self, trainer: Trainer) -> None:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def on_train_end(self, trainer: Trainer) -> None:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def on_epoch_begin(self, trainer: Trainer) -> None:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def on_epoch_end(self, trainer: Trainer) -> None:
-        pass
+        raise NotImplementedError()
 
 
 # Needs tweak to save individual with lowest validation error
 class ModelCheckpointCallback(Callback):
 
-    def __init__(self, model_saving_dir: str) -> None:
-        self.model_saving_dir = model_saving_dir
+    def __init__(self,
+                 model_saving_dir: str,
+                 model_filename: str="model.pth",
+                 weights_filename: str="weights.pth") -> None:
+        self.model_saving_dir: str = model_saving_dir
+        self.model_filename: str = model_filename
+        self.weights_filename: str = weights_filename
 
     def on_train_begin(self, trainer: Trainer) -> None:
         pass
 
     def on_train_end(self, trainer: Trainer) -> None:
-        torch.save(trainer.model, os.path.join(self.model_saving_dir, 'model.pth'))
-        torch.save(trainer.model.state_dict(), os.path.join(self.model_saving_dir, 'weights.pth'))
+        torch.save(trainer.model, os.path.join(self.model_saving_dir, self.model_filename))
+        torch.save(trainer.model.state_dict(), os.path.join(self.model_saving_dir, self.weights_filename))
         
     def on_epoch_begin(self, trainer: Trainer) -> None:
         pass
@@ -82,7 +87,7 @@ class EarlyStoppingCallback(Callback):
 
     def __init__(self, patience: int) -> None:
         self.patience: int = patience
-        self.best_score: float = 999999.9
+        self.best_score: float = 999999999.9
         self.counter: int = 0
 
     def on_train_begin(self, trainer: Trainer) -> None:
