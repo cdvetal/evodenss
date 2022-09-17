@@ -90,16 +90,13 @@ class SaveCheckpoint:
                                STATS_FOLDER_NAME,
                                f"generation_{checkpoint.last_processed_generation}.csv"), 'w') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter='\t', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            csvwriter.writerow(["id", "phenotype", "fitness", "num_epochs",
-                                "training_time_spent", "training_time"] + \
+            csvwriter.writerow(["id", "phenotype", "num_epochs", "total_training_time_allocated"] + \
                                 EvaluationMetrics.list_fields())
             for ind in checkpoint.population:
                 csvwriter.writerow([ind.id,
                                     ind.phenotype,
-                                    ind.fitness,
                                     ind.num_epochs,
-                                    ind.total_training_time_spent,
-                                    ind.train_time,
+                                    ind.total_allocated_train_time,
                                     *ind.metrics])
 
 
