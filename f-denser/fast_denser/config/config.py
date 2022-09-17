@@ -6,7 +6,6 @@ from jsonschema import validate # type: ignore
 import yaml # type: ignore
 
 from fast_denser.misc.enums import TransformOperation
-#import fast_denser.misc.fitness_metrics as fitness_metrics
 
 
 logger = logging.getLogger(__name__)
