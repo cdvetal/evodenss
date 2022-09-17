@@ -1,6 +1,8 @@
 from enum import unique, Enum
 from typing import Any, List
 
+import torch
+
 class ExtendedEnum(Enum):
     @classmethod
     def enum_values(cls) -> List[Any]:
@@ -19,7 +21,7 @@ class ProjectorUsage(Enum):
 @unique
 class Device(Enum):
     CPU = "cpu"
-    GPU = "cuda:0"
+    GPU = "mps" if torch.backends.mps.is_available() else "cuda:0"
 
 @unique
 class LayerType(ExtendedEnum):
@@ -56,3 +58,8 @@ class TransformOperation(ExtendedEnum):
     SOLARIZE = "random_solarize"
     CENTER_CROP = "center_crop"
     RESIZE = "resize"
+
+@unique
+class FitnessMetricName(ExtendedEnum):
+    LOSS = "loss"
+    ACCURACY = "accuracy"
