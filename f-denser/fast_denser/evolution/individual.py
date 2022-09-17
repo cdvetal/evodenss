@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from fast_denser.neural_networks_torch import Module
 from fast_denser.misc.evaluation_metrics import EvaluationMetrics
+from fast_denser.misc.fitness_metrics import Fitness
 
 import numpy as np
 
@@ -111,11 +112,11 @@ class Individual:
         self.output = None
         self.macro = []
         self.phenotype: Optional[str] = None
-        self.fitness: Optional[float] = None
-        self.metrics: EvaluationMetrics = EvaluationMetrics.default()
+        self.fitness: Optional[Fitness] = None
+        self.metrics: Optional[EvaluationMetrics] = None
         self.num_epochs: int = 0
         self.current_time: float = 0.0
-        self.train_time: float = 0.0
+        self.total_allocated_train_time: float = 0.0
         self.total_training_time_spent: float = 0.0
         self.id: int = ind_id
 
@@ -205,7 +206,7 @@ class Individual:
                  grammar: Grammar,
                  cnn_eval: BaseEvaluator,
                  model_saving_dir: str,
-                 parent_dir: Optional[str]=None) -> float: #pragma: no cover
+                 parent_dir: Optional[str]=None) -> Fitness: #pragma: no cover
 
         phenotype = self._decode(grammar)
 
@@ -214,20 +215,24 @@ class Individual:
         if self.current_time == 0:
             reuse_parent_weights = False
 
-        train_time: float = self.train_time - self.current_time
+        allocated_train_time: float = self.total_allocated_train_time - self.current_time
+        logger.info(f"-----> Starting evaluation for individual {self.id}")
         self.metrics = cnn_eval.evaluate(phenotype,
                                          model_saving_dir,
                                          parent_dir,
                                          reuse_parent_weights,
-                                         train_time,
+                                         allocated_train_time,
                                          self.num_epochs)
         self.fitness = self.metrics.fitness
         self.num_epochs += self.metrics.n_epochs
-        self.current_time += train_time
+        self.current_time += allocated_train_time
         # TODO: Ensure this is correct because the original version does not accumulate
-        print(f"Time spent before: {self.total_training_time_spent}")
+        #print(f"Time spent before: {self.total_training_time_spent}")
         self.total_training_time_spent += self.metrics.training_time_spent 
-        print(f"Time spent after: {self.total_training_time_spent}")
-        print(f"Individual {self.id}: {self.metrics}")
+        #print(f"Time spent after: {self.total_training_time_spent}")
+        print(f"Total time spent so far: {self.total_training_time_spent}")
+        print(f"Total Allocated time: {self.current_time}")
+        logger.info(f"Evaluation results for individual {self.id}: {self.metrics}")
 
+        assert self.fitness is not None
         return self.fitness
