@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
+from email.mime import base
 import os
 import logging
 import random
 import time
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import fast_denser
 from fast_denser.config import Config
@@ -13,22 +14,24 @@ from fast_denser.evolution import engine
 from fast_denser.evolution.grammar import Grammar
 from fast_denser.misc import Checkpoint
 from fast_denser.misc.constants import VALID_DATASET_NAMES, STATS_FOLDER_NAME
+from fast_denser.misc.enums import FitnessMetricName
 from fast_denser.misc.persistence import RestoreCheckpoint, build_overall_best_path
 from fast_denser.misc.utils import is_valid_file, is_yaml_file
 from fast_denser.neural_networks_torch.evaluators import create_evaluator
+
 
 import numpy as np
 import torch
 
 if TYPE_CHECKING:
-   from fast_denser.neural_networks_torch.evaluators import BaseEvaluator
+    from fast_denser.neural_networks_torch.evaluators import BaseEvaluator
 
 def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gpu_run: bool) -> Checkpoint:
 
-    fitness_metric: Callable = config['network']['learning']['fitness_metric']
+    fitness_metric_name: FitnessMetricName = FitnessMetricName(config['network']['learning']['fitness_metric'])
     learning_type: str = config['network']['learning']['learning_type']
     evaluator: BaseEvaluator = create_evaluator(dataset_name,
-                                                fitness_metric,
+                                                fitness_metric_name,
                                                 run,
                                                 learning_type,
                                                 is_gpu_run,
@@ -57,8 +60,6 @@ def main(run: int,
          grammar: Grammar,
          is_gpu_run: bool,
          possible_checkpoint: Optional[Checkpoint] = None) -> None: #pragma: no cover
-
-    save_path: str = config['checkpoints_path']
 
     checkpoint: Checkpoint
     if possible_checkpoint is None:
@@ -116,5 +117,9 @@ if __name__ == '__main__': #pragma: no cover
          is_gpu_run=args.cuda_enabled)
 
     end = time.time()
-    print((end - start)/60.0)
+    time_elapsed = int(end - start)
+    secs_elapsed = time_elapsed % 60
+    mins_elapsed = time_elapsed//60 % 60
+    hours_elapsed = time_elapsed//3600 % 60
+    logger.info(f"Time taken to perform run: {hours_elapsed}h{mins_elapsed}m{secs_elapsed}s")
     logging.shutdown()
