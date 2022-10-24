@@ -66,8 +66,8 @@ class Test(unittest.TestCase):
                           callbacks=[callback_to_test])
         trainer.train()
 
-        restored_model = torch.load(os.path.join(folder_name, "model.pth"))
-        restored_model.load_state_dict(torch.load(os.path.join(folder_name, "weights.pth")))
+        restored_model = torch.load(os.path.join(folder_name, "model.pt"))
+        restored_model.load_state_dict(torch.load(os.path.join(folder_name, "weights.pt")))
 
         expected_keys = ['fc.1.weight', 'fc.1.bias']
         for k in expected_keys:

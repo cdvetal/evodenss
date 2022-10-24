@@ -3,7 +3,7 @@ from typing import List, OrderedDict
 import unittest
 
 import fast_denser
-from fast_denser.misc.enums import LayerType, OptimiserType
+from fast_denser.misc.enums import Device, LayerType, OptimiserType
 from fast_denser.misc.phenotype_parser import Layer, Optimiser
 from fast_denser.neural_networks_torch import LearningParams, ModelBuilder
 from fast_denser.neural_networks_torch.evaluators import LegacyEvaluator
@@ -125,7 +125,8 @@ class Test(unittest.TestCase):
         model_builder: ModelBuilder = ModelBuilder(
             layers=layers,
             layers_connections={6: [5], 5: [4], 4: [3], 3: [2], 2: [1], 1: [0], 0: [-1]},
-            input_shape=(1, 28, 28)
+            input_shape=(1, 28, 28),
+            device=Device.CPU
         )
         model = model_builder.assemble_network(LegacyEvaluator)
         expected_model_structure = OrderedDict([
@@ -183,7 +184,8 @@ class Test(unittest.TestCase):
                 1: [-1, 0],
                 0: [-1]
             },
-            input_shape=(1, 28, 28)
+            input_shape=(1, 28, 28),
+            device=Device.CPU
         )
         model = model_builder.assemble_network(LegacyEvaluator)
         expected_model_structure = OrderedDict([

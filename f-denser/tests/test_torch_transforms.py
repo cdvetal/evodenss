@@ -57,6 +57,8 @@ class Test(unittest.TestCase):
 
         final_tensor = transformer(original_img)
         expected_tensor = to_tensor_transform(expected_img)
+        print(final_tensor.shape)
+        print(expected_tensor.shape)
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
     
 
