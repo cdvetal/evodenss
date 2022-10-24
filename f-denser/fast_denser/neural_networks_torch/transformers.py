@@ -6,7 +6,6 @@ import random
 from typing import Any, Dict, List, Tuple, TYPE_CHECKING
 
 from fast_denser.misc.enums import TransformOperation
-from fast_denser.misc.constants import INPUT_DIMENSIONS
 
 from PIL import Image, ImageOps, ImageFilter
 from torchvision.transforms import Compose, CenterCrop, ColorJitter, Normalize, RandomApply, \

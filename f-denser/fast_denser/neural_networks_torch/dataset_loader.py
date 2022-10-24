@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from enum import unique, Enum
-from typing import Any, Dict, List, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Tuple, TYPE_CHECKING, Union
 
+from fast_denser.misc.proportions import ProportionsIndexes, ProportionsFloat
 from fast_denser.neural_networks_torch.transformers import BaseTransformer
 
 from sklearn.model_selection import train_test_split
+from torch import Tensor
 from torch.utils.data import Subset
 from torchvision import datasets
 
@@ -27,42 +29,82 @@ class DatasetType(Enum):
 def load_dataset(dataset_name: str,
                  train_transformer: BaseTransformer,
                  test_transformer: BaseTransformer,
-                 enable_stratify: bool) -> Dict[DatasetType, Dataset]:
+                 enable_stratify: bool,
+                 proportions: Union[ProportionsFloat, ProportionsIndexes]) -> Dict[DatasetType, Subset]:
+
     train_data: Dataset
     test_data: Dataset
     if dataset_name == "fashion-mnist":
         train_data, test_data = _load_fashion_mnist(train_transformer, test_transformer)
     elif dataset_name == "mnist":
         train_data, test_data = _load_mnist(train_transformer, test_transformer)
+    elif dataset_name == "cifar10":
+        train_data, test_data = _load_cifar10(train_transformer, test_transformer)
+    elif dataset_name == "cifar100":
+        train_data, test_data = _load_cifar100(train_transformer, test_transformer)
     else:
         raise ValueError(f"Invalid dataset name: {dataset_name}")
 
-    targets: List[Any] = train_data.targets # type: ignore
-    train_indices: List[int] = list(range(len(targets))) # * aug_factor
+    subset_dict: Dict[DatasetType, Subset] = {}
+    # In case we have received the indexes for each subset already
+    if type(proportions) is ProportionsIndexes:
+        for k in proportions.keys():
+            subset_dict[k] = Subset(train_data, proportions[k])
+        subset_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
+        return subset_dict
 
-    stratify: Any 
-    stratify = targets if enable_stratify is True else None
-    train_idx, test_idx = train_test_split(train_indices,
-                                           test_size=0.2,
-                                           shuffle=True,
-                                           stratify=stratify)
-    stratify = targets[train_idx] if enable_stratify is True else None
-    train_idx, valid_idx = train_test_split(train_idx,
-                                            test_size=0.25,
+    else:
+        # otherwise we'll do it based on the proportions that were asked
+        assert type(proportions) == ProportionsFloat
+        targets: Any = train_data.targets # type: ignore
+        targets_tensor: Tensor = targets if type(targets) == "torch.Tensor" else Tensor(targets)
+        train_indices: List[int] = list(range(len(targets))) # * aug_factor
+
+        stratify: Any = targets_tensor if enable_stratify is True else None
+        train_idx, test_idx = train_test_split(train_indices,
+                                            test_size=proportions[DatasetType.EVO_TEST],
                                             shuffle=True,
-                                            stratify=stratify) # 0.25 x 0.8 = 0.2
-    
-    evo_train_subset: Subset = Subset(train_data, train_idx)
-    evo_validation_subset: Subset = Subset(train_data, valid_idx)
-    evo_test_subset: Subset = Subset(train_data, test_idx)
+                                            stratify=stratify)
+        subset_dict[DatasetType.EVO_TEST] = Subset(train_data, test_idx)
 
-    return {
-        DatasetType.EVO_TRAIN: evo_train_subset,
-        DatasetType.EVO_VALIDATION: evo_validation_subset,
-        DatasetType.EVO_TEST: evo_test_subset,
-        DatasetType.TEST: test_data
-    }
+        if DatasetType.EVO_VALIDATION in proportions.keys():
+            stratify = targets_tensor[train_idx] if enable_stratify is True else None
+            real_validation_proportion: float = \
+                proportions[DatasetType.EVO_VALIDATION]/(1 - proportions[DatasetType.EVO_TEST])
+            train_idx, valid_idx = train_test_split(train_idx,
+                                                    test_size=real_validation_proportion,
+                                                    shuffle=True,
+                                                    stratify=stratify)
+            subset_dict[DatasetType.EVO_VALIDATION] = Subset(train_data, valid_idx)
+        
+        print(len(train_idx), len(test_idx))
+        subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, train_idx)
+        subset_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
+        #
+        #evo_train_subset: Subset = Subset(train_data, train_idx)
+        #evo_validation_subset: Subset = Subset(train_data, valid_idx)
+        #evo_test_subset: Subset = Subset(train_data, test_idx)
+        #
+        #return {
+        #    DatasetType.EVO_TRAIN: evo_train_subset,
+        #    DatasetType.EVO_VALIDATION: evo_validation_subset,
+        #    DatasetType.EVO_TEST: evo_test_subset,
+        #    DatasetType.TEST: test_data
+        #}
+        #train_idx, test_idx = train_test_split(train_indices,
+        #                                       test_size=0.2,
+        #                                       shuffle=True,
+        #                                       stratify=stratify)
+        #evo_train_subset: Subset = Subset(train_data, train_idx)
+        #evo_test_subset: Subset = Subset(train_data, test_idx)
 
+        #{
+        #    DatasetType.EVO_TRAIN: evo_train_subset,
+        #    DatasetType.EVO_TEST: evo_test_subset,
+        #    DatasetType.TEST: test_data
+        #}
+
+        return subset_dict
 
 def _load_fashion_mnist(train_transformer: BaseTransformer,
                         test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset]:
@@ -95,4 +137,38 @@ def _load_mnist(train_transformer: BaseTransformer,
         download=True,
         transform=test_transformer
     )
+    return train_data, test_data
+
+def _load_cifar10(train_transformer: BaseTransformer,
+                  test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset]:
+    train_data = datasets.CIFAR10(
+        root="data",
+        train=True,
+        download=True,
+        transform=train_transformer
+    )
+    test_data = datasets.CIFAR10(
+        root="data",
+        train=False,
+        download=True,
+        transform=test_transformer
+    )
+
+    return train_data, test_data
+
+def _load_cifar100(train_transformer: BaseTransformer,
+                  test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset]:
+    train_data = datasets.CIFAR100(
+        root="data",
+        train=True,
+        download=True,
+        transform=train_transformer
+    )
+    test_data = datasets.CIFAR100(
+        root="data",
+        train=False,
+        download=True,
+        transform=test_transformer
+    )
+
     return train_data, test_data

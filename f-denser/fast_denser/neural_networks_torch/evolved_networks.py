@@ -1,9 +1,11 @@
 from functools import reduce
 import logging
+from sys import float_info
 from typing import cast, Dict, List, Optional, Set, Tuple, Union
 
 # from fast_denser.neural_networks_torch import NetworkValidator
-from fast_denser.misc.enums import LayerType, ProjectorUsage
+from fast_denser.misc.constants import CHANNEL_INDEX
+from fast_denser.misc.enums import Device, LayerType, ProjectorUsage
 from fast_denser.misc.utils import InputLayerId, LayerId
 
 import torch
@@ -54,29 +56,39 @@ class EvolvedNetwork(nn.Module):
                               input_ids: List[InputLayerId]) -> Tensor:
         
         assert len(input_ids) > 0
-        layer_output: Tensor
+        final_input_tensor: Tensor
         input_tensor: Tensor
-        layer_outputs: List[Tensor] = []
+        output_tensor: Tensor
+        # layer_outputs: List[Tensor] = []
         layer_name: str = self.id_layername_map[layer_id]
+        layer_inputs = []
         for i in input_ids:
             if i == -1:
                 input_tensor = x
+                #print("---------- (end) processing layer: ", layer_id, input_tensor.shape)
             else:
-                input_tensor = self._process_forward_pass(x, LayerId(i), self.layers_connections[LayerId(i)])
-            if (i, layer_id) in self.cache.keys():
-                layer_output = self.cache[(i, layer_id)]
-            else:
-                layer_output = self.__dict__['_modules'][layer_name](input_tensor)
-                self.cache[(i, layer_id)] = layer_output
-
-            #print(f"Layer being processed {layer_id}. OUT SHAPE: {layer_output.shape}")
-            layer_outputs.append(layer_output)
+                if (i, layer_id) in self.cache.keys():
+                    input_tensor = self.cache[(i, layer_id)]
+                else:
+                    input_tensor = self._process_forward_pass(x, LayerId(i), self.layers_connections[LayerId(i)])
+                    self.cache[(i, layer_id)] = input_tensor
+                #print("---------- processing layer: ", layer_id, "---", i, "---", input_tensor.shape)
+                #if layer_id==5:
+                #    print("here:", input_tensor.shape)
+                #    print("here:", self.__dict__['_modules'][layer_name])
+            layer_inputs.append(input_tensor)        
 
         self._clear_cache()
-
-        if len(layer_outputs) > 1:
-            return torch.cat(tuple(layer_outputs))
-        return layer_outputs[0]
+        #print("length:", len(layer_inputs), input_ids, layer_id)
+        #print([x.shape for x in layer_inputs])
+        if len(layer_inputs) > 1:
+            # we are using channels first representation, so channels is index 1
+            final_input_tensor = torch.cat(tuple(layer_inputs), dim=CHANNEL_INDEX)
+        else:
+            final_input_tensor = layer_inputs[0]
+        #print("final input tensor: ", layer_id, final_input_tensor.shape)
+        output_tensor = self.__dict__['_modules'][layer_name](final_input_tensor)
+        return output_tensor
 
     def forward(self, x: Tensor) -> Optional[Tensor]:
         input_layer_ids: List[InputLayerId] = self.layers_connections[self.output_layer_id]
@@ -99,7 +111,8 @@ class BarlowTwinsNetwork(EvolvedNetwork):
     def __init__(self,
                  evolved_layers: List[Tuple[str, nn.Module]],
                  layers_connections: Dict[LayerId, List[InputLayerId]],
-                 projector_network_usage: ProjectorUsage):
+                 projector_usage: Optional[ProjectorUsage],
+                 device: Device):
         
         # TODO: DO IT MORE EFFICIENTLY
         super(BarlowTwinsNetwork, self).__init__(evolved_layers, layers_connections)
@@ -111,21 +124,25 @@ class BarlowTwinsNetwork(EvolvedNetwork):
         index: int = 1 if last_layer_count == 1 else 0
         last_layer = list(filter(lambda x: x[0] == f"{last_layer_name}_{last_layer_count}", evolved_layers))[0][1]
         
-        last_layer_out_features = last_layer[index].out_features
+        self.last_layer_out_features: int = last_layer[index].out_features
         
-        self.bn = nn.BatchNorm1d(last_layer_out_features, affine=False)
-        #self.projector: Optional[nn.Sequential]
-        #if projector_network_usage == ProjectorUsage.EXPLICIT:
-        #    self.projector = nn.Sequential(
-        #        nn.Linear(10, 8192, bias=False),
-        #        nn.BatchNorm1d(8192),
-        #        nn.ReLU(inplace=True),
-        #        nn.Linear(8192, 8192, bias=False)
-        #    )
-        #elif projector_network_usage == ProjectorUsage.IMPLICIT:
-        #    raise NotImplementedError("Projector_network_usage cannot be implicit yet")
-        #else:
-        #    self.projector = None
+        self.projector: Optional[nn.Module]
+        if projector_usage is None:
+            self.projector = None
+            self.bn = nn.BatchNorm1d(self.last_layer_out_features, affine=False, device=device.value)
+        if projector_usage == ProjectorUsage.EXPLICIT:
+            # projector
+            sizes: List[int] = [self.last_layer_out_features] + [8192, 8192, 8192]
+            layers: List[nn.Module] = []
+            for i in range(len(sizes) - 2):
+                layers.append(nn.Linear(sizes[i], sizes[i + 1], bias=False, device=device.value))
+                layers.append(nn.BatchNorm1d(sizes[i + 1], device=device.value))
+                layers.append(nn.ReLU(inplace=True))
+            layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False, device=device.value))
+            self.projector = nn.Sequential(*layers)
+            self.bn = nn.BatchNorm1d(sizes[-1], affine=False, device=device.value)
+        else:
+            raise NotImplementedError
 
 
     def forward(self, x1: Tensor, x2: Tensor=None, batch_size: int=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
@@ -134,45 +151,84 @@ class BarlowTwinsNetwork(EvolvedNetwork):
             y1 = super(BarlowTwinsNetwork, self).forward(x1)
             y2 = super(BarlowTwinsNetwork, self).forward(x2)
 
-            if y1 is None or y2 is None:
-                return None
+            #import matplotlib.pyplot as plt
+            #figure = plt.figure(figsize=(8, 8))
+            #cols, rows = 2, 1
+            #print("y1: ", y1)
+            #print("y2: ", y2)
+            #figure.add_subplot(rows, cols, 1)
+            #plt.axis("off")
+            #plt.imshow(x1[0,:,:].cpu().squeeze())
+            #figure.add_subplot(rows, cols, 2)
+            #plt.axis("off")
+            #plt.imshow(x2[0,:,:].cpu().squeeze())
+            #plt.show()
 
-            z1 = y1#self.projector(y1)
-            z2 = y2#self.projector(y2)
+            #if y1 is None or y2 is None:
+            #    return None
 
-            # empirical cross-correlation matrix
-            c = self.bn(z1).T @ self.bn(z2)
+            if self.projector is None:
+                z1 = y1
+                z2 = y2 
+            else:
+                z1 = self.projector(y1)
+                z2 = self.projector(y2)
+
+
+            #print(self.last_layer_out_features)
+            #z1_max = torch.max(z1, dim=1,keepdim=True).values.repeat(1, self.last_layer_out_features)
+            #z2_max = torch.max(z2, dim=1,keepdim=True).values.repeat(1, self.last_layer_out_features)
+            #z1_min = torch.min(z1, dim=1,keepdim=True).values.repeat(1, self.last_layer_out_features)
+            #z2_min = torch.min(z2, dim=1,keepdim=True).values.repeat(1, self.last_layer_out_features)
+            '''
+            print(z1)
+            print(z2)
+            print("---z_max")
+            print(z1_max)
+            print(z2_max)
+            print("---z_min")
+            print(z1_min)
+            print(z2_min)
+            '''
+            #z1 = (z1-z1_min)/(z1_max-z1_min) * 2 - 1 
+            #z2 = (z2-z2_min)/(z2_max-z2_min) * 2 - 1
+            #z1_den = torch.pow(z1, 2).sum(dim=0)
+            #z2_den = torch.pow(z2, 2).sum(dim=0)
+            #print("den")
+            #print(z1_den)
+            #print(z2_den)
+
+            #c = (z1.T @ z2)/(z1_den.T @ z2_den)
             #print(c)
-            # sum the cross-correlation matrix between all gpus
+            #print("---------------------------------")
+
+            c = self.bn(z1).T @ self.bn(z2)
+            c[c.isnan()] = 0.0
+            valid_c = c[~c.isinf()]
+            limit = 1e+30 if c.dtype == torch.float32 else 1e+4
+            try:
+                max_value = torch.max(valid_c)
+            except RuntimeError:
+                max_value = limit
+            try:
+                min_value = torch.min(valid_c)
+            except RuntimeError:
+                min_value = -limit
+            c[c == float("Inf")] = max_value if max_value != 0.0 else limit
+            c[c == float("-Inf")] = min_value if min_value != 0.0 else -limit
             c.div_(batch_size)
-            #torch.distributed.all_reduce(c)
 
             on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
             off_diag = self._off_diagonal(c).pow_(2).sum()
 
-            #import sys
-            #sys.exit(1)
-            loss: Tensor = on_diag + 0.1 * off_diag
+            loss: Tensor = (on_diag + 0.0051 * off_diag)#.div_(self.last_layer_out_features)
+
             return on_diag, off_diag, loss
         else:
             # In case we use the network for inference rather than training
             assert batch_size is None
             return super(BarlowTwinsNetwork, self).forward(x1)
-
-            '''
-            import matplotlib.pyplot as plt
-            figure = plt.figure(figsize=(8, 8))
-            cols, rows = 2, 1
-            print("y1: ", y1)
-            print("y2: ", y2)
-            figure.add_subplot(rows, cols, 1)
-            plt.axis("off")
-            plt.imshow(x1.squeeze())
-            figure.add_subplot(rows, cols, 2)
-            plt.axis("off")
-            plt.imshow(x2.squeeze())
-            plt.show()
-            '''
+            
 
     def _off_diagonal(self, x: Tensor) -> Tensor:
         # return a flattened view of the off-diagonal elements of a square matrix
@@ -185,7 +241,7 @@ class BarlowTwinsNetwork(EvolvedNetwork):
 
 class EvaluationBarlowTwinsNetwork(nn.Module):
 
-    def __init__(self, barlow_twins_trained_model: nn.Module, n_neurons: int) -> None:
+    def __init__(self, barlow_twins_trained_model: nn.Module, n_neurons: int, device: Device) -> None:
         super(EvaluationBarlowTwinsNetwork, self).__init__()
         self.barlow_twins_trained_model: nn.Module = barlow_twins_trained_model
         layer_names: List[str] = list(map(lambda x: str(x[0]), self.barlow_twins_trained_model.named_modules()))
@@ -197,7 +253,8 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
         index: int = 1 if last_layer_count == 1 else 0
 
         last_layer_out_features = getattr(self.barlow_twins_trained_model, f"{last_layer_name}_{last_layer_count}")[index].out_features
-        self.final_layer = nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True)
+        self.final_layer = nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True, device=device.value)
+        self.softmax = nn.Softmax()
         self.barlow_twins_trained_model.requires_grad_(False)
         # self.barlow_twins_trained_model.fc.requires_grad_(True)
 
@@ -205,4 +262,4 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
         embs = self.barlow_twins_trained_model.forward(x)
         assert isinstance(embs, Tensor)
         y: Tensor = self.final_layer(embs)
-        return y
+        return self.softmax(y)

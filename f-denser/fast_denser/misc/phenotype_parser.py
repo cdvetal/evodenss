@@ -52,7 +52,7 @@ class Optimiser:
     def _convert(self, key: str, value: str) -> Any:
         if key == "nesterov":
             return value.title() == "True"
-        elif key in ["lr", "alpha", "weight_decay", "momentum", "beta1", "beta2"]:
+        elif key in ["lr", "lr_weights", "lr_biases", "alpha", "weight_decay", "momentum", "beta1", "beta2"]:
             return float(value)
         elif key in ["early_stop", "batch_size", "epochs"]:
             return int(value)

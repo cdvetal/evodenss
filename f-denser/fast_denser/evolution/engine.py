@@ -21,7 +21,7 @@ def evolve(run: int,
            checkpoint: Checkpoint,
            config: Config) -> Checkpoint:
 
-    logger.info(f"\n\nPerforming generation: {generation}")
+    logger.info(f"Performing generation: {generation}")
 
     population: List[Individual]
     population_fits: List[Fitness]
@@ -48,7 +48,6 @@ def evolve(run: int,
             ind.total_training_time_spent = 0.0 # TODO: This might not be right
             ind.total_allocated_train_time = config['network']['learning']['default_train_time']
             ind.id = idx
-            print("------------> ", ind.id, ind.num_epochs, ind.fitness)
             population_fits.append(
                 ind.evaluate(grammar,
                              checkpoint.evaluator,
@@ -59,13 +58,19 @@ def evolve(run: int,
         assert checkpoint.parent is not None
 
         logger.info("Applying mutation operators")
+        
+        lambd: int = config['evolutionary']['lambda']
         # generate offspring (by mutation)
+        offspring_before_mutation: List[Individual] = [deepcopy(checkpoint.parent) for _ in range(lambd)]
+        for idx in range(len(offspring_before_mutation)):
+            offspring_before_mutation[idx].total_training_time_spent = 0.0 # TODO: This might not be right
+            offspring_before_mutation[idx].id = idx + 1
         offspring: List[Individual] = \
-            [operators.mutation(checkpoint.parent,
+            [operators.mutation(ind,
                                 grammar,
                                 config['evolutionary']['mutation'],
                                 config['network']['learning']['default_train_time'])
-             for _ in range(config['evolutionary']['lambda'])]
+             for ind in offspring_before_mutation]
 
         assert checkpoint.parent is not None
         population = [deepcopy(checkpoint.parent)] + offspring
@@ -73,14 +78,12 @@ def evolve(run: int,
         # set elite variables to re-evaluation
         population[0].current_time = 0
         population[0].num_epochs = 0
+        population[0].id = 0
+        population[0].metrics = None
 
         # evaluate population
         population_fits = []
-        print("population")
         for idx, ind in enumerate(population):
-            ind.total_training_time_spent = 0.0 # TODO: This might not be right
-            ind.id = idx
-            print("------------> ", ind.id, ind.num_epochs, ind.fitness)
             population_fits.append(
                 ind.evaluate(
                     grammar,
@@ -111,8 +114,11 @@ def evolve(run: int,
         best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'], run, generation, parent.id)
         persistence.save_overall_best_individual(best_individual_path, parent)
 
+    best_test_acc: float = checkpoint.evaluator.testing_performance(best_individual_path)
+    logger.info(f"Generation best test accuracy: {best_test_acc}")
+
     logger.info(f"Best fitness of generation {generation}: {max(population_fits)}")
-    logger.info(f"Best overall fitness: {checkpoint.best_fitness}")
+    logger.info(f"Best overall fitness: {checkpoint.best_fitness}\n\n\n")
 
     return Checkpoint(
         run=run,

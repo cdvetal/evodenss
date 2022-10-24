@@ -26,7 +26,6 @@ def mutation_dsge(layer, grammar: Grammar):
             Grammar instance, used to perform the initialisation and the genotype
             to phenotype mapping
     """
-
     nt_keys = sorted(list(layer.keys()))
     nt_key = random.choice(nt_keys)
     nt_idx = random.randint(0, len(layer[nt_key])-1)
@@ -54,12 +53,9 @@ def mutation_dsge(layer, grammar: Grammar):
             elif var_type == 'float':
                 new_val = values[value_idx]+random.gauss(0, 0.15)
                 new_val = np.clip(new_val, min_val, max_val)
-
             layer[nt_key][nt_idx]['ga'][var_name][-1][value_idx] = new_val
-
         elif mt_type == 'ge':
             layer[nt_key][nt_idx]['ge'] = random.choice(sge_possibilities)
-
         else:
             return NotImplementedError
 
@@ -100,22 +96,22 @@ def mutation(individual: Individual,
     macro_layer_prob: float = mutation_config['macro_layer']
     train_longer_prob: float = mutation_config['train_longer']
 
-    # copy so that elite is preserved
-    ind: Individual = deepcopy(individual)
 
     #Train individual for longer - no other mutation is applied
     if random.random() <= train_longer_prob:
-        ind.total_allocated_train_time += default_train_time
-        return ind
+        individual.total_allocated_train_time += default_train_time
+        logger.info(f"Individual {individual.id} train time is going to be extended to {individual.total_allocated_train_time}")
+        return individual
 
 
-    #in case the individual is mutated in any of the structural parameters
+    #in case the individualividual is mutated in any of the structural parameters
     #the training time is reset
-    ind.current_time = 0
-    ind.num_epochs = 0
-    ind.total_allocated_train_time = default_train_time
+    individual.current_time = 0
+    individual.num_epochs = 0
+    individual.total_allocated_train_time = default_train_time
+    individual.metrics = None
 
-    for module in ind.modules:
+    for module in individual.modules:
 
         #add-layer (duplicate or new)
         for _ in range(random.randint(1,2)):
@@ -194,11 +190,11 @@ def mutation(individual: Individual,
                     r_connection = random.choice(connection_possibilities)
                     module.connections[layer_idx].remove(r_connection)
     #macro level mutation
-    for macro in ind.macro:
+    for macro in individual.macro:
         if random.random() <= macro_layer_prob:
             mutation_dsge(macro, grammar)
 
-    return ind
+    return individual
 
 def select_fittest(population,
                    population_fits,

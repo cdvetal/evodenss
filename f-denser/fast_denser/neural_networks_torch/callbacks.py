@@ -3,9 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import logging
 import os
-import sys
 from time import time
 from typing import TYPE_CHECKING
+
+from fast_denser.misc.constants import MODEL_FILENAME, WEIGHTS_FILENAME
 
 import torch
 
@@ -43,8 +44,8 @@ class ModelCheckpointCallback(Callback):
 
     def __init__(self,
                  model_saving_dir: str,
-                 model_filename: str="model.pth",
-                 weights_filename: str="weights.pth") -> None:
+                 model_filename: str=MODEL_FILENAME,
+                 weights_filename: str=WEIGHTS_FILENAME) -> None:
         self.model_saving_dir: str = model_saving_dir
         self.model_filename: str = model_filename
         self.weights_filename: str = weights_filename
@@ -102,7 +103,7 @@ class EarlyStoppingCallback(Callback):
     def on_epoch_end(self, trainer: Trainer) -> None:
         if trainer.validation_loss[-1] >= self.best_score:
             self.counter += 1
-            logger.debug(f"EarlyStopping counter: {self.counter} out of {self.patience}. "
+            logger.info(f"EarlyStopping counter: {self.counter} out of {self.patience}. "
                          f"Best score {self.best_score}, current: {trainer.validation_loss[-1]}")
             if self.counter >= self.patience:
                 trainer.stop_training = True

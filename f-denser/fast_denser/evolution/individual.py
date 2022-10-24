@@ -216,23 +216,25 @@ class Individual:
             reuse_parent_weights = False
 
         allocated_train_time: float = self.total_allocated_train_time - self.current_time
-        logger.info(f"-----> Starting evaluation for individual {self.id}")
-        self.metrics = cnn_eval.evaluate(phenotype,
-                                         model_saving_dir,
-                                         parent_dir,
-                                         reuse_parent_weights,
-                                         allocated_train_time,
-                                         self.num_epochs)
+        logger.info(f"-----> Starting evaluation for individual {self.id} for {allocated_train_time} secs")
+        evaluation_metrics: EvaluationMetrics = cnn_eval.evaluate(phenotype,
+                                                                  model_saving_dir,
+                                                                  parent_dir,
+                                                                  reuse_parent_weights,
+                                                                  allocated_train_time,
+                                                                  self.num_epochs)
+        if self.metrics is None:
+            self.metrics = evaluation_metrics
+        else:
+            self.metrics += evaluation_metrics
         self.fitness = self.metrics.fitness
         self.num_epochs += self.metrics.n_epochs
         self.current_time += allocated_train_time
         # TODO: Ensure this is correct because the original version does not accumulate
-        #print(f"Time spent before: {self.total_training_time_spent}")
         self.total_training_time_spent += self.metrics.training_time_spent 
-        #print(f"Time spent after: {self.total_training_time_spent}")
-        print(f"Total time spent so far: {self.total_training_time_spent}")
-        print(f"Total Allocated time: {self.current_time}")
-        logger.info(f"Evaluation results for individual {self.id}: {self.metrics}")
+        #print(f"Total time spent so far: {self.total_training_time_spent}")
+        #print(f"Total Allocated time: {self.current_time}")
+        logger.info(f"Evaluation results for individual {self.id}: {self.metrics}\n")
 
         assert self.fitness is not None
         return self.fitness

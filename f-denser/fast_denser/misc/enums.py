@@ -37,6 +37,7 @@ class OptimiserType(Enum):
     RMSPROP = "rmsprop"
     GRADIENT_DESCENT = "gradient_descent"
     ADAM = "adam"
+    LARS = "lars"
 
 @unique
 class ActivationType(Enum):
@@ -63,3 +64,10 @@ class TransformOperation(ExtendedEnum):
 class FitnessMetricName(ExtendedEnum):
     LOSS = "loss"
     ACCURACY = "accuracy"
+
+@unique
+class DatasetType(Enum):
+    EVO_TRAIN = "evo_train"
+    EVO_VALIDATION = "evo_validation"
+    EVO_TEST = "evo_test"
+    TEST = "test"

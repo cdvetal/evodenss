@@ -3,15 +3,45 @@ from typing import Any, Dict
 import torch
 from torch import optim
 
+import math
+
 class LARS(optim.Optimizer):
     
-    def __init__(self, params: Any, lr: float, weight_decay: int=0, momentum: float=0.9, eta: float=0.001,
-                 weight_decay_filter: bool=False, lars_adaptation_filter: bool=False) -> None:
-        defaults: Dict[Any, Any] = dict(lr=lr, weight_decay=weight_decay, momentum=momentum,
+    def __init__(self,
+                 params: Any,
+                 batch_size: int,
+                 lr_weights: float,
+                 lr_biases: float,
+                 weight_decay: float,
+                 momentum: float,
+                 eta: float=0.001,
+                 weight_decay_filter: bool=False,
+                 lars_adaptation_filter: bool=False) -> None:
+        # we initialise lt with 0 just to comply with superclass params
+        # in practice lt is going to be dynamic and separated
+        # (one for weights and another for biases)
+        defaults: Dict[Any, Any] = dict(lr=0.0, weight_decay=weight_decay, momentum=momentum,
                         eta=eta, weight_decay_filter=weight_decay_filter,
                         lars_adaptation_filter=lars_adaptation_filter)
         super().__init__(params, defaults)
+        self.batch_size: int = batch_size
+        self.lr_weights: float = lr_weights
+        self.lr_biases: float = lr_biases
 
+    def adjust_learning_rate(self, n_batches: int, total_epochs: int, step: int) -> None:
+        max_steps = total_epochs * n_batches
+        warmup_steps = 10 * n_batches
+        base_lr = self.batch_size / 256
+        if step < warmup_steps:
+            lr = base_lr * step / warmup_steps
+        else:
+            step -= warmup_steps
+            max_steps -= warmup_steps
+            q = 0.5 * (1 + math.cos(math.pi * step / max_steps))
+            end_lr = base_lr * 0.001
+            lr = base_lr * q + end_lr * (1 - q)
+        self.param_groups[0]['lr'] = lr * self.lr_weights
+        self.param_groups[1]['lr'] = lr * self.lr_biases
 
     def exclude_bias_and_norm(self, p) -> bool:
         return p.ndim == 1

@@ -4,17 +4,20 @@ from collections import Counter
 import logging
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
 
-from fast_denser.misc.enums import ActivationType, LayerType, OptimiserType, ProjectorUsage
+
+from fast_denser.misc.enums import ActivationType, Device, LayerType, OptimiserType, ProjectorUsage
 from fast_denser.misc.phenotype_parser import Layer
 from fast_denser.misc.utils import InvalidNetwork, InputLayerId, LayerId
 from fast_denser.neural_networks_torch import Dimensions, LearningParams
 from fast_denser.neural_networks_torch.evolved_networks import BarlowTwinsNetwork, \
     EvolvedNetwork, LegacyNetwork
+from fast_denser.neural_networks_torch.lars import LARS
 from fast_denser.neural_networks_torch.evaluators import *
 
 import warnings
 warnings.filterwarnings("ignore")
 
+import torch
 from torch import Size, nn, optim, Tensor
 
 if TYPE_CHECKING:
@@ -28,6 +31,7 @@ class ModelBuilder():
     def __init__(self,
                  layers: List[Layer],
                  layers_connections: Dict[LayerId, List[InputLayerId]],
+                 device: Device,
                  input_shape: Size) -> None:
         self.layers: List[Layer] = layers
         self.layers_connections: Dict[LayerId, List[InputLayerId]] = layers_connections
@@ -37,11 +41,12 @@ class ModelBuilder():
                                          width=input_shape[2])
         }
         self.layer_type_counts: Counter = Counter([])
+        self.device = device
 
 
     @classmethod
     def assemble_optimiser(cls, model_parameters: Iterable[Tensor], optimiser: Optimiser) -> LearningParams:
-        early_stop: int = optimiser.optimiser_parameters.pop("early_stop")
+        #early_stop: int = optimiser.optimiser_parameters.pop("early_stop")
         batch_size: int = optimiser.optimiser_parameters.pop("batch_size")
         epochs: int = optimiser.optimiser_parameters.pop("epochs")
         torch_optimiser: optim.Optimizer
@@ -55,10 +60,26 @@ class ModelBuilder():
                 optimiser.optimiser_parameters.pop("beta2")
             )
             torch_optimiser = optim.Adam(params=model_parameters, **optimiser.optimiser_parameters)
+        elif optimiser.optimiser_type == OptimiserType.LARS:
+            param_weights = []
+            param_biases = []
+            for param in model_parameters:
+                if param.ndim == 1:
+                    param_biases.append(param)
+                else:
+                    param_weights.append(param)
+            parameters = [{'params': param_weights}, {'params': param_biases}]
+            torch_optimiser = LARS(parameters,
+                                   batch_size=batch_size,
+                                   eta=0.001,
+                                   weight_decay_filter=True,
+                                   lars_adaptation_filter=True,
+                                   **optimiser.optimiser_parameters)
+            #weight_decay, momentum, 
         else:
             raise ValueError(f"Invalid optimiser name found: {optimiser.optimiser_type}")
         return LearningParams(
-            early_stop=early_stop,
+            #early_stop=early_stop,
             batch_size=batch_size,
             epochs=epochs,
             torch_optimiser=torch_optimiser
@@ -80,7 +101,6 @@ class ModelBuilder():
                     { input_id: self.layer_shapes[input_id] for input_id in self.layers_connections[LayerId(i)] }
                 minimum_extra_id: int = len(self.layers) + len(collected_extra_torch_layers)
                 extra_layers: Dict[InputLayerId, Layer] = self._get_layers_to_fix_shape_mismatches(inputs_shapes, minimum_extra_id)
-                
                 for input_id, extra_layer in extra_layers.items():
 
                     extra_layer_name: str = f"{extra_layer.layer_type.value}_{self.layer_type_counts[extra_layer.layer_type]}"
@@ -97,13 +117,14 @@ class ModelBuilder():
                     
                 layer_to_add = self._create_torch_layer(l, layer_name)
                 torch_layers.append((layer_name, layer_to_add))
-                
+
             if evaluation_type is LegacyEvaluator:
                 return LegacyNetwork(torch_layers + collected_extra_torch_layers, self.layers_connections)
             elif evaluation_type is BarlowTwinsEvaluator:
                 return BarlowTwinsNetwork(torch_layers + collected_extra_torch_layers,
                                           self.layers_connections,
-                                          ProjectorUsage.EXPLICIT)
+                                          ProjectorUsage.EXPLICIT,
+                                          self.device)
             else:
                 raise ValueError(f"Unexpected network type: {evaluation_type}")
         except InvalidNetwork as e:
@@ -148,16 +169,22 @@ class ModelBuilder():
         inputs_shapes = {input_id: self.layer_shapes[input_id]
                          for input_id in self.layers_connections[layer.layer_id]}
         expected_input_dimensions: Optional[Dimensions]
-        if len(set(inputs_shapes.values())) == 1:
-            # in this case all inputs will have the same dimensions, just take the first one...
-            expected_input_dimensions = list(inputs_shapes.values())[0]
+        #if len(set(inputs_shapes.values())) == 1:
+        first_input = list(inputs_shapes.values())[0]
+        if len(inputs_shapes) > 1:
+            total_channels: int = sum([x.channels for x in list(inputs_shapes.values())])
+            expected_input_dimensions = Dimensions(total_channels, first_input.height, first_input.width)
         else:
-            expected_input_dimensions = None
+            # in this case all inputs will have the same dimensions, just take the first one...
+            expected_input_dimensions = first_input
+        #else:
+        #    expected_input_dimensions = None
         
-        if expected_input_dimensions is None:
-            raise InvalidNetwork(f"Invalid network found. Layer [{layer.layer_id}] has inputs with different dimensions: {inputs_shapes}")
+        #if expected_input_dimensions is None:
+        #    raise InvalidNetwork(f"Invalid network found. Layer [{layer.layer_id}] has inputs with different dimensions: {inputs_shapes}")
 
         self.layer_shapes[InputLayerId(layer.layer_id)] = Dimensions.from_layer(layer, expected_input_dimensions)
+
         if layer.layer_type == LayerType.CONV:
             layer_to_add = self._build_convolutional_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.BATCH_NORM:
@@ -170,10 +197,16 @@ class ModelBuilder():
             layer_to_add = self._build_dense_layer(layer, layer_name, expected_input_dimensions)
         elif layer.layer_type == LayerType.DROPOUT:
             layer_to_add = self._build_dropout_layer(layer, expected_input_dimensions)
-        
+        #print("== shapes: ", self.layer_shapes)
+        #print("=== ", layer_to_add, layer.layer_id)        
         return layer_to_add
 
     def _build_convolutional_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
+        def init_weights(m):
+            if isinstance(m, nn.Conv2d):
+                torch.nn.init.xavier_uniform(m.weight)
+                #m.bias.data.fill_(0.01)
+        
         layer_to_add: nn.Module
         activation: ActivationType = ActivationType(layer.layer_parameters.pop("act"))
 
@@ -186,14 +219,18 @@ class ModelBuilder():
         if layer.layer_parameters['padding'] == "same":
             layer.layer_parameters['stride'] = 1
         if activation == ActivationType.LINEAR:
-            layer_to_add = nn.Conv2d(**layer.layer_parameters, in_channels=input_dimensions.channels)
+            layer_to_add = nn.Conv2d(**layer.layer_parameters, in_channels=input_dimensions.channels, device=self.device.value)
+            #torch.nn.init.xavier_uniform(layer_to_add.weight)
         else:
-            layer_to_add = nn.Sequential(nn.Conv2d(**layer.layer_parameters, in_channels=input_dimensions.channels),
+            layer_to_add = nn.Sequential(nn.Conv2d(**layer.layer_parameters, in_channels=input_dimensions.channels, device=self.device.value),
                                          self._create_activation_layer(activation))
+            layer_to_add.apply(init_weights)
         return layer_to_add
 
     def _build_batch_norm_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
-        layer_to_add = nn.BatchNorm2d(**layer.layer_parameters, num_features=input_dimensions.channels)
+        layer_to_add = nn.BatchNorm2d(**layer.layer_parameters, num_features=input_dimensions.channels, device=self.device.value)
+        #torch.nn.init.xavier_uniform(layer_to_add.weight)
+        #layer_to_add.bias.data.fill_(0.01)
         return layer_to_add
 
     def _build_avg_pooling_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
@@ -232,9 +269,14 @@ class ModelBuilder():
         torch_layers_to_add: List[nn.Module] = []
         if layer_name == f"{LayerType.FC.value}_1":
             torch_layers_to_add.append(nn.Flatten())
-            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters, in_features=input_dimensions.flatten()))
+            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters, in_features=input_dimensions.flatten(), device=self.device.value))
+            #torch.nn.init.xavier_uniform(torch_layers_to_add[1].weight)
+            #torch_layers_to_add[1].bias.data.fill_(0.01)
         else:
-            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters, in_features=input_dimensions.channels))
+            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters, in_features=input_dimensions.channels, device=self.device.value))
+            #torch.nn.init.xavier_uniform(torch_layers_to_add[0].weight)
+            #torch_layers_to_add[0].bias.data.fill_(0.01)
         if activation != ActivationType.LINEAR:
             torch_layers_to_add.append(self._create_activation_layer(activation))
+        
         return nn.Sequential(*torch_layers_to_add)

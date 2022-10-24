@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from email.mime import base
 import os
 import logging
 import random
 import time
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, List, Optional, TYPE_CHECKING
 
 import fast_denser
 from fast_denser.config import Config
 from fast_denser.evolution import engine
 from fast_denser.evolution.grammar import Grammar
 from fast_denser.misc import Checkpoint
-from fast_denser.misc.constants import VALID_DATASET_NAMES, STATS_FOLDER_NAME
+from fast_denser.misc.constants import DATASETS_INFO, STATS_FOLDER_NAME
 from fast_denser.misc.enums import FitnessMetricName
 from fast_denser.misc.persistence import RestoreCheckpoint, build_overall_best_path
 from fast_denser.misc.utils import is_valid_file, is_yaml_file
@@ -36,6 +35,7 @@ def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gp
                                                 learning_type,
                                                 is_gpu_run,
                                                 config['network']['learning']['augmentation']['train'],
+                                                config['network']['learning']['augmentation']['last_layer_train'],
                                                 config['network']['learning']['augmentation']['test'])
 
     os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}"), exist_ok=True)
@@ -52,6 +52,17 @@ def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gp
         evaluator=evaluator
     )
 
+def compute_time_elapsed_human(time_elapsed: int) -> str:
+    units: List[str] = ["s", "m", "h", "d"]
+    max_units: List[int] = [60, 60, 24]
+    divisions: List[int] = [1, 60, 60]
+    results: List[int] = []
+    x: int = time_elapsed
+    for div, max_value in zip(divisions, max_units):
+        x = x // div
+        results.append(x % max_value)
+    results.append(x // 24)
+    return ''.join([ f"{value}{unit}" for value, unit in zip(results[::-1], units[::-1]) ])
 
 @RestoreCheckpoint
 def main(run: int,
@@ -94,7 +105,7 @@ if __name__ == '__main__': #pragma: no cover
     parser.add_argument("--config-path", '-c', required=True, help="Path to the config file to be used",
                         type=lambda x: is_yaml_file(parser, x))
     parser.add_argument("--dataset-name", '-d', required=True, help="Name of the dataset to be used",
-                        type=str, choices=VALID_DATASET_NAMES)
+                        type=str, choices=list(DATASETS_INFO.keys()))
     parser.add_argument("--grammar-path", '-g', required=True, help="Path to the grammar to be used",
                         type=lambda x: is_valid_file(parser, x))
     parser.add_argument("--run", "-r", required=False, help="Identifies the run id and seed to be used",
@@ -121,5 +132,5 @@ if __name__ == '__main__': #pragma: no cover
     secs_elapsed = time_elapsed % 60
     mins_elapsed = time_elapsed//60 % 60
     hours_elapsed = time_elapsed//3600 % 60
-    logger.info(f"Time taken to perform run: {hours_elapsed}h{mins_elapsed}m{secs_elapsed}s")
+    logger.info(f"Time taken to perform run: {compute_time_elapsed_human(time_elapsed)}")
     logging.shutdown()

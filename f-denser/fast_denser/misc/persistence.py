@@ -6,6 +6,8 @@ import pickle
 import shutil
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
+from fast_denser.misc.constants import MODEL_FILENAME
+
 from fast_denser.evolution import Individual
 from fast_denser.misc.evaluation_metrics import EvaluationMetrics
 from fast_denser.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
@@ -73,15 +75,19 @@ class SaveCheckpoint:
     def _delete_unnecessary_files(self, checkpoint: Checkpoint, save_path: str, max_generations: int) -> None:
         assert checkpoint.population is not None
         # remove temporary files to free disk space
+        files_to_delete = glob.glob(f"{save_path}/run_{checkpoint.run}/ind=*_generation={checkpoint.last_processed_generation}/*{MODEL_FILENAME}")
+        for file in files_to_delete:
+            os.remove(file)
         gen: int = checkpoint.last_processed_generation - 2
         if checkpoint.last_processed_generation > 1:
             folders_to_delete = glob.glob(f"{save_path}/run_{checkpoint.run}/ind=*_generation={gen}")
             for folder in folders_to_delete:
                 shutil.rmtree(folder)
-        if checkpoint.last_processed_generation == max_generations-1:
-            folders_to_delete = glob.glob(f"{save_path}/run_{checkpoint.run}/ind=*_generation=*")
-            for folder in folders_to_delete:
-                shutil.rmtree(folder)
+        #if checkpoint.last_processed_generation == max_generations-1:
+        #    folders_to_delete = glob.glob(f"{save_path}/run_{checkpoint.run}/ind=*_generation=*")
+        #    for folder in folders_to_delete:
+        #        shutil.rmtree(folder)
+
 
     def _save_statistics(self, save_path: str, checkpoint: Checkpoint) -> None:
         assert checkpoint.population is not None

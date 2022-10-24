@@ -41,7 +41,7 @@ class Fitness:
         return self.metric.better_or_equal_than(self, other)
 
     def __str__(self) -> str:
-        return str(self.value)
+        return str(round(self.value, 3))
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -88,17 +88,18 @@ class AccuracyMetric(FitnessMetric):
         super().__init__(batch_size, loss_function)
 
     def compute_metric(self, model: nn.Module, data_loader: DataLoader, device: Device) -> float:
-        metric: Metric = Accuracy().to(device.value, non_blocking=True)
         model.eval()
+        correct_guesses: float = 0
+        size: int = 0
         # since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
             for data in data_loader:
                 inputs, labels = data[0].to(device.value, non_blocking=True), data[1].to(device.value, non_blocking=True)
                 outputs = model(inputs)
                 _, predicted = torch.max(outputs.data, 1)
-                accuracy_test = metric(predicted, labels)
-        accuracy_test = metric.compute()
-        return float(accuracy_test.data)
+                correct_guesses += (predicted == labels).float().sum().item()
+                size += len(labels)
+        return correct_guesses/size
 
     @classmethod
     def worse_than(cls, this: Fitness, other: Fitness) -> bool:

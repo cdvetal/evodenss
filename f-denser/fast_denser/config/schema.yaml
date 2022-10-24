@@ -88,6 +88,10 @@ properties:
                           type: object
                         input_b:
                           type: object
+              last_layer_train:
+                oneOf:
+                  - type: object
+                  - type: 'null'
               test:
                 oneOf:
                   - type: object
