@@ -28,7 +28,8 @@ class Trainer:
                  n_epochs: int,
                  initial_epoch: int,
                  device: Device,
-                 callbacks: List[Callback]=[]) -> None:
+                 callbacks: List[Callback]=[],
+                 scheduler=None) -> None:
         self.model: nn.Module = model
         self.optimiser: optim.Optimizer = optimiser
         self.loss_function: Any = loss_function
@@ -42,6 +43,7 @@ class Trainer:
         self.trained_epochs: int = 0
         self.loss_values: Dict[str, List[float]] = {}
         self.validation_loss: List[float] = []
+        self.scheduler = scheduler
 
         # cuda stuff
         torch.cuda.empty_cache()
@@ -110,6 +112,8 @@ class Trainer:
                     self.model.train()
                     end = time.time()
                     logger.info(f"[{round(end-start, 2)}s] VALIDATION epoch {epoch} -- loss: {total_loss}")
+                if self.scheduler is not None:
+                    self.scheduler.step()
                 epoch += 1
                 logger.info("=============================================================")
                 self._call_on_epoch_end_callbacks()
@@ -167,7 +171,7 @@ class Trainer:
                     scaler.update()
 
                 end = time.time()
-                logger.debug(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss/n_batches_train}")
+                logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss/n_batches_train}")
                 self.loss_values["train_loss_diagonal"].append(round(total_diagonal_loss/n_batches_train, 3))
                 self.loss_values["train_loss_offdiagonal"].append(round(total_offdiagonal_loss/n_batches_train, 3))
                 self.loss_values["train_loss_complete"].append(round(total_loss/n_batches_train, 3))

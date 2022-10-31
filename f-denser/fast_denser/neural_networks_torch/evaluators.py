@@ -490,11 +490,11 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             params_to_tune = [param for name, param in complete_model.named_parameters() if name in {'final_layer.weight', 'final_layer.bias'}]
             
             last_layer_trainer = Trainer(model=complete_model,
-                                         optimiser=torch.optim.SGD(params_to_tune, lr=0.1, momentum=0.9),
+                                         optimiser=torch.optim.Adam(params_to_tune, lr=1e-3, weight_decay=1e-6),
                                          loss_function=nn.CrossEntropyLoss(),
                                          train_data_loader=train_loader,
                                          validation_data_loader=validation_loader,
-                                         n_epochs=100,
+                                         n_epochs=50,
                                          initial_epoch=0,
                                          device=device,
                                          callbacks=[ModelCheckpointCallback(model_saving_dir,

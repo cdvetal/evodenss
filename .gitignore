@@ -131,3 +131,4 @@ dmypy.json
 # Extra
 experiment*
 .DS_Store
+Makefile

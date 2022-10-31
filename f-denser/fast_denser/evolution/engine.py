@@ -114,7 +114,9 @@ def evolve(run: int,
         best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'], run, generation, parent.id)
         persistence.save_overall_best_individual(best_individual_path, parent)
 
+    best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'], run, generation, parent.id)
     best_test_acc: float = checkpoint.evaluator.testing_performance(best_individual_path)
+
     logger.info(f"Generation best test accuracy: {best_test_acc}")
 
     logger.info(f"Best fitness of generation {generation}: {max(population_fits)}")
