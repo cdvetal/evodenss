@@ -31,6 +31,7 @@ class LayerType(ExtendedEnum):
     POOL_MAX = "pool_max"
     FC = "fc"
     DROPOUT = "dropout"
+    IDENTITY = "identity"
 
 @unique
 class OptimiserType(Enum):
