@@ -41,7 +41,7 @@ class Fitness:
         return self.metric.better_or_equal_than(self, other)
 
     def __str__(self) -> str:
-        return str(round(self.value, 3))
+        return str(round(self.value, 5))
 
     def __repr__(self) -> str:
         return self.__str__()

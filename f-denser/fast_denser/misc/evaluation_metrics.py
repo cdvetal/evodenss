@@ -47,7 +47,7 @@ class EvaluationMetrics:
             f"training_time_spent: {self.training_time_spent},  " + \
             f"n_epochs: {self.n_epochs},  " + \
             f"total_epochs_trained: {self.total_epochs_trained},  " + \
-            f"accuracy: {round(self.accuracy, 4) if self.accuracy is not None else self.accuracy},  " + \
+            f"accuracy: {round(self.accuracy, 5) if self.accuracy is not None else self.accuracy},  " + \
             f"fitness: {self.fitness},  " + \
             f"losses: {self.losses})"
 
