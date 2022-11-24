@@ -5,6 +5,7 @@ import logging
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
 
 
+from fast_denser.misc.constants import SEPARATOR_CHAR
 from fast_denser.misc.enums import ActivationType, Device, LayerType, OptimiserType, ProjectorUsage
 from fast_denser.misc.phenotype_parser import Layer
 from fast_denser.misc.utils import InvalidNetwork, InputLayerId, LayerId
@@ -46,7 +47,7 @@ class ModelBuilder():
 
     @classmethod
     def assemble_optimiser(cls, model_parameters: Iterable[Tensor], optimiser: Optimiser) -> LearningParams:
-        #early_stop: int = optimiser.optimiser_parameters.pop("early_stop")
+        early_stop: Optional[int] = optimiser.optimiser_parameters.pop("early_stop", None)
         batch_size: int = optimiser.optimiser_parameters.pop("batch_size")
         epochs: int = optimiser.optimiser_parameters.pop("epochs")
         torch_optimiser: optim.Optimizer
@@ -79,7 +80,7 @@ class ModelBuilder():
         else:
             raise ValueError(f"Invalid optimiser name found: {optimiser.optimiser_type}")
         return LearningParams(
-            #early_stop=early_stop,
+            early_stop=early_stop,
             batch_size=batch_size,
             epochs=epochs,
             torch_optimiser=torch_optimiser
@@ -94,7 +95,7 @@ class ModelBuilder():
 
         try:
             for i, l in enumerate(self.layers):
-                layer_name: str = f"{l.layer_type.value}_{self.layer_type_counts[l.layer_type]}"
+                layer_name: str = f"{l.layer_type.value}{SEPARATOR_CHAR}{self.layer_type_counts[l.layer_type]}"
                 self.layer_type_counts.update([l.layer_type])
 
                 inputs_shapes: Dict[InputLayerId, Dimensions] = \
@@ -123,6 +124,7 @@ class ModelBuilder():
             elif evaluation_type is BarlowTwinsEvaluator:
                 return BarlowTwinsNetwork(torch_layers + collected_extra_torch_layers,
                                           self.layers_connections,
+                                          self.layer_shapes,
                                           ProjectorUsage.EXPLICIT,
                                           self.device)
             else:
@@ -197,6 +199,8 @@ class ModelBuilder():
             layer_to_add = self._build_dense_layer(layer, layer_name, expected_input_dimensions)
         elif layer.layer_type == LayerType.DROPOUT:
             layer_to_add = self._build_dropout_layer(layer, expected_input_dimensions)
+        elif layer.layer_type == LayerType.IDENTITY:
+            layer_to_add = nn.Identity()
         #print("== shapes: ", self.layer_shapes)
         #print("=== ", layer_to_add, layer.layer_id)        
         return layer_to_add
@@ -267,7 +271,7 @@ class ModelBuilder():
     def _build_dense_layer(self, layer: Layer, layer_name: str, input_dimensions: Dimensions) -> nn.Sequential:
         activation = ActivationType(layer.layer_parameters.pop("act"))
         torch_layers_to_add: List[nn.Module] = []
-        if layer_name == f"{LayerType.FC.value}_1":
+        if layer_name == f"{LayerType.FC.value}{SEPARATOR_CHAR}1":
             torch_layers_to_add.append(nn.Flatten())
             torch_layers_to_add.append(nn.Linear(**layer.layer_parameters, in_features=input_dimensions.flatten(), device=self.device.value))
             #torch.nn.init.xavier_uniform(torch_layers_to_add[1].weight)

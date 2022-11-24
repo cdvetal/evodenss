@@ -1,11 +1,12 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from torch import optim
 
 
 @dataclass
 class LearningParams:
-    #early_stop: int
+    early_stop: Optional[int]
     batch_size: int
     epochs: int
     torch_optimiser: optim.Optimizer

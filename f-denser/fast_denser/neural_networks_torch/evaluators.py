@@ -21,12 +21,11 @@ from fast_denser.neural_networks_torch.trainers import Trainer
 from fast_denser.neural_networks_torch.transformers import BaseTransformer, LegacyTransformer, \
     BarlowTwinsTransformer
 from fast_denser.neural_networks_torch.evolved_networks import EvaluationBarlowTwinsNetwork
-from torch.utils.data import Subset
+from torch.utils.data import DataLoader, Subset
 
 from sklearn.model_selection import train_test_split
 import torch
-from torch import nn, Tensor
-from torch.utils.data import DataLoader
+from torch import nn
 
 
 if TYPE_CHECKING:
@@ -306,7 +305,9 @@ class LegacyEvaluator(BaseEvaluator):
             test_loader: DataLoader
             train_loader, validation_loader, test_loader = \
                 self._get_data_loaders(self.dataset, learning_params.batch_size)
+
             assert validation_loader is not None
+            #assert learning_params.early_stop is not None
 
             loss_function = nn.CrossEntropyLoss()
             trainer = Trainer(model=torch_model,
@@ -319,6 +320,7 @@ class LegacyEvaluator(BaseEvaluator):
                               device=device,
                               callbacks=[ModelCheckpointCallback(model_saving_dir),
                                          TimedStoppingCallback(max_seconds=train_time)])
+                                         #EarlyStoppingCallback(patience=learning_params.early_stop)])
             trainer.train()
             fitness_metric: FitnessMetric = create_fitness_metric(self.fitness_metric_name,
                                                                   type(self),
@@ -393,8 +395,6 @@ class BarlowTwinsEvaluator(BaseEvaluator):
         #    stratify=stratify
         #)
         
-
-        #0.8/0.1/0.1
         dataset: Dict[DatasetType, Subset] = load_dataset(
             dataset_name,
             supervised_train_transformer,
@@ -441,9 +441,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             else:
                 if reuse_parent_weights is True:
                     num_epochs = 0
-                    #print("surprise, num epochs was reset to 0")
 
-            #self._adapt_model_to_device(torch_model, device)
             torch_model.to(device.value)
             logger.debug(torch_model)
 
@@ -487,14 +485,17 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             
             complete_model: EvaluationBarlowTwinsNetwork = EvaluationBarlowTwinsNetwork(torch_model, n_classes, device)
             complete_model.to(device.value, non_blocking=True)
-            params_to_tune = [param for name, param in complete_model.named_parameters() if name in {'final_layer.weight', 'final_layer.bias'}]
+            #print(list(map(lambda x: x[0], complete_model.named_parameters())))
+            relevant_index: int = complete_model.relevant_index
+            params_to_tune = [param for name, param in complete_model.named_parameters()
+                              if name in {f'final_layer.{relevant_index}.weight', f'final_layer.{relevant_index}.bias'}]
             
             last_layer_trainer = Trainer(model=complete_model,
                                          optimiser=torch.optim.Adam(params_to_tune, lr=1e-3, weight_decay=1e-6),
                                          loss_function=nn.CrossEntropyLoss(),
                                          train_data_loader=train_loader,
                                          validation_data_loader=validation_loader,
-                                         n_epochs=50,
+                                         n_epochs=100,
                                          initial_epoch=0,
                                          device=device,
                                          callbacks=[ModelCheckpointCallback(model_saving_dir,
