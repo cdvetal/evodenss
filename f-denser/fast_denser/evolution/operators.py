@@ -12,7 +12,7 @@ from fast_denser.misc import persistence
 logger = logging.getLogger(__name__)
 
 
-def mutation_dsge(layer, grammar: Grammar):
+def mutation_dsge(layer, grammar: Grammar) -> None:
     """
         DSGE mutations (check DSGE for futher details)
 
@@ -64,7 +64,7 @@ def mutation_dsge(layer, grammar: Grammar):
 def mutation(individual: Individual,
              grammar: Grammar,
              mutation_config: Dict[str, float],
-             default_train_time: int):
+             default_train_time: int) -> Individual:
     """
         Network mutations: add and remove layer, add and remove connections, macro structure
 
@@ -100,11 +100,11 @@ def mutation(individual: Individual,
     #Train individual for longer - no other mutation is applied
     if random.random() <= train_longer_prob:
         individual.total_allocated_train_time += default_train_time
-        logger.info(f"Individual {individual.id} train time is going to be extended to {individual.total_allocated_train_time}")
+        logger.info(f"Individual {individual.id} total train time is going to be extended to {individual.total_allocated_train_time}")
         return individual
 
 
-    #in case the individualividual is mutated in any of the structural parameters
+    #in case the individual is mutated in any of the structural parameters
     #the training time is reset
     individual.current_time = 0
     individual.num_epochs = 0
@@ -116,6 +116,7 @@ def mutation(individual: Individual,
         #add-layer (duplicate or new)
         for _ in range(random.randint(1,2)):
             if len(module.layers) < module.max_expansions and random.random() <= add_layer_prob:
+                logger.info(f"Individual {individual.id} is going to have an extra layer")
                 if random.random() <= reuse_layer_prob:
                     new_layer = random.choice(module.layers)
                 else:
@@ -153,6 +154,7 @@ def mutation(individual: Individual,
         #remove-layer
         for _ in range(random.randint(1,2)):
             if len(module.layers) > module.min_expansions and random.random() <= remove_layer_prob:
+                logger.info(f"Individual {individual.id} is going to have a layer removed")
                 remove_idx = random.randint(0, len(module.layers)-1)
                 del module.layers[remove_idx]
 
@@ -174,6 +176,7 @@ def mutation(individual: Individual,
         for layer_idx, layer in enumerate(module.layers):
             #dsge mutation
             if random.random() <= dsge_layer_prob:
+                logger.info(f"Individual {individual.id} is going to have a DSGE mutation")
                 mutation_dsge(layer, grammar)
 
             #add connection
@@ -192,6 +195,7 @@ def mutation(individual: Individual,
     #macro level mutation
     for macro in individual.macro:
         if random.random() <= macro_layer_prob:
+            logger.info(f"Individual {individual.id} is going to have a macro mutation")
             mutation_dsge(macro, grammar)
 
     return individual
@@ -208,6 +212,9 @@ def select_fittest(population,
     #Get best individual just according to fitness
     idx_max = np.argmax(population_fits)
     parent = population[idx_max]
+    logger.info(f"Parent: idx: {idx_max}, id: {parent.id}")
+    logger.info(f"Training times: {[ind.current_time for ind in population]}")
+    logger.info(f"ids: {[ind.id for ind in population]}")
 
     #however if the parent is not the elite, and the parent is trained for longer, the elite
     #is granted the same evaluation time.
@@ -231,15 +238,18 @@ def select_fittest(population,
         retrain_10min = False
         if min_train_time < parent.total_allocated_train_time:
             ids_10min = [ind.current_time == min_train_time for ind in population]
+            logger.info(f"Individuals trained for the minimum time: {ids_10min}")
             if sum(ids_10min) > 0:
                 retrain_10min = True
                 indvs_10min = np.array(population)[ids_10min]
                 max_fitness_10min = max([ind.fitness for ind in indvs_10min])
-                idx_max_10min = np.argmax(max_fitness_10min)
+                idx_max_10min = np.argmax([ind.fitness for ind in indvs_10min])
                 parent_10min = indvs_10min[idx_max_10min]
 
                 parent_10min.total_allocated_train_time = parent.total_allocated_train_time
-                logger.info(f"Individual {parent_10min.id} has its train extended ")
+                logger.info(f"Min train time parent: idx: {idx_max_10min}, id: {parent_10min.id}, max fitness detected: {max_fitness_10min}")
+                logger.info(f"Fitnesses from min train individuals before selecting best individual: {[ind.fitness for ind in indvs_10min]}")
+                logger.info(f"Individual {parent_10min.id} has its train extended. Current fitness {parent_10min.fitness}")
                 parent_10min.evaluate(grammar,
                                       cnn_eval,
                                       persistence.build_individual_path(checkpoint_base_path, run, generation, parent_10min.id),
