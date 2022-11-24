@@ -4,20 +4,42 @@ from sys import float_info
 from typing import cast, Dict, List, Optional, Set, Tuple, Union
 
 # from fast_denser.neural_networks_torch import NetworkValidator
-from fast_denser.misc.constants import CHANNEL_INDEX
+from fast_denser.neural_networks_torch import Dimensions
+from fast_denser.misc.constants import CHANNEL_INDEX, SEPARATOR_CHAR
 from fast_denser.misc.enums import Device, LayerType, ProjectorUsage
 from fast_denser.misc.utils import InputLayerId, LayerId
 
 import torch
 from torch import nn, Tensor
+import torch.nn.functional as F
 
 logger = logging.getLogger(__name__)
 
 
-def find_last_layer_info(layer_names: List[str]) -> Tuple[str, int]:
+#def find_last_layer_info(layer_names: List[str]) -> Tuple[str, int]:
+#    linear_layers: List[str] = list(filter(lambda x: x.startswith(LayerType.FC.value) and "." not in x, layer_names))
+#    ids: List[int] = list(map(lambda x: int(x.split("_")[-1].split(".")[0]), linear_layers))
+#    return LayerType.FC.value, max(ids)
+
+#def find_last_layer_info(layer_names: List[str]) -> Tuple[LayerType, int]:
+#    print(layer_names)
+#    #linear_layers: List[str] = list(filter(lambda x: x.startswith(expected_last_layertype) and "." not in x, layer_names))
+#    linear_layers: List[str] = list(filter(lambda x: x.startswith(LayerType.FC.value) and "." not in x, layer_names))
+#    print(linear_layers)
+#    ids: List[int] = list(map(lambda x: int(x.split(SEPARATOR_CHAR)[-1].split(".")[0]), linear_layers))
+#    print(ids)
+#    return LayerType.FC, max(ids)
+
+def find_last_layer_info(evolved_layers: List[Tuple[str, nn.Module]],
+                         last_layer_name: str) -> Tuple[LayerType, int]:
+    last_layer_name: str = id_
+    print(layer_names)
+    #linear_layers: List[str] = list(filter(lambda x: x.startswith(expected_last_layertype) and "." not in x, layer_names))
     linear_layers: List[str] = list(filter(lambda x: x.startswith(LayerType.FC.value) and "." not in x, layer_names))
-    ids: List[int] = list(map(lambda x: int(x.split("_")[-1].split(".")[0]), linear_layers))
-    return LayerType.FC.value, max(ids)
+    print(linear_layers)
+    ids: List[int] = list(map(lambda x: int(x.split(SEPARATOR_CHAR)[-1].split(".")[0]), linear_layers))
+    print(ids)
+    return LayerType.FC, max(ids)
 
 class EvolvedNetwork(nn.Module):
 
@@ -111,35 +133,55 @@ class BarlowTwinsNetwork(EvolvedNetwork):
     def __init__(self,
                  evolved_layers: List[Tuple[str, nn.Module]],
                  layers_connections: Dict[LayerId, List[InputLayerId]],
+                 layer_shapes: Dict[InputLayerId, Dimensions],
                  projector_usage: Optional[ProjectorUsage],
                  device: Device):
         
         # TODO: DO IT MORE EFFICIENTLY
         super(BarlowTwinsNetwork, self).__init__(evolved_layers, layers_connections)
-        layer_names: List[str] = list(map(lambda x: x[0], evolved_layers))
+        #layer_names: List[str] = list(map(lambda x: x[0], evolved_layers))
+        last_layer_name: str = self.id_layername_map[self.output_layer_id]
+        last_layer_type: LayerType = LayerType[last_layer_name.split(SEPARATOR_CHAR)[0].upper()]
+        #last_layer: nn.Module
+        #relevant_index: int
+        #last_layer, relevant_index = find_last_layer_info(last_layer_name)
+        #last_layer_type: LayerType
+        #last_layer_count: int
+        #last_layer_type, last_layer_count = find_last_layer_info(layer_names)
+        #index: int = 1 if last_layer_count == 1 else 0
+        #print(index)
+        #print("----")
+        #print(list(filter(lambda x: x[0] == f"{last_layer_type.value}{SEPARATOR_CHAR}{last_layer_count}", evolved_layers)))
+        #print("----")
+        #print(list(filter(lambda x: x[0] == f"{last_layer_type.value}{SEPARATOR_CHAR}{last_layer_count}", evolved_layers))[0])
+        #print("----")
+        #print(list(filter(lambda x: x[0] == f"{last_layer_type.value}{SEPARATOR_CHAR}{last_layer_count}", evolved_layers))[0][1])
+        #last_layer = list(filter(lambda x: x[0] == f"{last_layer_type.value}{SEPARATOR_CHAR}{last_layer_count}", evolved_layers))[0][1]
         
-        last_layer_name: str
-        last_layer_count: int
-        last_layer_name, last_layer_count = find_last_layer_info(layer_names)
-        index: int = 1 if last_layer_count == 1 else 0
-        last_layer = list(filter(lambda x: x[0] == f"{last_layer_name}_{last_layer_count}", evolved_layers))[0][1]
-        
-        self.last_layer_out_features: int = last_layer[index].out_features
-        
+        #self.last_layer_out_features: int
+        #if last_layer_type is LayerType.FC:
+        #    self.last_layer_out_features = last_layer[relevant_index].out_features
+        #else:
+        #    self.last_layer_out_features = layer_shapes[self.output_layer_id].flatten()
+        self.last_layer_out_features = layer_shapes[InputLayerId(self.output_layer_id)].flatten()
+        self.layer_shapes: Dict[InputLayerId, Dimensions] = layer_shapes
         self.projector: Optional[nn.Module]
         if projector_usage is None:
-            self.projector = None
-            self.bn = nn.BatchNorm1d(self.last_layer_out_features, affine=False, device=device.value)
+            # TODO: What if there is no projector? This has to be done at some point I think
+            raise NotImplementedError()
+            #self.projector = None
+            #self.bn = nn.BatchNorm1d(self.last_layer_out_features, affine=False, device=device.value)
         if projector_usage == ProjectorUsage.EXPLICIT:
             # projector
-            sizes: List[int] = [self.last_layer_out_features] + [512, 512]
+            sizes: List[int] = [self.last_layer_out_features] + [512, 128]
             layers: List[nn.Module] = []
             for i in range(len(sizes) - 2):
                 layers.append(nn.Linear(sizes[i], sizes[i + 1], bias=False, device=device.value))
                 layers.append(nn.BatchNorm1d(sizes[i + 1], device=device.value))
                 layers.append(nn.ReLU(inplace=True))
             layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False, device=device.value))
-            self.projector = nn.Sequential(*layers)
+            flatten: List[nn.Module] = [nn.Flatten()] if last_layer_type is not LayerType.FC else []
+            self.projector = nn.Sequential(*(flatten + layers))
             self.bn = nn.BatchNorm1d(sizes[-1], affine=False, device=device.value)
         else:
             raise NotImplementedError
@@ -169,7 +211,7 @@ class BarlowTwinsNetwork(EvolvedNetwork):
 
             if self.projector is None:
                 z1 = y1
-                z2 = y2 
+                z2 = y2
             else:
                 z1 = self.projector(y1)
                 z2 = self.projector(y2)
@@ -244,19 +286,22 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
     def __init__(self, barlow_twins_trained_model: nn.Module, n_neurons: int, device: Device) -> None:
         super(EvaluationBarlowTwinsNetwork, self).__init__()
         self.barlow_twins_trained_model: nn.Module = barlow_twins_trained_model
-        
-        # used to append the final layers to evolve networks
-        layer_names: List[str] = list(map(lambda x: str(x[0]), self.barlow_twins_trained_model.named_modules()))
-        
-        last_layer_name: str
-        last_layer_count: int
-        
-        last_layer_name, last_layer_count = find_last_layer_info(layer_names)
-        index: int = 1 if last_layer_count == 1 else 0
 
-        last_layer_out_features = getattr(self.barlow_twins_trained_model, f"{last_layer_name}_{last_layer_count}")[index].out_features
-        self.final_layer = nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True, device=device.value)
-        
+        # used to append the final layers to evolve networks
+        output_layer_id: LayerId = barlow_twins_trained_model.output_layer_id
+        last_layer_name: str = barlow_twins_trained_model.id_layername_map[output_layer_id]
+        last_layer_type: LayerType = LayerType[last_layer_name.split(SEPARATOR_CHAR)[0].upper()]
+        last_layer_out_features = barlow_twins_trained_model.layer_shapes[InputLayerId(output_layer_id)].flatten()
+        print(last_layer_type, last_layer_out_features)
+
+        #last_layer_out_features = getattr(self.barlow_twins_trained_model, f"{last_layer_type.value}{SEPARATOR_CHAR}{last_layer_count}")[index].out_features
+        #flatten: List[nn.Module] = [nn.Flatten()] if last_layer_type is not LayerType.FC else []
+        layers = [] if last_layer_type is LayerType.FC else [nn.Flatten()]
+        self.final_layer = nn.Sequential(
+            *layers,
+            nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True, device=device.value)
+        )
+        self.relevant_index = len(layers)
         #this was used to inject the original resnet network
         #self.final_layer = nn.Linear(in_features=2048, out_features=10, bias=True, device=device.value) # remove me later and keep the line above
         
