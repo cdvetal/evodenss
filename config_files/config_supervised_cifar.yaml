@@ -1,6 +1,6 @@
 checkpoints_path: ../../results/experiments_supervised_cifar
 evolutionary:
-  generations: 50
+  generations: 100
   lambda: 4
   max_epochs: 10000
   mutation:
