@@ -109,12 +109,10 @@ def evolve(run: int,
     logger.info(f"Fitnesses: {population_fits}")
 
     # update best individual
+    best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'], run, generation, parent.id)
     if checkpoint.best_fitness is None or parent.fitness > checkpoint.best_fitness:
         checkpoint.best_fitness = parent.fitness
-        best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'], run, generation, parent.id)
         persistence.save_overall_best_individual(best_individual_path, parent)
-
-    best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'], run, generation, parent.id)
     best_test_acc: float = checkpoint.evaluator.testing_performance(best_individual_path)
 
     logger.info(f"Generation best test accuracy: {best_test_acc}")
