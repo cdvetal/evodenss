@@ -37,11 +37,11 @@ def load_dataset(dataset_name: str,
     if dataset_name == "fashion-mnist":
         train_data, test_data = _load_fashion_mnist(train_transformer, test_transformer)
     elif dataset_name == "mnist":
-        train_data, test_data = _load_mnist(train_transformer, test_transformer)
+        train_data, evo_test_data, test_data = _load_mnist(train_transformer, test_transformer)
     elif dataset_name == "cifar10":
-        train_data, test_data = _load_cifar10(train_transformer, test_transformer)
+        train_data, evo_test_data, test_data = _load_cifar10(train_transformer, test_transformer)
     elif dataset_name == "cifar100":
-        train_data, test_data = _load_cifar100(train_transformer, test_transformer)
+        train_data, evo_test_data, test_data = _load_cifar100(train_transformer, test_transformer)
     else:
         raise ValueError(f"Invalid dataset name: {dataset_name}")
 
@@ -49,7 +49,10 @@ def load_dataset(dataset_name: str,
     # In case we have received the indexes for each subset already
     if type(proportions) is ProportionsIndexes:
         for k in proportions.keys():
-            subset_dict[k] = Subset(train_data, proportions[k])
+            if k == DatasetType.EVO_TEST:
+                subset_dict[k] = Subset(evo_test_data, proportions[k])
+            else:
+                subset_dict[k] = Subset(train_data, proportions[k])
         subset_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
         return subset_dict
 
@@ -65,7 +68,7 @@ def load_dataset(dataset_name: str,
                                             test_size=proportions[DatasetType.EVO_TEST],
                                             shuffle=True,
                                             stratify=stratify)
-        subset_dict[DatasetType.EVO_TEST] = Subset(train_data, test_idx)
+        subset_dict[DatasetType.EVO_TEST] = Subset(evo_test_data, test_idx)
 
         if DatasetType.EVO_VALIDATION in proportions.keys():
             stratify = targets_tensor[train_idx] if enable_stratify is True else None
@@ -124,12 +127,18 @@ def _load_fashion_mnist(train_transformer: BaseTransformer,
     return train_data, test_data
 
 def _load_mnist(train_transformer: BaseTransformer,
-                test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset]:
+                test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:
     train_data = datasets.MNIST(
         root="data",
         train=True,
         download=True,
         transform=train_transformer
+    )
+    evo_test_data = datasets.MNIST(
+        root="data",
+        train=True,
+        download=True,
+        transform=test_transformer
     )
     test_data = datasets.MNIST(
         root="data",
@@ -137,15 +146,21 @@ def _load_mnist(train_transformer: BaseTransformer,
         download=True,
         transform=test_transformer
     )
-    return train_data, test_data
+    return train_data, evo_test_data, test_data
 
 def _load_cifar10(train_transformer: BaseTransformer,
-                  test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset]:
+                  test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:
     train_data = datasets.CIFAR10(
         root="data",
         train=True,
         download=True,
         transform=train_transformer
+    )
+    evo_test_data = datasets.CIFAR10(
+        root="data",
+        train=True,
+        download=True,
+        transform=test_transformer
     )
     test_data = datasets.CIFAR10(
         root="data",
@@ -154,15 +169,21 @@ def _load_cifar10(train_transformer: BaseTransformer,
         transform=test_transformer
     )
 
-    return train_data, test_data
+    return train_data, evo_test_data, test_data
 
 def _load_cifar100(train_transformer: BaseTransformer,
-                  test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset]:
+                  test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:
     train_data = datasets.CIFAR100(
         root="data",
         train=True,
         download=True,
         transform=train_transformer
+    )
+    evo_test_data = datasets.CIFAR100(
+        root="data",
+        train=True,
+        download=True,
+        transform=test_transformer
     )
     test_data = datasets.CIFAR100(
         root="data",
@@ -171,4 +192,4 @@ def _load_cifar100(train_transformer: BaseTransformer,
         transform=test_transformer
     )
 
-    return train_data, test_data
+    return train_data, evo_test_data, test_data
