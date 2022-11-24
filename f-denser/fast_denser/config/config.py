@@ -1,5 +1,6 @@
 import os
 import logging
+import shutil
 from typing import Any, Dict
 
 from jsonschema import validate # type: ignore
@@ -16,10 +17,15 @@ class Config():
     def __init__(self, path: str) -> None:
         self.config: Any = self._load(path)
         self._validate_config()
+        os.makedirs(self.config['checkpoints_path'], exist_ok=True)
+        self._backup_used_config(path, self.config['checkpoints_path'])
 
     def _load(self, path: str) -> Any:
         with open(path, "r", encoding="utf8") as f:
             return yaml.safe_load(f)
+
+    def _backup_used_config(self, origin: str, destination: str) -> None:
+        shutil.copyfile(origin, os.path.join(destination, "used_config.yaml"))
 
     def _validate_config(self) -> None:
         schema_path: str = os.path.join("fast_denser", "config", "schema.yaml")
