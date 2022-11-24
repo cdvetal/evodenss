@@ -55,7 +55,7 @@ class Dimensions:
             height = ceil((input_dimensions.height - kernel_h + 1) / layer.layer_parameters['stride']) + padding_h
             width = ceil((input_dimensions.width - kernel_w + 1) / layer.layer_parameters['stride']) + padding_w
             return cls(out_channels, height, width)
-        elif layer.layer_type in [LayerType.BATCH_NORM, LayerType.DROPOUT]:
+        elif layer.layer_type in [LayerType.BATCH_NORM, LayerType.DROPOUT, LayerType.IDENTITY]:
             return input_dimensions
         elif layer.layer_type == LayerType.FC:
             return cls(layer.layer_parameters['out_features'], height=1, width=1)
