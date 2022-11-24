@@ -27,3 +27,4 @@ STATS_FOLDER_NAME = "statistics"
 CHANNEL_INDEX = 1
 MODEL_FILENAME = "model.pt"
 WEIGHTS_FILENAME = "weights.pt"
+SEPARATOR_CHAR = "-"
