@@ -96,7 +96,7 @@ class Trainer:
                     loss.backward()
                     self.optimiser.step()
                 end = time.time()
-                logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss}")
+                #logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss}")
                 self.loss_values["train_loss"].append(round(float(total_loss.data), 3))
                 
                 if self.validation_data_loader is not None:
@@ -111,11 +111,11 @@ class Trainer:
                         self.validation_loss.append(float(total_loss.data)) # Used for early stopping criteria
                     self.model.train()
                     end = time.time()
-                    logger.info(f"[{round(end-start, 2)}s] VALIDATION epoch {epoch} -- loss: {total_loss}")
+                    #logger.info(f"[{round(end-start, 2)}s] VALIDATION epoch {epoch} -- loss: {total_loss}")
                 if self.scheduler is not None:
                     self.scheduler.step()
                 epoch += 1
-                logger.info("=============================================================")
+                #logger.info("=============================================================")
                 self._call_on_epoch_end_callbacks()
 
             self._call_on_train_end_callbacks()
@@ -171,7 +171,7 @@ class Trainer:
                     scaler.update()
 
                 end = time.time()
-                logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss/n_batches_train}")
+                #logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss/n_batches_train}")
                 self.loss_values["train_loss_diagonal"].append(round(total_diagonal_loss/n_batches_train, 3))
                 self.loss_values["train_loss_offdiagonal"].append(round(total_offdiagonal_loss/n_batches_train, 3))
                 self.loss_values["train_loss_complete"].append(round(total_loss/n_batches_train, 3))
