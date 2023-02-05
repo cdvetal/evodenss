@@ -6,16 +6,12 @@ from sys import float_info
 from typing import Any, TYPE_CHECKING, Optional
 
 from fast_denser.misc.enums import Device
-from fast_denser.neural_networks_torch.evolved_networks import EvaluationBarlowTwinsNetwork
-from fast_denser.neural_networks_torch.trainers import Trainer
 
 import torch
-from torch import nn
-from torchmetrics import Accuracy
 
 if TYPE_CHECKING:
+    from torch import nn
     from torch.utils.data import DataLoader
-    from torchmetrics.metric import Metric
 
 class Fitness:
     
