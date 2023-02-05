@@ -105,10 +105,12 @@ class EvolvedNetwork(nn.Module):
         #print([x.shape for x in layer_inputs])
         if len(layer_inputs) > 1:
             # we are using channels first representation, so channels is index 1
-            final_input_tensor = torch.cat(tuple(layer_inputs), dim=CHANNEL_INDEX)
+            # ADRIANO: another hack to cope with the relu in resnet scenario
+            final_input_tensor = torch.stack(layer_inputs, dim=0).sum(dim=0)
+            #old way: final_input_tensor = torch.cat(tuple(layer_inputs), dim=CHANNEL_INDEX)
         else:
             final_input_tensor = layer_inputs[0]
-        #print("final input tensor: ", layer_id, final_input_tensor.shape)
+        #print("final input tensor: ", layer_id, layer_name, final_input_tensor.shape)
         output_tensor = self.__dict__['_modules'][layer_name](final_input_tensor)
         return output_tensor
 
@@ -213,6 +215,7 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                 z1 = y1
                 z2 = y2
             else:
+                #print(y1.shape, y2.shape)
                 z1 = self.projector(y1)
                 z2 = self.projector(y2)
 
