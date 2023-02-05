@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 import logging
+from math import ceil
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
 
 
@@ -101,10 +102,9 @@ class ModelBuilder():
                 inputs_shapes: Dict[InputLayerId, Dimensions] = \
                     { input_id: self.layer_shapes[input_id] for input_id in self.layers_connections[LayerId(i)] }
                 minimum_extra_id: int = len(self.layers) + len(collected_extra_torch_layers)
-                extra_layers: Dict[InputLayerId, Layer] = self._get_layers_to_fix_shape_mismatches(inputs_shapes, minimum_extra_id)
+                extra_layers: Dict[InputLayerId, Layer] = self._get_layers_to_fix_shape_mismatches_resnet_approach(inputs_shapes, minimum_extra_id)
                 for input_id, extra_layer in extra_layers.items():
-
-                    extra_layer_name: str = f"{extra_layer.layer_type.value}_{self.layer_type_counts[extra_layer.layer_type]}"
+                    extra_layer_name: str = f"{extra_layer.layer_type.value}{SEPARATOR_CHAR}{self.layer_type_counts[extra_layer.layer_type]}"
                     self.layer_type_counts.update([extra_layer.layer_type])
 
                     # Add the new connection in between
@@ -115,7 +115,6 @@ class ModelBuilder():
                     
                     layer_to_add = self._create_torch_layer(extra_layer, extra_layer_name)
                     collected_extra_torch_layers.append((extra_layer_name, layer_to_add))
-                    
                 layer_to_add = self._create_torch_layer(l, layer_name)
                 torch_layers.append((layer_name, layer_to_add))
 
@@ -131,7 +130,41 @@ class ModelBuilder():
                 raise ValueError(f"Unexpected network type: {evaluation_type}")
         except InvalidNetwork as e:
             raise e
+        except RuntimeError as e:
+            print(e)
+            raise InvalidNetwork(str(e))
 
+    def _get_layers_to_fix_shape_mismatches_resnet_approach(self,
+                                                            inputs_shapes: Dict[InputLayerId, Dimensions],
+                                                            minimum_extra_id: int) -> Dict[InputLayerId, Layer]:
+        # assumes that of the inputs will be the beginning of the module, just like a resnet block
+        new_layers_dict: Dict[InputLayerId, Layer] = {}
+        minimum_input_id: InputLayerId = min(list(inputs_shapes.keys()))
+        #print(inputs_shapes)
+        target_shape: Dimensions = inputs_shapes.pop(minimum_input_id) # side effect: removes element from dict
+        #print(inputs_shapes)
+        layer_id: int = minimum_extra_id
+        for input_id, input_shape in inputs_shapes.items():
+            if input_shape != target_shape:
+                logging.warning("Shape mismatch found")
+                expected_padding_h = max(ceil((target_shape.height-input_shape.height) / 2), 0)
+                expected_padding_w = max(ceil((target_shape.width-input_shape.width) / 2), 0)
+                expected_kernel_size_h = max(ceil(input_shape.height + (expected_padding_h * 2) - target_shape.height + 1), 1)
+                expected_kernel_size_w = max(ceil(input_shape.height + (expected_padding_w * 2) - target_shape.width + 1), 1)
+                #print("input: ", input_shape)
+                #print()
+                #print("target: ", target_shape, ceil(input_shape.height - expected_kernel_size_h + 1) + expected_padding_h * 2)
+                #print("breakdown adapting: ", expected_padding_h, expected_padding_w, expected_kernel_size_h, expected_kernel_size_w)
+                new_layers_dict[input_id] = Layer(layer_id=LayerId(layer_id),
+                                                layer_type=LayerType.CONV,
+                                                layer_parameters={
+                                                    'out_channels': str(target_shape.channels),
+                                                    'kernel_size_fix': str((expected_kernel_size_h, expected_kernel_size_w)),
+                                                    'padding_fix': str((expected_padding_h, expected_padding_w)),
+                                                    'act': 'linear',
+                                                    'stride': '1'})
+                layer_id += 1
+        return new_layers_dict
 
     def _get_layers_to_fix_shape_mismatches(self,
                                             inputs_shapes: Dict[InputLayerId, Dimensions],
@@ -174,8 +207,10 @@ class ModelBuilder():
         #if len(set(inputs_shapes.values())) == 1:
         first_input = list(inputs_shapes.values())[0]
         if len(inputs_shapes) > 1:
-            total_channels: int = sum([x.channels for x in list(inputs_shapes.values())])
-            expected_input_dimensions = Dimensions(total_channels, first_input.height, first_input.width)
+            #total_channels: int = sum([x.channels for x in list(inputs_shapes.values())])
+            #expected_input_dimensions = Dimensions(total_channels, first_input.height, first_input.width)
+            #ADRIANO this is a test for the new shape mismatch resolution strategy
+            expected_input_dimensions = Dimensions(first_input.channels, first_input.height, first_input.width)
         else:
             # in this case all inputs will have the same dimensions, just take the first one...
             expected_input_dimensions = first_input
@@ -201,6 +236,8 @@ class ModelBuilder():
             layer_to_add = self._build_dropout_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.IDENTITY:
             layer_to_add = nn.Identity()
+        elif layer.layer_type == LayerType.RELU_AGG:
+            layer_to_add = nn.ReLU()
         #print("== shapes: ", self.layer_shapes)
         #print("=== ", layer_to_add, layer.layer_id)        
         return layer_to_add
@@ -214,7 +251,8 @@ class ModelBuilder():
         layer_to_add: nn.Module
         activation: ActivationType = ActivationType(layer.layer_parameters.pop("act"))
 
-        assert layer.layer_parameters['padding'] in ['valid', 'same']
+        assert layer.layer_parameters['padding'] in ['valid', 'same'] or \
+            type(layer.layer_parameters['padding']) is tuple
 
         # TODO: put bias = False if all next layers connected to this layer are batch norm
         
