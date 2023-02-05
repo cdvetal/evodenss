@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import filecmp
+import os
 from random import randint, uniform
+import shutil
 
 
 class Grammar:
@@ -59,7 +61,7 @@ class Grammar:
             that are encoded in the genotype
     """
 
-    def __init__(self, path):
+    def __init__(self, path: str, backup_path: str):
         """
             Parameters
             ----------
@@ -68,6 +70,21 @@ class Grammar:
         """
 
         self.grammar = self.get_grammar(path)
+        if backup_path is not None:
+            self._backup_used_grammar(path, backup_path)
+
+
+    def _backup_used_grammar(self, origin_filepath: str, destination: str) -> None:
+        destination_filepath: str =  os.path.join(destination, "used_grammar.yaml")
+        # if there is a config file backed up already and it is different than the one we are trying to backup
+        if os.path.isfile(destination_filepath) and \
+            filecmp.cmp(origin_filepath, destination_filepath) is False:
+            raise ValueError("You are probably trying to continue an experiment "
+                             "with a different grammar than the one you used initially. "
+                             "This is a gentle reminder to double-check the grammar you "
+                             "have just passed as parameter.")
+        if not shutil._samefile(origin_filepath, destination_filepath): # type: ignore
+            shutil.copyfile(origin_filepath, destination_filepath)
 
 
     def get_grammar(self, path):
