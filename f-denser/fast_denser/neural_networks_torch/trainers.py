@@ -1,5 +1,4 @@
 import logging
-from tkinter import N
 from typing import Any, Dict, List, Optional
 
 import torch
@@ -144,7 +143,6 @@ class Trainer:
             
             self._call_on_train_begin_callbacks()
             scaler = torch.cuda.amp.GradScaler()
-            # print(epoch, self.n_epochs, self.stop_training)
             while epoch < self.n_epochs and self.stop_training is False:
                 self.model.train()
                 start = time.time()
