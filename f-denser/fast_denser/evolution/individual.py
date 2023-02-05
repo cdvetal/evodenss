@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
@@ -188,9 +189,15 @@ class Individual:
             offset = layer_counter
             for layer_idx, layer_genotype in enumerate(module.layers):
                 layer_counter += 1
+                phenotype_layer: str = f" {grammar.decode(module.module, layer_genotype)}"
+                current_connections = deepcopy(module.connections[layer_idx])
+                # ADRIANO HACK
+                if "relu_agg" in phenotype_layer and -1 not in module.connections[layer_idx]:
+                    current_connections = [-1] + current_connections
+                # END
                 phenotype += (
-                    f" {grammar.decode(module.module, layer_genotype)}"
-                    f" input:{','.join(map(str, np.array(module.connections[layer_idx]) + offset))}"
+                    f"{phenotype_layer}"
+                    f" input:{','.join(map(str, np.array(current_connections) + offset))}"
                 )
 
         phenotype += " " + grammar.decode(self.output_rule, self.output) + " input:" + str(layer_counter-1)

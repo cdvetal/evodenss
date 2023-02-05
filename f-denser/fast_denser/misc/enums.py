@@ -32,6 +32,7 @@ class LayerType(ExtendedEnum):
     FC = "fc"
     DROPOUT = "dropout"
     IDENTITY = "identity"
+    RELU_AGG = "relu_agg"
 
 @unique
 class OptimiserType(Enum):
@@ -65,10 +66,3 @@ class TransformOperation(ExtendedEnum):
 class FitnessMetricName(ExtendedEnum):
     LOSS = "loss"
     ACCURACY = "accuracy"
-
-@unique
-class DatasetType(Enum):
-    EVO_TRAIN = "evo_train"
-    EVO_VALIDATION = "evo_validation"
-    EVO_TEST = "evo_test"
-    TEST = "test"
