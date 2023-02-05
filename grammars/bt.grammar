@@ -8,6 +8,6 @@
 <identity> ::= layer:identity
 <activation_function> ::= act:linear | act:relu | act:sigmoid
 <bias> ::= bias:True | bias:False
-<learning> ::= <lars> [batch_size,int,1,32,256] epochs:1000 | <adam> [batch_size,int,1,32,256] epochs:1000
+<learning> ::= <lars> [batch_size,int,1,32,256] epochs:100 | <adam> [batch_size,int,1,32,256] epochs:100
 <adam> ::= learning:adam [lr,float,1,0.0001,0.1] [beta1,float,1,0.5,0.9999] [beta2,float,1,0.5,0.9999] [weight_decay,float,1,0.000001,0.001]
 <lars> ::= learning:lars [lr_weights,float,1,0.05,0.35] [lr_biases,float,1,0.001,0.01] [momentum,float,1,0.7,0.9] [weight_decay,float,1,0.0000001,0.00001]
