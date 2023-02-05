@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import logging
 import os
+import signal
 from time import time
 import traceback
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
@@ -21,12 +22,12 @@ from fast_denser.neural_networks_torch.trainers import Trainer
 from fast_denser.neural_networks_torch.transformers import BaseTransformer, LegacyTransformer, \
     BarlowTwinsTransformer
 from fast_denser.neural_networks_torch.evolved_networks import EvaluationBarlowTwinsNetwork
-from torch.utils.data import DataLoader, Subset
 
-from sklearn.model_selection import train_test_split
 import torch
 from torch import nn
-
+import torch.distributed as dist
+import torch.multiprocessing as mp
+from torch.utils.data import DataLoader, Subset
 
 if TYPE_CHECKING:
     from fast_denser.neural_networks_torch import LearningParams
@@ -35,6 +36,19 @@ __all__ = ['create_evaluator', 'BaseEvaluator', 'BarlowTwinsEvaluator', 'LegacyE
 
 
 logger = logging.getLogger(__name__)
+
+def setup(n_nodes: int, n_gpus_per_node: int) -> None:
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+
+    signal.signal(signal.SIGINT, cleanup) # type: ignore
+    signal.signal(signal.SIGKILL, cleanup) # type: ignore
+
+    # initialize the process group
+    dist.init_process_group("nccl", rank=n_nodes, world_size=n_gpus_per_node)
+
+def cleanup() -> None:
+    dist.destroy_process_group()
 
 def create_fitness_metric(metric_name: FitnessMetricName,
                           evaluator_type: type['BaseEvaluator'],
@@ -64,7 +78,8 @@ def create_evaluator(dataset_name: str,
                      is_gpu_run: bool,
                      train_augmentation_params: Dict[str, Any],
                      supervised_train_augmentation_params: Dict[str, Any], # only exists in self supervised
-                     test_augmentation_params: Dict[str, Any]) -> 'BaseEvaluator':
+                     test_augmentation_params: Dict[str, Any],
+                     train_set_percentage: int) -> 'BaseEvaluator':
     user_chosen_device: Device = Device.GPU if is_gpu_run is True else Device.CPU
     train_transformer: Optional[BaseTransformer]
     test_transformer: Optional[BaseTransformer]
@@ -77,14 +92,18 @@ def create_evaluator(dataset_name: str,
         assert supervised_train_augmentation_params is not None
         supervised_train_transformer = LegacyTransformer(supervised_train_augmentation_params)
         assert test_augmentation_params is not None
-        test_transformer = LegacyTransformer(test_augmentation_params)
+        supervised_test_transformer = LegacyTransformer(test_augmentation_params)
+         # same transformations but to be used only in the test set when we want the evolution to be guided by the loss
+        test_transformer = BarlowTwinsTransformer(train_augmentation_params)
         return BarlowTwinsEvaluator(dataset_name,
                                     fitness_metric_name,
                                     run,
                                     user_chosen_device,
                                     train_transformer,
                                     supervised_train_transformer,
-                                    test_transformer)
+                                    test_transformer,
+                                    supervised_test_transformer,
+                                    train_set_percentage)
     else:
         train_augmentation_params = {} if train_augmentation_params is None else train_augmentation_params
         train_transformer = LegacyTransformer(train_augmentation_params)
@@ -95,7 +114,8 @@ def create_evaluator(dataset_name: str,
                                run,
                                user_chosen_device,
                                train_transformer,
-                               test_transformer)
+                               test_transformer,
+                               train_set_percentage)
 
 
 class BaseEvaluator(ABC):
@@ -143,13 +163,17 @@ class BaseEvaluator(ABC):
             raise ValueError(f"Invalid fitness metric") 
 
 
-    def _get_data_loaders(self, dataset: Dict[DatasetType, Subset], batch_size: int) -> Tuple[DataLoader, Optional[DataLoader], DataLoader]:
+    def _get_data_loaders(self,
+                          dataset: Dict[DatasetType, Subset],
+                          batch_size: int) -> Tuple[DataLoader, Optional[DataLoader], DataLoader]:
 
+        #during bt training if the the last batch has 1 element, training breaks at last batch norm.
+        #therefore, we drop the last batch
         train_loader = DataLoader(dataset[DatasetType.EVO_TRAIN],
                                   batch_size=batch_size,
                                   shuffle=False,
                                   num_workers=4,
-                                  drop_last=False,
+                                  drop_last=True,
                                   pin_memory=True)
 
         validation_loader: Optional[DataLoader]
@@ -233,7 +257,8 @@ class LegacyEvaluator(BaseEvaluator):
                  seed: int,
                  user_chosen_device: Device,
                  train_transformer: BaseTransformer,
-                 test_transformer: BaseTransformer) -> None:
+                 test_transformer: BaseTransformer,
+                 train_set_percentage: int) -> None:
         """
             Creates the Evaluator instance and loads the dataset.
 
@@ -244,14 +269,15 @@ class LegacyEvaluator(BaseEvaluator):
         """
         self.dataset_name: str = dataset_name
         dataset: Dict[DatasetType, Subset] = load_dataset(dataset_name,
-                                                           train_transformer,
-                                                           test_transformer,
-                                                           enable_stratify=True,
-                                                           proportions=ProportionsFloat({
+                                                          train_transformer,
+                                                          test_transformer,
+                                                          enable_stratify=True,
+                                                          proportions=ProportionsFloat({
                                                                DatasetType.EVO_TRAIN: 0.7,
                                                                DatasetType.EVO_VALIDATION: 0.2,
                                                                DatasetType.EVO_TEST: 0.1
-                                                           }))
+                                                          }),
+                                                          downstream_train_percentage=train_set_percentage)
         super().__init__(fitness_metric_name, seed, user_chosen_device, dataset)
 
 
@@ -341,7 +367,8 @@ class LegacyEvaluator(BaseEvaluator):
                 n_epochs=trainer.trained_epochs,
                 losses=trainer.loss_values,
                 training_time_spent=time()-start,
-                total_epochs_trained=num_epochs+trainer.trained_epochs
+                total_epochs_trained=num_epochs+trainer.trained_epochs,
+                max_epochs_reached=num_epochs+trainer.trained_epochs >= learning_params.epochs
             )
         except InvalidNetwork as e:
             logger.warning(f"Invalid model. Fitness will be computed as invalid individual. Reason: {e.message}")
@@ -359,7 +386,9 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                  user_chosen_device: Device,
                  train_transformer: BaseTransformer,
                  supervised_train_transformer: BaseTransformer,
-                 test_transformer: BaseTransformer) -> None:
+                 test_transformer: BaseTransformer,
+                 supervised_test_transformer: BaseTransformer,
+                 train_set_percentage: int) -> None:
         """
             Creates the Evaluator instance and loads the dataset.
 
@@ -383,27 +412,20 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             proportions=ProportionsFloat({
                 DatasetType.EVO_TRAIN: 0.8,
                 DatasetType.EVO_TEST: 0.2
-            })
+            }),
+            downstream_train_percentage=None # Pairwise dataset is only used for the pretext task
         )
-
-        #evo_test_set: Subset = self.pairwise_dataset[DatasetType.EVO_TEST]
-        #stratify = Tensor(evo_test_set.dataset.targets)[list(evo_test_set.indices)] #type: ignore
-        #valid_idx, test_idx = train_test_split(
-        #    list(self.pairwise_dataset[DatasetType.EVO_TEST].indices),
-        #    test_size=0.5, #0.2*0.5 = 0.1
-        #    shuffle=True,
-        #    stratify=stratify
-        #)
         
         dataset: Dict[DatasetType, Subset] = load_dataset(
             dataset_name,
             supervised_train_transformer,
-            test_transformer,
+            supervised_test_transformer,
             enable_stratify=True,
             proportions=ProportionsIndexes({
                 DatasetType.EVO_TRAIN: list(self.pairwise_dataset[DatasetType.EVO_TRAIN].indices),
                 DatasetType.EVO_TEST: list(self.pairwise_dataset[DatasetType.EVO_TEST].indices)
-            })
+            }),
+            downstream_train_percentage=train_set_percentage
         )
         super().__init__(fitness_metric_name, seed, user_chosen_device, dataset)
 
@@ -495,7 +517,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                                          loss_function=nn.CrossEntropyLoss(),
                                          train_data_loader=train_loader,
                                          validation_data_loader=validation_loader,
-                                         n_epochs=100,
+                                         n_epochs=20,
                                          initial_epoch=0,
                                          device=device,
                                          callbacks=[ModelCheckpointCallback(model_saving_dir,
@@ -528,7 +550,8 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                 n_epochs=trainer.trained_epochs,
                 losses=trainer.loss_values,
                 training_time_spent=time()-start,
-                total_epochs_trained=num_epochs+trainer.trained_epochs
+                total_epochs_trained=num_epochs+trainer.trained_epochs,
+                max_epochs_reached=num_epochs+trainer.trained_epochs >= learning_params.epochs
             )
         except InvalidNetwork as e:
             logger.warning(f"Invalid model, error during evaluation. Fitness will be computed as invalid individual. Reason: {traceback.format_exc()}")
