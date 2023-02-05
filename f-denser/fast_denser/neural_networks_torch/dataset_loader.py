@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from enum import unique, Enum
-from typing import Any, Dict, List, Tuple, TYPE_CHECKING, Union
+import logging
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
 from fast_denser.misc.proportions import ProportionsIndexes, ProportionsFloat
 from fast_denser.neural_networks_torch.transformers import BaseTransformer
 
+import numpy as np
 from sklearn.model_selection import train_test_split
 from torch import Tensor
 from torch.utils.data import Subset
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
 
 __all__ = ['DatasetType', 'load_dataset']
 
+logger = logging.getLogger(__name__)
 
 @unique
 class DatasetType(Enum):
@@ -30,7 +33,8 @@ def load_dataset(dataset_name: str,
                  train_transformer: BaseTransformer,
                  test_transformer: BaseTransformer,
                  enable_stratify: bool,
-                 proportions: Union[ProportionsFloat, ProportionsIndexes]) -> Dict[DatasetType, Subset]:
+                 proportions: Union[ProportionsFloat, ProportionsIndexes],
+                 downstream_train_percentage: Optional[int]) -> Dict[DatasetType, Subset]:
 
     train_data: Dataset
     test_data: Dataset
@@ -46,28 +50,50 @@ def load_dataset(dataset_name: str,
         raise ValueError(f"Invalid dataset name: {dataset_name}")
 
     subset_dict: Dict[DatasetType, Subset] = {}
+    n_downstream_samples: int
+    targets: Any
+    targets_tensor: Tensor
     # In case we have received the indexes for each subset already
     if type(proportions) is ProportionsIndexes:
         for k in proportions.keys():
             if k == DatasetType.EVO_TEST:
                 subset_dict[k] = Subset(evo_test_data, proportions[k])
             else:
-                subset_dict[k] = Subset(train_data, proportions[k])
+                if downstream_train_percentage is not None:
+                    targets = train_data.targets # type: ignore
+                    targets_tensor = targets if type(targets) == "torch.Tensor" else Tensor(targets)
+                    n_downstream_samples = int(len(proportions[k]) * downstream_train_percentage / 100)
+                    if n_downstream_samples == 0:
+                        logger.warning("Number of training samples is 0. A higher training set percentage is needed")
+                    
+                    if downstream_train_percentage == 100:
+                        downstream_train_idx = proportions[k]
+                    else:
+                        _, downstream_train_idx = train_test_split(
+                            proportions[k],
+                            test_size=downstream_train_percentage / 100,
+                            shuffle=True,
+                            stratify=targets_tensor[proportions[k]]
+                        )
+                    
+                    subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, downstream_train_idx)
+                else:
+                    subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, proportions[k])
         subset_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
         return subset_dict
 
     else:
         # otherwise we'll do it based on the proportions that were asked
         assert type(proportions) == ProportionsFloat
-        targets: Any = train_data.targets # type: ignore
-        targets_tensor: Tensor = targets if type(targets) == "torch.Tensor" else Tensor(targets)
+        targets = train_data.targets # type: ignore
+        targets_tensor = targets if type(targets) == "torch.Tensor" else Tensor(targets)
         train_indices: List[int] = list(range(len(targets))) # * aug_factor
 
         stratify: Any = targets_tensor if enable_stratify is True else None
         train_idx, test_idx = train_test_split(train_indices,
-                                            test_size=proportions[DatasetType.EVO_TEST],
-                                            shuffle=True,
-                                            stratify=stratify)
+                                               test_size=proportions[DatasetType.EVO_TEST],
+                                               shuffle=True,
+                                               stratify=stratify)
         subset_dict[DatasetType.EVO_TEST] = Subset(evo_test_data, test_idx)
 
         if DatasetType.EVO_VALIDATION in proportions.keys():
@@ -80,32 +106,22 @@ def load_dataset(dataset_name: str,
                                                     stratify=stratify)
             subset_dict[DatasetType.EVO_VALIDATION] = Subset(train_data, valid_idx)
         
-        print(len(train_idx), len(test_idx))
-        subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, train_idx)
+        if downstream_train_percentage is not None:
+            n_downstream_samples = int(len(train_idx) * downstream_train_percentage / 100)
+            if n_downstream_samples == 0:
+                logger.warning("Number of training samples is 0. A higher training set percentage is needed")
+            if downstream_train_percentage == 100:
+                downstream_train_idx = train_idx
+            else:
+                _, downstream_train_idx = train_test_split(train_idx,
+                                                           test_size=downstream_train_percentage / 100,
+                                                           shuffle=True,
+                                                           stratify=targets_tensor[train_idx])
+            subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, downstream_train_idx)
+        else:
+            subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, train_idx)
+        
         subset_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
-        #
-        #evo_train_subset: Subset = Subset(train_data, train_idx)
-        #evo_validation_subset: Subset = Subset(train_data, valid_idx)
-        #evo_test_subset: Subset = Subset(train_data, test_idx)
-        #
-        #return {
-        #    DatasetType.EVO_TRAIN: evo_train_subset,
-        #    DatasetType.EVO_VALIDATION: evo_validation_subset,
-        #    DatasetType.EVO_TEST: evo_test_subset,
-        #    DatasetType.TEST: test_data
-        #}
-        #train_idx, test_idx = train_test_split(train_indices,
-        #                                       test_size=0.2,
-        #                                       shuffle=True,
-        #                                       stratify=stratify)
-        #evo_train_subset: Subset = Subset(train_data, train_idx)
-        #evo_test_subset: Subset = Subset(train_data, test_idx)
-
-        #{
-        #    DatasetType.EVO_TRAIN: evo_train_subset,
-        #    DatasetType.EVO_TEST: evo_test_subset,
-        #    DatasetType.TEST: test_data
-        #}
 
         return subset_dict
 
@@ -172,7 +188,7 @@ def _load_cifar10(train_transformer: BaseTransformer,
     return train_data, evo_test_data, test_data
 
 def _load_cifar100(train_transformer: BaseTransformer,
-                  test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:
+                   test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:
     train_data = datasets.CIFAR100(
         root="data",
         train=True,
