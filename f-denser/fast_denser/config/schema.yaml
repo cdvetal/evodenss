@@ -57,6 +57,10 @@ properties:
       learning:
         type: object
         properties:
+          train_percentage:
+            type: integer
+            minimum: 1
+            maximum: 100
           learning_type:
             enum: [supervised, self-supervised]
           default_train_time:
