@@ -1,5 +1,5 @@
 from itertools import takewhile, dropwhile
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple
 
 from fast_denser.misc.enums import Entity, LayerType, OptimiserType
 from fast_denser.misc.utils import InputLayerId, LayerId
@@ -27,6 +27,8 @@ class Layer:
             return key, list(map(int, value))
         elif key == "kernel_size_fix":
             return "kernel_size", tuple(map(int, value[1:-1].split(',')))
+        elif key == "padding_fix":
+            return "padding", tuple(map(int, value[1:-1].split(',')))
         else:
             raise ValueError(f"No conversion found for param: [{key}], with value [{value}]")
 
