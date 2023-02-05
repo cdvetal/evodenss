@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
 import logging
 import random
 from typing import Any, Dict, List, Tuple, TYPE_CHECKING
@@ -55,33 +56,34 @@ class BaseTransformer(ABC):
         pass
 
     def _get_transform_op(self, operation: TransformOperation, params: Dict[str, Any]) -> Any:
+        final_params = deepcopy(params)
         if operation == TransformOperation.RANDOM_CROP:
-            return RandomCrop(**params)
+            return RandomCrop(**final_params)
         elif operation == TransformOperation.COLOR_JITTER:
-            probability: float = params.pop("probability")
-            return RandomApply([ColorJitter(**params)], p=probability)
+            probability: float = final_params.pop("probability")
+            return RandomApply([ColorJitter(**final_params)], p=probability)
         elif operation == TransformOperation.NORMALIZE:
-            return Normalize(**params)
+            return Normalize(**final_params)
         elif operation == TransformOperation.HORIZONTAL_FLIPPING:
-            params['p'] = params.pop("probability")
-            return RandomHorizontalFlip(**params)
+            final_params['p'] = final_params.pop("probability")
+            return RandomHorizontalFlip(**final_params)
         elif operation == TransformOperation.RANDOM_RESIZED_CROP:
-            if "scale" in params.keys():
-                params['scale'] = tuple(map(float, params['scale'][1:-1].split(',')))
-            return RandomResizedCrop(**params, interpolation=Image.BICUBIC)
+            if "scale" in final_params.keys():
+                final_params['scale'] = tuple(map(float, final_params['scale'][1:-1].split(',')))
+            return RandomResizedCrop(**final_params, interpolation=Image.BICUBIC)
         elif operation == TransformOperation.RANDOM_GRAYSCALE:
-            params['p'] = params.pop("probability")
-            return RandomGrayscale(**params)
+            final_params['p'] = final_params.pop("probability")
+            return RandomGrayscale(**final_params)
         elif operation == TransformOperation.GAUSSIAN_BLUR:
-            params['p'] = params.pop("probability")
-            return GaussianBlur(**params)
+            final_params['p'] = final_params.pop("probability")
+            return GaussianBlur(**final_params)
         elif operation == TransformOperation.SOLARIZE:
-            params['p'] = params.pop("probability")
-            return Solarization(**params)
+            final_params['p'] = final_params.pop("probability")
+            return Solarization(**final_params)
         elif operation == TransformOperation.RESIZE:
-            return Resize(**params)
+            return Resize(**final_params)
         elif operation == TransformOperation.CENTER_CROP:
-            return CenterCrop(**params)
+            return CenterCrop(**final_params)
         else:
             raise ValueError(f"Cannot create transformation object from name {operation}")
 
