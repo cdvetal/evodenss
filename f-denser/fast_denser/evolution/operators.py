@@ -116,14 +116,12 @@ def mutation(individual: Individual,
         #add-layer (duplicate or new)
         for _ in range(random.randint(1,2)):
             if len(module.layers) < module.max_expansions and random.random() <= add_layer_prob:
-                logger.info(f"Individual {individual.id} is going to have an extra layer")
                 if random.random() <= reuse_layer_prob:
                     new_layer = random.choice(module.layers)
                 else:
                     new_layer = grammar.initialise(module.module)
 
                 insert_pos: int = random.randint(0, len(module.layers))
-
                 #fix connections
                 for _key_ in sorted(module.connections, reverse=True):
                     if _key_ >= insert_pos:
@@ -150,11 +148,10 @@ def mutation(individual: Individual,
                     if sample_size > 0:
                         module.connections[insert_pos] += random.sample(connection_possibilities, sample_size)
 
-
+                logger.info(f"Individual {individual.id} is going to have an extra layer at position {insert_pos}")
         #remove-layer
         for _ in range(random.randint(1,2)):
             if len(module.layers) > module.min_expansions and random.random() <= remove_layer_prob:
-                logger.info(f"Individual {individual.id} is going to have a layer removed")
                 remove_idx = random.randint(0, len(module.layers)-1)
                 del module.layers[remove_idx]
 
@@ -171,20 +168,22 @@ def mutation(individual: Individual,
 
                 if remove_idx == 0:
                     module.connections[0] = [-1]
-
+                logger.info(f"Individual {individual.id} is going to have a layer removed from position {remove_idx}")
 
         for layer_idx, layer in enumerate(module.layers):
             #dsge mutation
             if random.random() <= dsge_layer_prob:
-                logger.info(f"Individual {individual.id} is going to have a DSGE mutation")
                 mutation_dsge(layer, grammar)
+                logger.info(f"Individual {individual.id} is going to have a DSGE mutation")
 
             #add connection
             if layer_idx != 0 and random.random() <= add_connection_prob:
                 connection_possibilities = list(range(max(0, layer_idx-module.levels_back), layer_idx-1))
                 connection_possibilities = list(set(connection_possibilities) - set(module.connections[layer_idx]))
                 if len(connection_possibilities) > 0:
-                    module.connections[layer_idx].append(random.choice(connection_possibilities))
+                    new_input: int = random.choice(connection_possibilities)
+                    module.connections[layer_idx].append(new_input)
+                logger.info(f"Individual {individual.id} is going to have a new connection at layer {layer_idx}, from {new_input}")
             #remove connection
             r_value = random.random()
             if layer_idx != 0 and r_value <= remove_connection_prob:
@@ -192,11 +191,13 @@ def mutation(individual: Individual,
                 if len(connection_possibilities) > 0:
                     r_connection = random.choice(connection_possibilities)
                     module.connections[layer_idx].remove(r_connection)
+                    logger.info(f"Individual {individual.id} is going to have a connection removed at layer {layer_idx}: {r_connection}")
     #macro level mutation
     for macro in individual.macro:
         if random.random() <= macro_layer_prob:
-            logger.info(f"Individual {individual.id} is going to have a macro mutation")
+            old_macro = deepcopy(macro)
             mutation_dsge(macro, grammar)
+            logger.info(f"Individual {individual.id} is going to have a macro mutation")
 
     return individual
 
