@@ -85,7 +85,8 @@ class Module:
                 self.layers.append(grammar.initialise(self.module))
 
         #Initialise connections: feed-forward and allowing skip-connections
-        self.connections = {}
+        self.connections = {} 
+
         for layer_idx in range(num_expansions):
             if layer_idx == 0:
                 #the -1 layer is the input
