@@ -36,7 +36,8 @@ def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gp
                                                 is_gpu_run,
                                                 config['network']['learning']['augmentation']['train'],
                                                 config['network']['learning']['augmentation']['last_layer_train'],
-                                                config['network']['learning']['augmentation']['test'])
+                                                config['network']['learning']['augmentation']['test'],
+                                                config['network']['learning']['train_percentage'])
 
     os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}"), exist_ok=True)
     os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}", STATS_FOLDER_NAME), exist_ok=True)
@@ -63,6 +64,7 @@ def compute_time_elapsed_human(time_elapsed: int) -> str:
         results.append(x % max_value)
     results.append(x // 24)
     return ''.join([ f"{value}{unit}" for value, unit in zip(results[::-1], units[::-1]) ])
+
 
 @RestoreCheckpoint
 def main(run: int,
@@ -100,6 +102,8 @@ def main(run: int,
     logger.info(f"Best test accuracy: {best_test_acc}")
 
 
+
+
 if __name__ == '__main__': #pragma: no cover
     parser: ArgumentParser = ArgumentParser(allow_abbrev=False)
     parser.add_argument("--config-path", '-c', required=True, help="Path to the config file to be used",
@@ -121,10 +125,11 @@ if __name__ == '__main__': #pragma: no cover
 
     start = time.time()
     torch.backends.cudnn.benchmark = True
+    config: Config = Config(args.config_path) 
     main(run=args.run,
          dataset_name=args.dataset_name,
-         config=Config(args.config_path),
-         grammar=Grammar(args.grammar_path),
+         config=config,
+         grammar=Grammar(args.grammar_path, backup_path=config['checkpoints_path']),
          is_gpu_run=args.cuda_enabled)
 
     end = time.time()
