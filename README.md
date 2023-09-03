@@ -1,5 +1,5 @@
 # EvoDENSS
-[![](https://img.shields.io/badge/Python-3.9-blue.svg)](https://www.python.org/downloads/) [![](https://img.shields.io/badge/PyTorch-1.12.0-blue.svg)](https://pytorch.org/get-started/previous-versions/) [![](https://img.shields.io/badge/cudatoolkit-1.12.0-blue.svg)](https://developer.nvidia.com/cuda-downloads/)
+[![](https://img.shields.io/badge/Python-3.9-blue.svg)](https://www.python.org/downloads/) [![](https://img.shields.io/badge/PyTorch-1.12.0-blue.svg)](https://pytorch.org/get-started/previous-versions/) [![](https://img.shields.io/badge/cudatoolkit-11.3-blue.svg)](https://developer.nvidia.com/cuda-downloads/)
 
 [![](https://img.shields.io/badge/License-Apache_2.0-green.svg)]()
 
