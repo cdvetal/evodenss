@@ -51,8 +51,8 @@ Example:
 ```
 python3 -m evodenss.main \
     -d mnist \
-    -c ../example/example_config.yaml \
-    -g ../example/example.grammar \
+    -c example/example_config.yaml \
+    -g example/example.grammar \
     --run 0 \
     --cuda-enabled
 ```
