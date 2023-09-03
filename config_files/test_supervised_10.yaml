@@ -1,0 +1,45 @@
+checkpoints_path: ../../results/test_supervised_10
+evolutionary:
+  generations: 30
+  lambda: 5
+  max_epochs: 10000
+  mutation:
+    add_connection: 0.0
+    remove_connection: 0.0
+    add_layer: 0.25
+    reuse_layer: 0.15
+    remove_layer: 0.25
+    dsge_layer: 0.15
+    macro_layer: 0.3
+    train_longer: 0.02
+network:
+  architecture:
+    reuse_layer: 0.15
+    network_structure:
+      - 
+        - features
+        - 1
+        - 30
+      - 
+        - classification
+        - 1
+        - 10
+    macro_structure:
+      - learning
+    output: softmax
+    network_structure_init: {features: [2,3,4], classification:[1]}
+    levels_back: {features: 1, classification: 1}
+  learning:
+    train_percentage: 10
+    learning_type: supervised
+    augmentation:
+      train:
+        random_crop:
+          size: 32
+          padding: 4
+        random_horizontal_flip:
+          probability: 0.5
+      last_layer_train: null
+      test: null
+    default_train_time: 120
+    fitness_metric: accuracy
