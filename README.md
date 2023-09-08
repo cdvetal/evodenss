@@ -54,7 +54,7 @@ python3 -m evodenss.main \
     -c example/example_config.yaml \
     -g example/example.grammar \
     --run 0 \
-    --cuda-enabled
+    --gpu-enabled
 ```
 
 In case several seeds are needed to be run, that can be done with Bash:
@@ -64,7 +64,7 @@ python3 -m evodenss.main \
 -d cifar10 \
 -c config_files/bt_10.yaml \
 -g grammars/bt.grammar \
--r $i --cuda-enabled; \
+-r $i --gpu-enabled; \
 done
 ```
 
@@ -78,7 +78,7 @@ Externally to the code itself, two main files are required to execute any run.
 - `-d`/`--dataset-name`: Name of the dataset to be used. At the moment, `mnist`, `fashion-mnist`, `cifar10` and `cifar100` are supported.
 - `-g`/`--grammar-path`: Sets the path to the grammar to be used;
 - `-r`/`--run`: Identifies the run id and seed to be used;
-- `--cuda-enabled`: When used, it enables GPU processing.
+- `--gpu-enabled`: When used, it enables GPU processing.
 
 
 #### Framework modes
