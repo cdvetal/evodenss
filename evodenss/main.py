@@ -117,7 +117,7 @@ if __name__ == '__main__': #pragma: no cover
                         type=lambda x: is_valid_file(parser, x))
     parser.add_argument("--run", "-r", required=False, help="Identifies the run id and seed to be used",
                         type=int, default=0)
-    parser.add_argument("--cuda-enabled", required=False, help="Runs the experiment in the GPU",
+    parser.add_argument("--gpu-enabled", required=False, help="Runs the experiment in the GPU",
                         action='store_true')
     args: Any = parser.parse_args()
 
@@ -133,7 +133,7 @@ if __name__ == '__main__': #pragma: no cover
          dataset_name=args.dataset_name,
          config=config,
          grammar=Grammar(args.grammar_path, backup_path=config['checkpoints_path']),
-         is_gpu_run=args.cuda_enabled)
+         is_gpu_run=args.gpu_enabled)
 
     end = time.time()
     time_elapsed = int(end - start)
