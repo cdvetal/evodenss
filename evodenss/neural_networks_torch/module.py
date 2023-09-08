@@ -101,5 +101,4 @@ class Module:
                 self.connections[layer_idx] = [layer_idx-1]
                 if sample_size > 0:
                     self.connections[layer_idx] += random.sample(connection_possibilities, sample_size)
-        print(self.layers)
-
+        #print(self.layers)
