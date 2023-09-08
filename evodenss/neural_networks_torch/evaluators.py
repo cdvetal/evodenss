@@ -143,6 +143,7 @@ class BaseEvaluator(ABC):
         if device == Device.GPU and torch.cuda.device_count() > 1:
             torch_model = nn.DataParallel(torch_model)
         torch_model.to(device.value, non_blocking=True)
+        torch.compile(torch_model, mode="reduce-overhead")
 
 
     @staticmethod
