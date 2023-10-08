@@ -72,6 +72,18 @@ Externally to the code itself, two main files are required to execute any run.
 1. A grammar that shapes the search space by setting the possibilities within each macro block.
 2. A configuration file that sets miscellaneous parameters that affect the outcome of the evolutionary run. These can se related with the evolutionary process itself, or the networks that are generated.
 
+## Testing
+
+Unit tests can be executed via `pytest`:
+```
+pytest tests
+```
+In case one wants to do it with coverage report:
+```
+coverage run --source evodenss -m pytest -v tests
+coverage report
+```
+
 #### Command-line flags
 
 - `-c`/`--config-path`: Sets the path to the config file to be used;
