@@ -103,7 +103,7 @@ class SaveCheckpoint:
                                     ind.phenotype,
                                     ind.num_epochs,
                                     ind.total_allocated_train_time,
-                                    *ind.metrics])
+                                    *ind.metrics]) # type: ignore
         file_exists: bool = os.path.isfile(os.path.join(save_path, f"run_{checkpoint.run}", STATS_FOLDER_NAME, f"test_accuracies.csv"))
         with open(os.path.join(save_path,
                                f"run_{checkpoint.run}",
