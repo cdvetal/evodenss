@@ -1,6 +1,7 @@
-from typing import Any, Dict
+from typing import Any, Dict, no_type_check
 
 import torch
+from torch.nn.parameter import Parameter
 from torch import optim
 
 import math
@@ -20,9 +21,14 @@ class LARS(optim.Optimizer):
         # we initialise lt with 0 just to comply with superclass params
         # in practice lt is going to be dynamic and separated
         # (one for weights and another for biases)
-        defaults: Dict[Any, Any] = dict(lr=0.0, weight_decay=weight_decay, momentum=momentum,
-                        eta=eta, weight_decay_filter=weight_decay_filter,
-                        lars_adaptation_filter=lars_adaptation_filter)
+        defaults: Dict[str, Any] = dict(
+            lr=0.0,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            eta=eta,
+            weight_decay_filter=weight_decay_filter,
+            lars_adaptation_filter=lars_adaptation_filter
+        )
         super().__init__(params, defaults)
         self.batch_size: int = batch_size
         self.lr_weights: float = lr_weights
@@ -43,10 +49,11 @@ class LARS(optim.Optimizer):
         self.param_groups[0]['lr'] = lr * self.lr_weights
         self.param_groups[1]['lr'] = lr * self.lr_biases
 
-    def exclude_bias_and_norm(self, p) -> bool:
+    def exclude_bias_and_norm(self, p: Parameter) -> bool:
         return p.ndim == 1
 
     @torch.no_grad()
+    @no_type_check
     def step(self) -> None:
         for g in self.param_groups:
             for p in g['params']:
