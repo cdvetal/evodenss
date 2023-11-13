@@ -16,28 +16,24 @@ from evodenss.misc.constants import DATASETS_INFO, STATS_FOLDER_NAME
 from evodenss.misc.enums import FitnessMetricName
 from evodenss.misc.persistence import RestoreCheckpoint, build_overall_best_path
 from evodenss.misc.utils import is_valid_file, is_yaml_file
-from evodenss.neural_networks_torch.evaluators import create_evaluator
+from evodenss.networks.torch.evaluators import create_evaluator
 
 
 import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from evodenss.neural_networks_torch.evaluators import BaseEvaluator
+    from evodenss.networks.torch.evaluators import BaseEvaluator
 
 def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gpu_run: bool) -> Checkpoint:
 
-    fitness_metric_name: FitnessMetricName = FitnessMetricName(config['network']['learning']['fitness_metric'])
-    learning_type: str = config['network']['learning']['learning_type']
+    fitness_metric_name: FitnessMetricName = FitnessMetricName(config['evolutionary']['fitness_metric'])
+
     evaluator: BaseEvaluator = create_evaluator(dataset_name,
                                                 fitness_metric_name,
                                                 run,
-                                                learning_type,
-                                                is_gpu_run,
-                                                config['network']['learning']['augmentation']['train'],
-                                                config['network']['learning']['augmentation']['last_layer_train'],
-                                                config['network']['learning']['augmentation']['test'],
-                                                config['network']['learning']['train_percentage'])
+                                                config['network']['learning'],
+                                                is_gpu_run,)
 
     os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}"), exist_ok=True)
     os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}", STATS_FOLDER_NAME), exist_ok=True)
@@ -117,7 +113,7 @@ if __name__ == '__main__': #pragma: no cover
                         type=lambda x: is_valid_file(parser, x))
     parser.add_argument("--run", "-r", required=False, help="Identifies the run id and seed to be used",
                         type=int, default=0)
-    parser.add_argument("--cuda-enabled", required=False, help="Runs the experiment in the GPU",
+    parser.add_argument("--gpu-enabled", required=False, help="Runs the experiment in the GPU",
                         action='store_true')
     args: Any = parser.parse_args()
 
@@ -133,7 +129,7 @@ if __name__ == '__main__': #pragma: no cover
          dataset_name=args.dataset_name,
          config=config,
          grammar=Grammar(args.grammar_path, backup_path=config['checkpoints_path']),
-         is_gpu_run=args.cuda_enabled)
+         is_gpu_run=args.gpu_enabled)
 
     end = time.time()
     time_elapsed = int(end - start)

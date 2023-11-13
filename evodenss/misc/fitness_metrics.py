@@ -117,46 +117,6 @@ class AccuracyMetric(FitnessMetric):
     def worst_fitness(cls) -> Fitness:
         return Fitness(-1.0, cls)
 
-'''
-class BTAccuracyMetric(FitnessMetric):
-
-    def __init__(self, batch_size: Optional[int]=None, loss_function: Any=None) -> None:
-        super().__init__(batch_size, loss_function)
-
-    def compute_metric(self, model: nn.Module, data_loader: DataLoader, device: Device) -> float:
-        print("computing accuracy bt")
-        metric: Metric = Accuracy().to(device.value, non_blocking=True)
-        model.eval()
-        # since we're not training, we don't need to calculate the gradients for our outputs
-        with torch.no_grad():
-            for data in data_loader:
-                inputs, labels = data[0].to(device.value, non_blocking=True), data[1].to(device.value, non_blocking=True)
-                outputs = model(inputs)
-                _, predicted = torch.max(outputs.data, 1)
-                accuracy_test = metric(predicted, labels)
-        accuracy_test = metric.compute()
-        return float(accuracy_test.data)
-
-    @classmethod
-    def worse_than(cls, this: Fitness, other: Fitness) -> bool:
-        return this.value < other.value
-
-    @classmethod
-    def better_than(cls, this: Fitness, other: Fitness) -> bool:
-        return this.value > other.value
-
-    @classmethod
-    def worse_or_equal_than(cls, this: Fitness, other: Fitness) -> bool:
-        return this.value <= other.value
-
-    @classmethod
-    def better_or_equal_than(cls, this: Fitness, other: Fitness) -> bool:
-        return this.value >= other.value
-
-    @classmethod
-    def worst_fitness(cls) -> Fitness:
-        return Fitness(-1.0, cls)
-'''
 
 class LossMetric(FitnessMetric):
 

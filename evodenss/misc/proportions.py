@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterator, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from evodenss.neural_networks_torch.dataset_loader import DatasetType
+    from evodenss.networks.torch.dataset_loader import DatasetType
 
 class ProportionsFloat:
     

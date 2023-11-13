@@ -8,7 +8,7 @@ from torch import Tensor
 if TYPE_CHECKING:
     from evodenss.evolution import Individual
     from evodenss.misc.fitness_metrics import Fitness
-    from evodenss.neural_networks_torch.evaluators import BaseEvaluator
+    from evodenss.networks.torch.evaluators import BaseEvaluator
 
 
 @dataclass

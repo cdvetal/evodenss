@@ -28,15 +28,11 @@ def evolve(run: int,
     if generation == 0:
         logger.info("Creating the initial population")
 
-        #population = initialise_population(config) if checkpoint.population is None else checkpoint.population
-
         #create initial population
         population = [
             Individual(config['network']['architecture'], _id_, seed=run) \
                 .initialise(grammar,
-                            config['network']['architecture']['levels_back'],
-                            config['network']['architecture']['reuse_layer'],
-                            config['network']['architecture']['network_structure_init'])
+                            config['network']['architecture']['reuse_layer'])
             for _id_ in range(config['evolutionary']['lambda'])
         ]
 
@@ -51,6 +47,7 @@ def evolve(run: int,
             population_fits.append(
                 ind.evaluate(grammar,
                              checkpoint.evaluator,
+                             config['network']['learning']['projector'],
                              persistence.build_individual_path(config['checkpoints_path'], run, generation, idx))
             )
 
@@ -88,8 +85,9 @@ def evolve(run: int,
                 ind.evaluate(
                     grammar,
                     checkpoint.evaluator,
+                    config['network']['learning']['projector'],
                     persistence.build_individual_path(config['checkpoints_path'], run, generation, idx),
-                    persistence.build_individual_path(config['checkpoints_path'], run, generation-1, checkpoint.parent.id)
+                    persistence.build_individual_path(config['checkpoints_path'], run, generation-1, checkpoint.parent.id),
                 )
             )
 
@@ -100,6 +98,7 @@ def evolve(run: int,
                 population_fits,
                 grammar,
                 checkpoint.evaluator,
+                config['network']['learning']['projector'],
                 run,
                 generation,
                 config['checkpoints_path'],

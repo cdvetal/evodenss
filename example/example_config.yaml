@@ -4,7 +4,7 @@ evolutionary:
   lambda: 3
   max_epochs: 10000
   mutation:
-    add_connection: 0.
+    add_connection: 0.0
     remove_connection: 0.0
     add_layer: 0.8
     reuse_layer: 0.8
@@ -12,25 +12,38 @@ evolutionary:
     dsge_layer: 0.8
     macro_layer: 0.8
     train_longer: 0.2
+  fitness_metric: accuracy
 network:
+
   architecture:
     reuse_layer: 0.8
-    network_structure:
-      -
-        - features
-        - 1
-        - 2
-      - 
-        - classification
-        - 1
-        - 2
     macro_structure:
       - learning
     output: softmax
-    network_structure_init: {features: [1], classification:[1]}
-    levels_back: {features: 1, classification: 1}
+    modules:
+      - name: features
+        network_structure_init: [1]
+        network_structure: [1,2]
+        levels_back: 1
+      - name: classification
+        network_structure_init: [1]
+        network_structure: [1,2]
+        levels_back: 1
   learning:
+    train_percentage: 100
+    data_splits:
+      evo_train: 0.7
+      evo_validation: 0.2
+      evo_test: 0.1
     learning_type: supervised
-    augmentation: null
+    augmentation:
+      train:
+        random_crop:
+          size: 32
+          padding: 4
+        random_horizontal_flip:
+          probability: 0.5
+      last_layer_train: null
+      test: null
     default_train_time: 5
     fitness_metric: accuracy

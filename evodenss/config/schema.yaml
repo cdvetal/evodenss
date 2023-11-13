@@ -1,132 +1,228 @@
+$defs:
+  probability:
+    type: number
+    minimum: 0
+    maximum: 1
+  natural_number:
+    type: integer
+    minimum: 1
+  data_splits:
+    type: object
+    properties:
+      evo_train:
+        $ref: "#/$defs/probability"
+      evo_test:
+        $ref: "#/$defs/probability"
+      evo_validation:
+        $ref: "#/$defs/probability"
+    additionalProperties: False
+    required:
+    - evo_train
+    - evo_test
+  augmentation:
+    type: object
+    properties:
+      pretext:
+        type: object
+        properties:
+          input_a:
+            type: object
+          input_b:
+            type: object
+        additionalProperties: False
+        required:
+        - input_a
+        - input_b
+      downstream:
+        type: object
+      train:
+        type: object
+      test:
+        oneOf:
+          - type: object
+          - type: 'null'
+    required:
+    - test
+
 type: object
 properties:
   checkpoints_path:
     type: string
+
   evolutionary:
     type: object
     properties:
       generations:
-        type: integer
-        minimum: 1
+        $ref: "#/$defs/natural_number"
       lambda:
-        type: integer
-        minimum: 1
+        $ref: "#/$defs/natural_number"
       max_epochs:
-        type: integer
-        minimum: 1
+        $ref: "#/$defs/natural_number"
       mutation:
         type: object
         properties:
           add_connection:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
           remove_connection:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
           add_layer:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
           reuse_layer:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
           remove_layer:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
           dsge_layer:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
           macro_layer:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
           train_longer:
-            $ref: "#/$defs/mutation_prob"
+            $ref: "#/$defs/probability"
         additionalProperties: False
-        required: 
-          - add_connection
-          - remove_connection
-          - add_layer
-          - reuse_layer
-          - remove_layer
-          - dsge_layer
-          - macro_layer
-          - train_longer
+        required:
+        - add_connection
+        - remove_connection
+        - add_layer
+        - reuse_layer
+        - remove_layer
+        - dsge_layer
+        - macro_layer
+        - train_longer
+      fitness_metric:
+        enum: ["accuracy", "loss"]
     additionalProperties: False
-    required: 
-      - generations
-      - lambda
-      - max_epochs
-      - mutation
+    required:
+    - generations
+    - lambda
+    - max_epochs
+    - mutation
+    - fitness_metric
+
   network:
     type: object
+
     properties:
       architecture:
         type: object
+        properties:
+          reuse_layer:
+            $ref: "#/$defs/probability"
+          macro_structure:
+            type: array
+          output:
+            type: string
+          modules:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                network_structure_init:
+                  type: array
+                  minItems: 1
+                network_structure:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                levels_back:
+                  type: integer
+              additionalProperties: False
+              required:
+              - network_structure_init
+              - network_structure
+              - levels_back
+        additionalProperties: False
+        required:
+        - reuse_layer
+        - macro_structure
+        - output
+        - modules
       learning:
         type: object
         properties:
+          downstream_epochs:
+            type: integer
+          downstream_mode:
+            enum: ["freeze", "refine"]
+          projector:
+            type: array
+            minItems: 1
+            items:
+              $ref: "#/$defs/natural_number"
           train_percentage:
             type: integer
             minimum: 1
             maximum: 100
           learning_type:
-            enum: [supervised, self-supervised]
+            enum: ["supervised", "self-supervised"]
           default_train_time:
             type: integer
-          fitness_metric:
-            enum: [accuracy, loss]
+          data_splits:
+            $ref: "#/$defs/data_splits"
           augmentation:
-            type: object
-            properties:
-              train:
-                allOf:
-                  - 
-                    if:
-                      properties:
-                        learning_type:
-                          const: 'supervised'
-                    then:
-                      oneOf:
-                        - type: object
-                        - type: 'null'
-                  - 
-                    if:
-                      properties:
-                        learning_type:
-                          const: 'self-supervised'
-                    then:
-                      properties:
-                        input_a:
-                          type: object
-                        input_b:
-                          type: object
-              last_layer_train:
-                oneOf:
-                  - type: object
-                  - type: 'null'
-              test:
-                oneOf:
-                  - type: object
-                  - type: 'null'
-            additionalProperties: False
-        additionalProperties: False
-        required: 
-          - learning_type
-          - default_train_time
-          - fitness_metric
-          - augmentation
+            $ref: "#/$defs/augmentation"
+        if:
+          properties:
+            learning_type:
+              const: "self-supervised"
+        then:
+          properties:
+            data_splits:
+              not:
+                required:
+                - evo_validation
+            augmentation:
+              required:
+              - pretext
+              - downstream
+              not:
+                required:
+                - train
+          required:
+          - downstream_epochs
+          - downstream_mode
+        else:
+          properties:
+            data_splits:
+              required:
+              - evo_validation
+            augmentation:
+              required:
+              - train
+              allOf:
+                -
+                  not:
+                    required:
+                    - pretext
+                -
+                  not:
+                    required:
+                    - downstream
+          allOf:
+            -
+              not:
+                required:
+                - downstream_epochs
+            -
+              not:
+                required:
+                - downstream_mode
+            -
+              not:
+                required:
+                - projector
+        required:
+        - train_percentage
+        - learning_type
+        - default_train_time
+        - data_splits
+        - augmentation
     additionalProperties: False
-    required: 
-      - architecture
-      - learning
+    required:
+    - architecture
+    - learning
 additionalProperties: False
-required: 
-  - checkpoints_path
-  - evolutionary
-  - network
-$defs:
-  mutation_prob:
-    type: number
-    minimum: 0
-    maximum: 1
-  augmentation_params:
-    type: array
-    items:
-      type: object
-      properties:
-        name:
-          enum: [random_resized_crop, random_horizontal_flip, color_jitter, random_grayscale, gaussian_blur, random_solarize, normalize]
-        params:
-          type: object
+required:
+- checkpoints_path
+- evolutionary
+- network

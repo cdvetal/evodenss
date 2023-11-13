@@ -4,15 +4,16 @@ from copy import deepcopy
 import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from evodenss.neural_networks_torch import Module
+from evodenss.networks import Module
 from evodenss.misc.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.fitness_metrics import Fitness
 
 import numpy as np
 
 if TYPE_CHECKING:
-    from evodenss.evolution import Grammar
-    from evodenss.neural_networks_torch.evaluators import BaseEvaluator
+    from evodenss.evolution.grammar import Genotype, Grammar
+    from evodenss.networks.torch.evaluators import BaseEvaluator
+    from evodenss.networks.module import ModuleConfig
 
 __all__ = ['Individual']
 
@@ -88,31 +89,16 @@ class Individual:
 
 
     def __init__(self, network_architecture_config: Dict[str, Any], ind_id: int, seed: int) -> None:
-        """
-            Parameters
-            ----------
-            network_structure : list
-                ordered list of tuples formated as follows
-                [(non-terminal, min_expansions, max_expansions), ...]
-
-            macro_rules : list
-                list of non-terminals (str) with the marco rules (e.g., learning)
-
-            output_rule : str
-                output non-terminal symbol
-
-            ind_id : int
-                individual unique identifier
-        """
 
         self.seed: int = seed
-        self.network_structure = network_architecture_config['network_structure']
-        self.output_rule = network_architecture_config['output']
-        self.macro_rules = network_architecture_config['macro_structure']
+        self.modules_configurations: Dict[str, ModuleConfig] = network_architecture_config['modules']
+        self.output_rule: str = network_architecture_config['output']
+        self.macro_rules: List[str] = network_architecture_config['macro_structure']
         self.modules: List[Module] = []
-        self.output = None
-        self.macro = []
+        self.output: Optional[Genotype] = None
+        self.macro: List[Genotype] = []
         self.phenotype: Optional[str] = None
+        self.phenotype_projector: Optional[str] = None
         self.fitness: Optional[Fitness] = None
         self.metrics: Optional[EvaluationMetrics] = None
         self.num_epochs: int = 0
@@ -128,7 +114,7 @@ class Individual:
         return False
 
 
-    def initialise(self, grammar: Grammar, levels_back, reuse, init_max) -> "Individual":
+    def initialise(self, grammar: Grammar, reuse: float) -> "Individual":
         """
             Randomly creates a candidate solution
 
@@ -148,13 +134,9 @@ class Individual:
             candidate_solution : Individual
                 randomly created candidate solution
         """
-
-        for non_terminal, min_expansions, max_expansions in self.network_structure:
-            new_module: Module = Module(non_terminal,
-                                        min_expansions,
-                                        max_expansions,
-                                        levels_back[non_terminal])
-            new_module.initialise(grammar, reuse, init_max)
+        for module_name, module_config in self.modules_configurations.items():
+            new_module: Module = Module(module_name, module_config)
+            new_module.initialise(grammar, reuse)
             self.modules.append(new_module)
 
         # Initialise output
@@ -167,7 +149,7 @@ class Individual:
         return self
 
 
-    def _decode(self, grammar: Grammar) -> str:
+    def _decode(self, grammar: Grammar, static_projector_config: Optional[List[int]]) -> str:
         """
             Maps the genotype to the phenotype
 
@@ -185,22 +167,52 @@ class Individual:
         phenotype: str = ''
         offset: int = 0
         layer_counter: int = 0
-        for module in self.modules:
+        projector_phenotype: str = ""
+        projection_layer_count: int = 0
+        for i, module in enumerate(self.modules):
             offset = layer_counter
             for layer_idx, layer_genotype in enumerate(module.layers):
                 layer_counter += 1
-                phenotype_layer: str = f" {grammar.decode(module.module, layer_genotype)}"
+                phenotype_layer: str = f" {grammar.decode(module.module_name, layer_genotype)}"
                 current_connections = deepcopy(module.connections[layer_idx])
                 # ADRIANO HACK
                 if "relu_agg" in phenotype_layer and -1 not in module.connections[layer_idx]:
                     current_connections = [-1] + current_connections
                 # END
+                final_offset: int = 0 if "projector_layer" in phenotype_layer else offset
                 phenotype += (
                     f"{phenotype_layer}"
-                    f" input:{','.join(map(str, np.array(current_connections) + offset))}"
+                    f" input:{','.join(map(str, np.array(current_connections) + final_offset))}"
                 )
+        # If a projector needs to be generated,
+        # final layer id needs to be generated based on the projector module
+        final_input_layer_id: int
+        assert self.output is not None
+        final_phenotype_layer: str = grammar.decode(self.output_rule, self.output)
 
-        phenotype += " " + grammar.decode(self.output_rule, self.output) + " input:" + str(layer_counter-1)
+        if "projector" in final_phenotype_layer and len(self.modules) == 1:
+            offset = layer_counter
+
+        if final_offset == 0: # projector to be generated
+            final_input_layer_id = layer_counter - 1 - offset
+        else:
+            final_input_layer_id = layer_counter - 1
+
+        if static_projector_config is not None:
+            for i in static_projector_config[:-1]:
+                projector_phenotype += f" projector_layer:fc act:linear out_features:{i} bias:True" + \
+                    f" input:{projection_layer_count-1}"
+                projector_phenotype += f" projector_layer:batch_norm_proj act:relu" + \
+                    f" input:{projection_layer_count}"
+                projection_layer_count += 2
+            projector_phenotype += f" projector_layer:fc act:linear out_features:{static_projector_config[-1]} bias:True" + \
+                    f" input:{projection_layer_count-1}"
+            projector_phenotype += f" projector_layer:batch_norm_proj act:linear" + \
+                f" input:{projection_layer_count}"
+            projection_layer_count += 2
+
+        phenotype += projector_phenotype + \
+            " " + final_phenotype_layer + " input:" + str(projection_layer_count + final_input_layer_id)
 
         for rule_idx, macro_rule in enumerate(self.macro_rules):
             phenotype += " " + grammar.decode(macro_rule, self.macro[rule_idx])
@@ -212,10 +224,12 @@ class Individual:
     def evaluate(self,
                  grammar: Grammar,
                  cnn_eval: BaseEvaluator,
+                 static_projector_config: Optional[List[int]],
                  model_saving_dir: str,
                  parent_dir: Optional[str]=None) -> Fitness: #pragma: no cover
 
-        phenotype = self._decode(grammar)
+        phenotype: str
+        phenotype = self._decode(grammar, static_projector_config)
 
         reuse_parent_weights: bool
         reuse_parent_weights = True
@@ -237,10 +251,7 @@ class Individual:
         self.fitness = self.metrics.fitness
         self.num_epochs += self.metrics.n_epochs
         self.current_time += allocated_train_time
-        # TODO: Ensure this is correct because the original version does not accumulate
-        self.total_training_time_spent += self.metrics.training_time_spent 
-        #print(f"Total time spent so far: {self.total_training_time_spent}")
-        #print(f"Total Allocated time: {self.current_time}")
+        self.total_training_time_spent += self.metrics.training_time_spent
         logger.info(f"Evaluation results for individual {self.id}: {self.metrics}\n")
 
         assert self.fitness is not None
