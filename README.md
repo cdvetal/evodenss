@@ -1,5 +1,5 @@
 # EvoDENSS
-[![](https://img.shields.io/badge/Python-3.9-blue.svg)](https://www.python.org/downloads/) [![](https://img.shields.io/badge/PyTorch-1.12.0-blue.svg)](https://pytorch.org/get-started/previous-versions/) [![](https://img.shields.io/badge/cudatoolkit-11.3-blue.svg)](https://developer.nvidia.com/cuda-downloads/)
+[![](https://img.shields.io/badge/Python-3.10-blue.svg)](https://www.python.org/downloads/) [![](https://img.shields.io/badge/PyTorch-2.0.0-blue.svg)](https://pytorch.org/get-started/previous-versions/) [![](https://img.shields.io/badge/cudatoolkit-11.3-blue.svg)](https://developer.nvidia.com/cuda-downloads/)
 
 [![](https://img.shields.io/badge/License-Apache_2.0-green.svg)]()
 
@@ -110,6 +110,6 @@ Versioning is done according to the [Semantic Versioning guidelines](https://sem
 
 MAJOR version is incremented whenever a breaking change is added.
 MINOR version is incremented whenever new features are added with backwards compatibility.
-PATCH version is incremented whenever bug fixes are done with backdwards compatibility.
+PATCH version is incremented whenever bug fixes are done with backwards compatibility.
 
 Numbers are updated by semi-automatically by `autosemver` library, according to the commit messages that are passed. For more information about this, please read [autosemver](https://autosemver.readthedocs.io/en/latest/usage.html) documentation.

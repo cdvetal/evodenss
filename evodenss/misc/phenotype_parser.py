@@ -1,7 +1,9 @@
+from dataclasses import dataclass
+from functools import reduce
 from itertools import takewhile, dropwhile
-from typing import Any, Dict, List, Tuple
+from typing import cast, Any, Dict, List, Optional, Set, Tuple
 
-from evodenss.misc.enums import Entity, LayerType, OptimiserType
+from evodenss.misc.enums import Entity, LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import InputLayerId, LayerId
 
 class Layer:
@@ -41,6 +43,23 @@ class Layer:
         return f"Layer [{self.layer_type}] with id [{self.layer_id}] and params: {self.layer_parameters}"
 
 
+@dataclass
+class ParsedNetwork:
+    layers: List[Layer]
+    layers_connections: Dict[LayerId, List[InputLayerId]]
+
+    # It gets the layer id that corresponds to the final/output layer
+    def get_output_layer_id(self) -> LayerId:
+        keyset: Set[int] = set(self.layers_connections.keys())
+        values_set: Set[int] = set(
+            list(reduce(lambda a, b: cast(list, a) + cast(list, b),
+                        self.layers_connections.values()))
+        )
+        result: Set[int] = keyset.difference(values_set)
+        assert len(result) == 1
+        return LayerId(list(result)[0])
+
+
 class Optimiser:
 
     def __init__(self,
@@ -66,15 +85,40 @@ class Optimiser:
             return self.__dict__ == other.__dict__
         return False
 
-def parse_phenotype(phenotype: str) -> Tuple[List[Layer], Dict[LayerId, List[InputLayerId]], Optimiser]:
 
+class Pretext:
+
+    def __init__(self,
+                 pretext_type: PretextType,
+                 pretext_parameters: Dict[str, str]) -> None:
+        self.pretext_type: PretextType = pretext_type
+        self.pretext_parameters: Dict[str, Any] = {
+            k: self._convert(k, v) for k,v in pretext_parameters.items()
+        }
+
+    def _convert(self, key: str, value: str) -> Any:
+        if key in ["lamb"]:
+            return float(value)
+        else:
+            raise ValueError(f"No conversion found for param: [{key}], with value [{value}]")
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Pretext):
+            return self.__dict__ == other.__dict__
+        return False
+
+def parse_phenotype(phenotype: str) -> Tuple[ParsedNetwork,ParsedNetwork, Optimiser, Optional[Pretext]]:
     phenotype_as_list: List[List[str]] = \
         list(map(lambda x: x.split(":"), phenotype.split(" ")))
 
     optimiser: Optimiser
+    pretext_task: Optional[Pretext] = None
     layers: List[Layer] = []
     layers_connections: Dict[LayerId, List[InputLayerId]] = {}
+    projector_layers: List[Layer] = []
+    projector_layers_connections: Dict[LayerId, List[InputLayerId]] = {}
     layer_id: int = 0
+    projector_layer_id: int = 0
     while phenotype_as_list:
         entity: Entity = Entity(phenotype_as_list[0][0])
         name: str = phenotype_as_list[0][1]
@@ -85,15 +129,31 @@ def parse_phenotype(phenotype: str) -> Tuple[List[Layer], Dict[LayerId, List[Inp
         }
         phenotype_as_list = list(dropwhile(lambda kv: kv[0] not in Entity.enum_values(),
                                            phenotype_as_list[1:]))
+        input_info: List[InputLayerId]
         if entity == Entity.LAYER:
-            input_info: List[InputLayerId] = \
+            input_info = \
                 list(map(lambda x: InputLayerId(int(x)), entity_parameters.pop("input").split(",")))
             layers.append(Layer(LayerId(layer_id),
                                 layer_type=LayerType(name),
                                 layer_parameters=entity_parameters))
             layers_connections[LayerId(layer_id)] = input_info
             layer_id += 1
+        elif entity == Entity.PROJECTOR_LAYER:
+            input_info = \
+                list(map(lambda x: InputLayerId(int(x)), entity_parameters.pop("input").split(",")))
+            projector_layers.append(Layer(LayerId(projector_layer_id),
+                                          layer_type=LayerType(name),
+                                          layer_parameters=entity_parameters))
+            projector_layers_connections[LayerId(projector_layer_id)] = input_info
+            projector_layer_id += 1
         elif entity == Entity.OPTIMISER:
             optimiser = Optimiser(optimiser_type=OptimiserType(name),
                                   optimiser_parameters=entity_parameters)
-    return layers, layers_connections, optimiser
+        elif entity == Entity.PRETEXT_TASK:
+            pretext_task = Pretext(pretext_type=PretextType(name),
+                                   pretext_parameters=entity_parameters)
+
+    return ParsedNetwork(layers, layers_connections), \
+        ParsedNetwork(projector_layers, projector_layers_connections), \
+        optimiser, \
+        pretext_task

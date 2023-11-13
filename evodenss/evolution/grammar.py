@@ -1,75 +1,206 @@
-# Copyright 2019 Filipe Assuncao
-
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-
-#    http://www.apache.org/licenses/LICENSE-2.0
-
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+from copy import deepcopy
+from dataclasses import dataclass, field
 import filecmp
 import os
 from random import randint, uniform
 import shutil
-from typing import Optional
+from typing import Callable, Dict, Generic, List, NewType, Optional, TypeVar
+
+from evodenss.misc.enums import AttributeType
+
+
+T = TypeVar('T')
+K = TypeVar('K')
+
+
+class Attribute(Generic[T]):
+
+    def __init__(self,
+                 var_type: str,
+                 num_values: int,
+                 min_value: T,
+                 max_value: T,
+                 generator: Callable[[int,T,T], List[T]]) -> None:
+        self.var_type = var_type
+        self.num_values: int = num_values
+        self.min_value: T = min_value
+        self.max_value: T = max_value
+        self.generator: Callable[[int,T,T], List[T]] = generator
+        self.values: Optional[List[T]] = None
+
+    def generate(self) -> None:
+        self.values = self.generator(self.num_values, self.min_value, self.max_value)
+
+    def __repr__(self) -> str:
+        return f"Attribute(num_values={self.num_values}," + \
+            f" min_value={self.min_value}," + \
+            f" max_value={self.max_value}," + \
+            f" values={self.values})"
+
+    def __str__(self) -> str:
+        string: str = f"{self.var_type},{self.num_values},{self.min_value},{self.max_value}"
+        if self.values is not None:
+            string += f",{self.values}"
+        return string
+    
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Attribute):
+            return self.var_type == other.var_type and \
+                self.num_values == other.num_values and \
+                self.min_value == other.min_value and \
+                self.max_value == other.max_value and \
+                self.values == other.values
+        return False
+
+
+@dataclass
+class Symbol:
+    name: str
+
+    @staticmethod
+    def create_symbol(symbol_str: str) -> 'Symbol':
+        symbol_name: str
+        attribute_type: str
+        num_values: str
+        min_value: str
+        max_value: str
+        if "<" in symbol_str and ">" in symbol_str:
+            symbol_name = symbol_str.replace('<', '').replace('>', '').rstrip().lstrip()
+            return NonTerminal(symbol_name)
+        elif "[" in symbol_str and "]" in symbol_str:
+            attribute: Attribute
+            symbol_name, attribute_type, num_values, min_value, max_value = \
+                symbol_str.replace('[', '')\
+                          .replace(']', '')\
+                          .split(',')
+            if AttributeType(attribute_type) == AttributeType.INT:
+                attribute = Attribute[int](attribute_type, int(num_values), int(min_value), int(max_value),
+                                           lambda n, min, max: [randint(min, max) for _ in range(n)])
+            elif AttributeType(attribute_type) == AttributeType.FLOAT:
+                attribute = Attribute[float](attribute_type, int(num_values), float(min_value), float(max_value),
+                                             lambda n, min, max: [uniform(min, max) for _ in range(n)])
+            elif AttributeType(attribute_type) == AttributeType.INT_POWER2:
+                attribute = Attribute[int](attribute_type, int(num_values), int(min_value), int(max_value),
+                                           lambda n, min, max: [2 ** randint(min, max) for _ in range(n)])
+            elif AttributeType(attribute_type) == AttributeType.INT_POWER2_INV:
+                attribute = Attribute[int](attribute_type, int(num_values), int(min_value), int(max_value),
+                                           lambda n, min, max: [1/(2 ** randint(min, max)) for _ in range(n)])
+            else:
+                raise AttributeError(f"Invalid Attribute type: [{attribute_type}]")
+            return Terminal(symbol_name, attribute)
+        else:
+            return Terminal(symbol_str)
+
+    def __lt__(self, other: 'Symbol') -> bool:
+        return self.name < other.name
+    
+    def __le__(self, other: 'Symbol') -> bool:
+        return self.name <= other.name
+
+    def __gt__(self, other: 'Symbol') -> bool:
+        return self.name > other.name
+    
+    def __ge__(self, other: 'Symbol') -> bool:
+        return self.name >= other.name
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Symbol):
+            return self.__dict__ == other.__dict__ 
+        return False
+
+    def __hash__(self) -> int:
+        return hash(repr(self))
+
+Derivation = NewType('Derivation', List[Symbol])
+
+
+class NonTerminal(Symbol):    
+    def __str__(self) -> str:
+        return f"<{self.name}>"
+
+
+
+@dataclass
+class Terminal(Symbol):
+    attribute: Optional['Attribute'] = field(default=None)
+
+    def __hash__(self) -> int:
+        return hash(repr(self))
+
+    def __str__(self) -> str:
+        if self.attribute is None:
+            return self.name
+        else:
+            return f"[{self.name},{str(self.attribute)}]"
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Terminal):
+            return self.__dict__ == other.__dict__ 
+        return False
+
+
+@dataclass
+class Genotype:
+    expansions: Dict[NonTerminal, List[Derivation]]
+    codons: Dict[Symbol, List[int]]
+
+    @classmethod
+    def empty(cls) -> 'Genotype':
+        return cls({}, {})
+
+    #def add_to_genome(self, non_terminal: NonTerminal, codon: int, derivation: Derivation) -> None:
+    #    if non_terminal not in self.codons.keys():
+    #        self.codons[non_terminal] = [codon]
+    #    else:
+    #        self.codons[non_terminal] = [codon] + self.codons[non_terminal]
+    #        
+    #    if non_terminal not in self.expansions.keys():
+    #        self.expansions[non_terminal] = [derivation]
+    #    else:
+    #        self.expansions[non_terminal] = [derivation] + self.expansions[non_terminal]
+
+    def _concatenate_to_dict(self,
+                             dict: Dict[K, List[T]],
+                             key: K,
+                             element: T,
+                             mode: str='append') -> Dict[K, List[T]]:
+        if key not in dict.keys():
+            dict[key] = [element]
+        else:
+            if mode == 'append':
+                dict[key] = dict[key] + [element]
+            elif mode == 'prepend':
+                dict[key] = [element] + dict[key]
+            else:
+                raise ValueError(f"Unrecognised value: [{mode}]. Only 'append' and 'prepend are accepted")
+        return dict
+
+    def add_to_genome(self, non_terminal: NonTerminal, codon: int, derivation: Derivation, mode: str) -> None:
+        self.codons = self._concatenate_to_dict(self.codons, non_terminal, codon, mode)
+        self.expansions = self._concatenate_to_dict(self.expansions, non_terminal, derivation, mode)
+
+    def __iadd__(self, other: 'Genotype') -> 'Genotype':
+        for k in other.expansions.keys():
+            if k not in self.expansions.keys():
+                self.expansions[k] = other.expansions[k]
+            else:
+                self.expansions[k] += other.expansions[k]
+        for i in other.codons.keys():
+            if i not in self.codons.keys():
+                self.codons[i] = other.codons[i]
+            else:
+                self.codons[i] += other.codons[i]
+        return self
+    
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Genotype):
+            return self.__dict__ == other.__dict__ 
+        return False
 
 
 class Grammar:
-    """
-        Dynamic Structured Grammatical Evolution (DSGE) code. F-DENSER++ uses a BNF
-        grammar to define the search space, and DSGE is applied to perform the
-        genotype/phenotype mapping of the inner-level of the genotype.
-
-
-        Attributes
-        ----------
-        grammar : dict
-            object where the grammar is stored, and later used for initialisation,
-            and decoding of the individuals.
-
-
-        Methods
-        -------
-        get_grammar(path)
-            Reads the grammar from a file
-
-        read_grammar(path)
-            Auxiliary function of the get_grammar method; loads the grammar from a file
-
-        parse_grammar(path)
-            Auxiliary fuction of the get_grammar method; parses the grammar to a dictionary
-
-        _str_()
-            Prints the grammar in the BNF form
-
-        initialise(start_symbol)
-            Creates a genotype, at random, starting from the input non-terminal symbol
-
-        initialise_recursive(symbol, prev_nt, genotype)
-            Auxiliary function of the initialise method; recursively expands the
-            non-terminal symbol
-
-        decode(start_symbol, genotype)
-            Genotype to phenotype mapping.
-
-        decode_recursive(symbol, read_integers, genotype, phenotype)
-            Auxiliary function of the decode method; recursively applies the expansions
-            that are encoded in the genotype
-    """
-
-    def __init__(self, path: str, backup_path: Optional[str]):
-        """
-            Parameters
-            ----------
-            path : str
-                Path to the BNF grammar file
-        """
-
+    
+    def __init__(self, path: str, backup_path: Optional[str]=None):
         self.grammar = self.get_grammar(path)
         if backup_path is not None:
             self._backup_used_grammar(path, backup_path)
@@ -88,47 +219,15 @@ class Grammar:
             shutil.copyfile(origin_filepath, destination_filepath)
 
 
-    def get_grammar(self, path):
-        """
-            Read the grammar from a file.
-
-            Parameters
-            ----------
-            path : str
-                Path to the BNF grammar file
-
-            Returns
-            -------
-            grammar : dict
-                object where the grammar is stored, and later used for initialisation,
-                and decoding of the individuals
-        """
-
-        raw_grammar = self.read_grammar(path)
-
+    def get_grammar(self, path: str) -> Dict[NonTerminal, List[Derivation]]:
+        raw_grammar: Optional[List[str]] = self.read_grammar(path)
         if raw_grammar is None:
             print('Grammar file does not exist.')
             exit(-1)
-
         return self.parse_grammar(raw_grammar)
 
 
-    def read_grammar(self, path):
-        """
-            Auxiliary function of the get_grammar method; loads the grammar from a file
-
-            Parameters
-            ----------
-            path : str
-                Path to the BNF grammar file
-
-            Returns
-            -------
-            raw_grammar : list
-                list of strings, where each position is a line of the grammar file.
-                Returns None in case of failure opening the file.
-        """
-
+    def read_grammar(self, path: str) -> Optional[List[str]]:
         try:
             with open(path, 'r') as f_in:
                 raw_grammar = f_in.readlines()
@@ -137,250 +236,101 @@ class Grammar:
             return None
 
 
-    def parse_grammar(self, raw_grammar):
-        """
-            Auxiliary fuction of the get_grammar method; parses the grammar to a dictionary
-
-            Parameters
-            ----------
-            raw_grammar : list
-                list of strings, where each position is a line of the grammar file
-
-            Returns
-            -------
-            grammar : dict
-                object where the grammar is stored, and later used for initialisation,
-                and decoding of the individuals
-        """
-
+    def parse_grammar(self, raw_grammar: List[str]) -> Dict[NonTerminal, List[Derivation]]:
         grammar = {}
-        start_symbol = None
-
         for rule in raw_grammar:
-            [non_terminal, raw_rule_expansions] = rule.rstrip('\n').split('::=')
+            non_terminal_name, raw_rule_expansions = rule.rstrip('\n').split('::=')
+            nt_symbol: Symbol = Symbol.create_symbol(non_terminal_name)
+            assert isinstance(nt_symbol, NonTerminal)
 
-            rule_expansions = []
+            rule_expansions: List[Derivation] = []
             for production_rule in raw_rule_expansions.split('|'):
-                rule_expansions.append([(symbol.rstrip().lstrip().replace('<', '').replace('>', ''), \
-                                        '<' in symbol) for symbol in
-                                        production_rule.rstrip().lstrip().split(' ')])
-            grammar[non_terminal.rstrip().lstrip().replace('<', '').replace('>', '')] = rule_expansions
-
-            if start_symbol is None:
-                start_symbol = non_terminal.rstrip().lstrip().replace('<', '').replace('>', '')
-
+                rule_expansions.append(Derivation(
+                    [Symbol.create_symbol(symbol_name)
+                     for symbol_name in production_rule.rstrip().lstrip().split(' ')]
+                ))
+            grammar[nt_symbol] = rule_expansions
         return grammar
 
 
-    def _str_(self):
-        """
-        Prints the grammar in the BNF form
-        """
-
-        for _key_ in sorted(self.grammar):
-            productions = ''
-            for production in self.grammar[_key_]:
-                for symbol, terminal in production:
-                    if terminal:
-                        productions += ' <'+symbol+'>'
-                    else:
-                        productions += ' '+symbol
-                productions += ' | '
-            print('<'+_key_+'> ::='+productions[:-3])
-
-
-    def __str__(self):
-        """
-        Prints the grammar in the BNF form
-        """
-
+    def __str__(self) -> str:
         print_str = ''
         for _key_ in sorted(self.grammar):
-            productions = ''
+            production_list: List[str] = []
             for production in self.grammar[_key_]:
-                for symbol, terminal in production:
-                    if terminal:
-                        productions += ' <'+symbol+'>'
-                    else:
-                        productions += ' '+symbol
-                productions += ' | '
-            print_str += '<'+_key_+'> ::='+productions[:-3]+'\n'
-
+                symbols: List[str] = [str(symbol) for symbol in production]
+                production_list.append(" ".join(symbols))
+            print_str += f"{str(_key_)} ::= {' | '.join(production_list)}\n"
         return print_str
 
 
-    def initialise(self, start_symbol):
-        """
-            Creates a genotype, at random, starting from the input non-terminal symbol
-
-            Parameters
-            ----------
-            start_symbol : str
-                non-terminal symbol used as starting symbol for the grammatical expansion.
-
-            Returns
-            -------
-            genotype : dict
-                DSGE genotype used for the inner-level of F-DENSER++
-        """
-
-        genotype = {}
-
-        self.initialise_recursive((start_symbol, True), None, genotype)
-
+    def initialise(self, start_symbol_name: str) -> Genotype:
+        start_symbol: NonTerminal = NonTerminal(start_symbol_name)
+        genotype: Genotype = self.initialise_recursive(start_symbol)
         return genotype
 
 
-    def initialise_recursive(self, symbol, prev_nt, genotype):
-        """
-            Auxiliary function of the initialise method; recursively expands the
-            non-terminal symbol
+    def initialise_recursive(self, symbol_to_expand: Symbol) -> Genotype:
+        genotype: Genotype = Genotype(expansions={}, codons={})
+        if isinstance(symbol_to_expand, NonTerminal):
+            expansion_possibility: int = randint(0, len(self.grammar[symbol_to_expand]) - 1)
+            derivation: Derivation = deepcopy(self.grammar[symbol_to_expand][expansion_possibility])
+            for expanded_symbol in derivation:
+                if isinstance(expanded_symbol, Terminal) and expanded_symbol.attribute is not None:
+                    assert expanded_symbol.attribute.values is None
+                    # this method has side-effects. The Derivation object is altered because of this
+                    expanded_symbol.attribute.generate()
+                genotype += self.initialise_recursive(expanded_symbol)
+            genotype.add_to_genome(symbol_to_expand, expansion_possibility, derivation, mode='prepend')
+        return genotype
 
-            Parameters
-            ----------
-            symbol : tuple
-                (non terminal symbol to expand : str, non-terminal : bool).
-                Non-terminal is True in case the non-terminal symbol is a
-                non-terminal, and False if the the non-terminal symbol str is
-                a terminal
 
-            prev_nt: str
-                non-terminal symbol used in the previous expansion
+    def decode(self,
+               start_symbol_name: str,
+               genotype: Genotype) -> str:
+        start_symbol: NonTerminal = NonTerminal(start_symbol_name)
+        phenotype_tokens: List[str]
+        unconsumed_genotype: Genotype = deepcopy(genotype)
+        extra_genotype: Genotype = Genotype.empty() # to keep track of any extra codons/expansions that were used
+        phenotype_tokens = self.decode_recursive(start_symbol, unconsumed_genotype, extra_genotype)
+        # if we decoded an individual that has suffered a DSGE mutation we will update the genotype accordingly
+        # therefore, we will remove unconsumed codons/expansions and add extra codons/expansions that were used
+        for k in unconsumed_genotype.expansions.keys():
+            n_expansions: int = len(genotype.expansions[k])
+            n_unconsumed_expansions: int = len(unconsumed_genotype.expansions[k])
+            genotype.expansions[k] = genotype.expansions[k][:n_expansions - n_unconsumed_expansions]
+            genotype.codons[k] = genotype.codons[k][:n_expansions - n_unconsumed_expansions]
+            if k in extra_genotype.expansions.keys():
+                genotype.expansions[k] += extra_genotype.expansions[k]
+            if k in extra_genotype.codons.keys():
+                genotype.codons[k] += extra_genotype.codons[k]
+        
+        phenotype: str = " ".join(phenotype_tokens)
+        return phenotype
 
-            genotype: dict
-                DSGE genotype used for the inner-level of F-DENSER++
 
-        """
-
-        symbol, non_terminal = symbol
-
-        if non_terminal:
-            expansion_possibility = randint(0, len(self.grammar[symbol])-1)
-
-            if symbol not in genotype:
-                genotype[symbol] = [{'ge': expansion_possibility, 'ga': {}}]
-            else:
-                genotype[symbol].append({'ge': expansion_possibility, 'ga': {}})
-
-            add_reals_idx = len(genotype[symbol])-1
-            for sym in self.grammar[symbol][expansion_possibility]:
-                self.initialise_recursive(sym, (symbol, add_reals_idx), genotype)
+    def decode_recursive(self,
+                         symbol: Symbol,
+                         unconsumed_genotype: Genotype,
+                         extra_genotype: Genotype) -> List[str]:
+        phenotype: List[str] = []
+        if isinstance(symbol, NonTerminal):
+            # consume expansion
+            expansion: Optional[Derivation] = \
+                unconsumed_genotype.expansions[symbol].pop(0) if len(unconsumed_genotype.expansions[symbol]) > 0 else None
+            # In case there has been a DSGE mutation, a symbol might not have enough codons
+            # to continue expanding, thus throwing an error
+            if expansion is None:
+                expansion_possibility: int = randint(0, len(self.grammar[symbol]) - 1)
+                expansion = deepcopy(self.grammar[symbol][expansion_possibility])
+                extra_genotype.add_to_genome(symbol, expansion_possibility, expansion, mode='append')
+            for expanded_symbol in expansion:
+                phenotype += self.decode_recursive(expanded_symbol, unconsumed_genotype, extra_genotype)
         else:
-            if '[' in symbol and ']' in symbol:
-                genotype_key, genotype_idx = prev_nt
-
-                [var_name, var_type, num_values, min_val, max_val] = symbol.replace('[', '')\
-                                                                           .replace(']', '')\
-                                                                           .split(',')
-
-                num_values = int(num_values)
-                min_val, max_val = float(min_val), float(max_val)
-
-                if var_type == 'int':
-                    values = [randint(min_val, max_val) for _ in range(num_values)]
-                elif var_type == 'float':
-                    values = [uniform(min_val, max_val) for _ in range(num_values)]
-
-                genotype[genotype_key][genotype_idx]['ga'][var_name] = (var_type, min_val,
-                                                                        max_val, values)
-
-
-    def decode(self, start_symbol, genotype):
-        """
-            Genotype to phenotype mapping.
-
-            Parameters
-            ----------
-            start_symbol : str
-                non-terminal symbol used as starting symbol for the grammatical expansion
-
-            genotype : dict
-                DSGE genotype used for the inner-level of F-DENSER++
-
-            Returns
-            -------
-            phenotype : str
-                phenotype corresponding to the input genotype
-        """
-
-        read_codons = dict.fromkeys(list(genotype.keys()), 0)
-        phenotype = self.decode_recursive((start_symbol, True), read_codons, genotype, '')
-
-        return phenotype.lstrip().rstrip()
-
-
-    def decode_recursive(self, symbol, read_integers, genotype, phenotype):
-        """
-            Auxiliary function of the decode method; recursively applies the expansions
-            that are encoded in the genotype
-
-            Parameters
-            ----------
-            symbol : tuple
-                (non terminal symbol to expand : str, non-terminal : bool).
-                Non-terminal is True in case the non-terminal symbol is a
-                non-terminal, and False if the the non-terminal symbol str is
-                a terminal
-
-            read_integers : dict
-                index of the next codon of the non-terminal genotype to be read
-
-            genotype : dict
-                DSGE genotype used for the inner-level of F-DENSER++
-
-            phenotype : str
-                phenotype corresponding to the input genotype
-        """
-
-        symbol, non_terminal = symbol
-
-        if non_terminal:
-            if symbol not in read_integers:
-                read_integers[symbol] = 0
-                genotype[symbol] = []
-
-            if len(genotype[symbol]) <= read_integers[symbol]:
-                ge_expansion_integer = randint(0, len(self.grammar[symbol])-1)
-                genotype[symbol].append({'ge': ge_expansion_integer, 'ga': {}})
-
-            current_nt = read_integers[symbol]
-            expansion_integer = genotype[symbol][current_nt]['ge']
-            read_integers[symbol] += 1
-            expansion = self.grammar[symbol][expansion_integer]
-
-            used_terminals = []
-            for sym in expansion:
-                if sym[1]:
-                    phenotype = self.decode_recursive(sym, read_integers, genotype, phenotype)
-                else:
-                    if '[' in sym[0] and ']' in sym[0]:
-                        [var_name, var_type, var_num_values, var_min, var_max] = sym[0].replace('[', '')\
-                                                                                       .replace(']', '')\
-                                                                                       .split(',')
-                        if var_name not in genotype[symbol][current_nt]['ga']:
-                            var_num_values = int(var_num_values)
-                            var_min, var_max = float(var_min), float(var_max)
-
-                            if var_type == 'int':
-                                values = [randint(var_min, var_max) for _ in range(var_num_values)]
-                            elif var_type == 'float':
-                                values = [uniform(var_min, var_max) for _ in range(var_num_values)]
-
-                            genotype[symbol][current_nt]['ga'][var_name] = (var_type, var_min,
-                                                                            var_max, values)
-
-                        values = genotype[symbol][current_nt]['ga'][var_name][-1]
-
-                        phenotype += ' %s:%s' % (var_name, ','.join(map(str, values)))
-
-                        used_terminals.append(var_name)
-                    else:
-                        phenotype += ' '+sym[0]
-
-            unused_terminals = list(set(list(genotype[symbol][current_nt]['ga'].keys()))\
-                                    -set(used_terminals))
-            if unused_terminals:
-                for name in used_terminals:
-                    del genotype[symbol][current_nt]['ga'][name]
-
+            assert isinstance(symbol, Terminal)
+            if symbol.attribute is None:
+                return [f"{symbol.name}"]
+            else:
+                assert symbol.attribute.values is not None
+                return [f"{symbol.name}:{','.join(map(str, symbol.attribute.values))}"]
         return phenotype

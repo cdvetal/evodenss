@@ -1,4 +1,5 @@
 checkpoints_path: ../../results/experiment_supervised_100
+
 evolutionary:
   generations: 75
   lambda: 6
@@ -6,32 +7,33 @@ evolutionary:
   mutation:
     add_connection: 0.0
     remove_connection: 0.0
-    add_layer: 0.25
-    reuse_layer: 0.15
-    remove_layer: 0.25
-    dsge_layer: 0.15
+    add_layer: 0.3
+    reuse_layer: 0.2
+    remove_layer: 0.3
+    dsge_layer: 0.1
     macro_layer: 0.3
     train_longer: 0.03
+  fitness_metric: accuracy
+
 network:
   architecture:
-    reuse_layer: 0.15
-    network_structure:
-      - 
-        - features
-        - 1
-        - 30
-      - 
-        - classification
-        - 1
-        - 10
+    reuse_layer: 0.2
     macro_structure:
       - learning
     output: softmax
-    network_structure_init: {features: [2,3,4], classification:[1]}
-    levels_back: {features: 1, classification: 1}
+    modules:
+      - name: features
+        network_structure_init: [3,4,5,6]
+        network_structure: [3,30]
+        levels_back: 1
   learning:
     train_percentage: 100
-    learning_type: supervised
+    data_splits:
+      evo_train: 0.7
+      evo_validation: 0.2
+      evo_test: 0.1
+    learning_type: "supervised"
+    default_train_time: 60
     augmentation:
       train:
         random_crop:
@@ -39,7 +41,4 @@ network:
           padding: 4
         random_horizontal_flip:
           probability: 0.5
-      last_layer_train: null
       test: null
-    default_train_time: 120
-    fitness_metric: accuracy

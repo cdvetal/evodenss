@@ -133,3 +133,6 @@ experiment*
 .DS_Store
 Makefile
 get_statistics.sh
+data
+.vscode
+.metals

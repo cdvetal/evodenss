@@ -3,6 +3,13 @@ from typing import Any, List
 
 import torch
 
+@unique
+class AttributeType(Enum):
+    INT = "int"
+    INT_POWER2 = "int_power2"
+    INT_POWER2_INV = "inv_power2"
+    FLOAT = "float"
+
 class ExtendedEnum(Enum):
     @classmethod
     def enum_values(cls) -> List[Any]:
@@ -12,11 +19,8 @@ class ExtendedEnum(Enum):
 class Entity(ExtendedEnum):
     LAYER = "layer"
     OPTIMISER = "learning"
-
-@unique
-class ProjectorUsage(Enum):
-    IMPLICIT = "implicit"
-    EXPLICIT = "explicit"
+    PROJECTOR_LAYER = "projector_layer"
+    PRETEXT_TASK = "pretext"
 
 @unique
 class Device(Enum):
@@ -27,6 +31,7 @@ class Device(Enum):
 class LayerType(ExtendedEnum):
     CONV = "conv"
     BATCH_NORM = "batch_norm"
+    BATCH_NORM_PROJ = "batch_norm_proj"
     POOL_AVG = "pool_avg"
     POOL_MAX = "pool_max"
     FC = "fc"
@@ -40,6 +45,10 @@ class OptimiserType(Enum):
     GRADIENT_DESCENT = "gradient_descent"
     ADAM = "adam"
     LARS = "lars"
+
+@unique
+class PretextType(Enum):
+    BT = "bt"
 
 @unique
 class ActivationType(Enum):

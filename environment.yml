@@ -13,4 +13,8 @@ dependencies:
   - jsonschema=4.4.0
   - PyYAML=6.0.1
   - versioneer=0.29
+  - llvm-openmp<16
+  - coverage=7.3.2
+  - pytest=7.4.2
+  - parameterized=0.9.0
   

@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 
 from argparse import ArgumentParser
@@ -17,12 +18,12 @@ from evodenss.misc.enums import Device
 from evodenss.misc.proportions import ProportionsIndexes
 from evodenss.misc.phenotype_parser import parse_phenotype
 from evodenss.misc.utils import is_valid_file, is_yaml_file
-from evodenss.neural_networks_torch.callbacks import ModelCheckpointCallback
-from evodenss.neural_networks_torch.dataset_loader import DatasetType, load_dataset
-from evodenss.neural_networks_torch.evaluators import BarlowTwinsEvaluator, EvaluationBarlowTwinsNetwork
-from evodenss.neural_networks_torch.model_builder import ModelBuilder
-from evodenss.neural_networks_torch.trainers import Trainer
-from evodenss.neural_networks_torch.transformers import LegacyTransformer, BarlowTwinsTransformer
+from evodenss.networks.torch.callbacks import ModelCheckpointCallback
+from evodenss.networks.torch.dataset_loader import DatasetType, load_dataset
+from evodenss.networks.torch.evaluators import BarlowTwinsEvaluator, EvaluationBarlowTwinsNetwork
+from evodenss.networks.torch.model_builder import ModelBuilder
+from evodenss.networks.torch.trainers import Trainer
+from evodenss.networks.torch.transformers import LegacyTransformer, BarlowTwinsTransformer
 
 import numpy as np
 
@@ -31,7 +32,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Subset
 
 if TYPE_CHECKING:
-    from evodenss.neural_networks_torch import LearningParams
+    from evodenss.networks import LearningParams
 
 
 def compute_time_elapsed_human(time_elapsed: int) -> str:
@@ -223,7 +224,6 @@ if __name__ == '__main__': #pragma: no cover
 
     start = time.time()
     torch.backends.cudnn.benchmark = True
-    print(args.cuda_enabled)
     main(config=Config(args.config_path),
          grammar=Grammar(args.grammar_path, None),
          individual_path=args.individual_path,

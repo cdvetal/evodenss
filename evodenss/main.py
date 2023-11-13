@@ -16,28 +16,24 @@ from evodenss.misc.constants import DATASETS_INFO, STATS_FOLDER_NAME
 from evodenss.misc.enums import FitnessMetricName
 from evodenss.misc.persistence import RestoreCheckpoint, build_overall_best_path
 from evodenss.misc.utils import is_valid_file, is_yaml_file
-from evodenss.neural_networks_torch.evaluators import create_evaluator
+from evodenss.networks.torch.evaluators import create_evaluator
 
 
 import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from evodenss.neural_networks_torch.evaluators import BaseEvaluator
+    from evodenss.networks.torch.evaluators import BaseEvaluator
 
 def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gpu_run: bool) -> Checkpoint:
 
-    fitness_metric_name: FitnessMetricName = FitnessMetricName(config['network']['learning']['fitness_metric'])
-    learning_type: str = config['network']['learning']['learning_type']
+    fitness_metric_name: FitnessMetricName = FitnessMetricName(config['evolutionary']['fitness_metric'])
+
     evaluator: BaseEvaluator = create_evaluator(dataset_name,
                                                 fitness_metric_name,
                                                 run,
-                                                learning_type,
-                                                is_gpu_run,
-                                                config['network']['learning']['augmentation']['train'],
-                                                config['network']['learning']['augmentation']['last_layer_train'],
-                                                config['network']['learning']['augmentation']['test'],
-                                                config['network']['learning']['train_percentage'])
+                                                config['network']['learning'],
+                                                is_gpu_run,)
 
     os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}"), exist_ok=True)
     os.makedirs(os.path.join(config['checkpoints_path'], f"run_{run}", STATS_FOLDER_NAME), exist_ok=True)

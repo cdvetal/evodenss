@@ -3,7 +3,7 @@ import os
 from typing import Any, Callable
 from .main import main as search
 from . import __version__
-__version__ = __version__.get_versions()['version']
+__version__ = __version__.get_versions()['version'] # type: ignore
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 

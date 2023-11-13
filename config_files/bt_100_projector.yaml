@@ -1,4 +1,4 @@
-checkpoints_path: ../../results/experiment_bt_100
+checkpoints_path: ../../results/experiment_bt_100_projector
 
 evolutionary:
   generations: 75
@@ -16,6 +16,7 @@ evolutionary:
   fitness_metric: accuracy
 
 network:
+
   architecture:
     reuse_layer: 0.2
     macro_structure:
@@ -27,11 +28,13 @@ network:
         network_structure_init: [3,4,5,6]
         network_structure: [3,30]
         levels_back: 1
+      - name: projector
+        network_structure_init: [2,3]
+        network_structure: [2,4]
+        levels_back: 1
+    
   learning:
-    projector:
-      - 512
-      - 128
-    train_percentage: 10
+    train_percentage: 100
     data_splits:
       evo_train: 0.7
       evo_test: 0.3

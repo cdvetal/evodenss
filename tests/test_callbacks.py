@@ -3,10 +3,10 @@ import shutil
 import unittest
 import time
 
-from fast_denser.misc.enums import Device
-from fast_denser.neural_networks_torch.callbacks import EarlyStoppingCallback, \
+from evodenss.misc.enums import Device
+from evodenss.networks.torch.callbacks import EarlyStoppingCallback, \
     ModelCheckpointCallback, TimedStoppingCallback
-from fast_denser.neural_networks_torch.trainers import Trainer
+from evodenss.networks.torch.trainers import Trainer
 
 import torch
 from torch import nn, optim

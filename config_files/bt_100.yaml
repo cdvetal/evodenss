@@ -1,35 +1,46 @@
 checkpoints_path: ../../results/experiment_bt_100
+
 evolutionary:
   generations: 75
-  lambda: 6
+  lambda: 1
   max_epochs: 100000
   mutation:
     add_connection: 0.0
     remove_connection: 0.0
-    add_layer: 0.25
-    reuse_layer: 0.15
-    remove_layer: 0.25
-    dsge_layer: 0.15
+    add_layer: 0.3
+    reuse_layer: 0.0
+    remove_layer: 0.3
+    dsge_layer: 0.1
     macro_layer: 0.3
     train_longer: 0.03
+  fitness_metric: accuracy
+
 network:
   architecture:
-    reuse_layer: 0.15
-    network_structure:
-      - 
-        - features
-        - 1
-        - 30
+    reuse_layer: 0.0
     macro_structure:
       - learning
+      - pretext
     output: identity
-    network_structure_init: {features: [2,3,4,5]}
-    levels_back: {features: 1}
+    modules:
+      - name: features
+        network_structure_init: [2]
+        network_structure: [3,30]
+        levels_back: 1
   learning:
+    projector:
+      - 512
+      - 128
     train_percentage: 100
+    data_splits:
+      evo_train: 0.7
+      evo_test: 0.3
     learning_type: self-supervised
+    default_train_time: 60
+    downstream_epochs: 30
+    downstream_mode: freeze
     augmentation:
-      train:
+      pretext:
         input_a:
           random_resized_crop:
             size: 32
@@ -62,7 +73,7 @@ network:
           normalize:
             mean: [0.4914, 0.4822, 0.4465]
             std: [0.2023, 0.1994, 0.2010]
-      last_layer_train:
+      downstream:
         random_resized_crop:
           size: 32
         random_horizontal_flip:
@@ -82,5 +93,3 @@ network:
         normalize:
           mean: [0.4914, 0.4822, 0.4465]
           std: [0.2023, 0.1994, 0.2010]
-    default_train_time: 120
-    fitness_metric: accuracy
