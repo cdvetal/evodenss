@@ -126,7 +126,7 @@ if __name__ == '__main__': #pragma: no cover
 
     start = time.time()
     torch.backends.cudnn.benchmark = True
-    config: Config = Config(args.config_path) 
+    config: Config = Config(args.config_path)
     main(run=args.run,
          dataset_name=args.dataset_name,
          config=config,

@@ -84,7 +84,7 @@ class Trainer:
 
             while epoch < self.n_epochs and self.stop_training is False:
                 self._call_on_epoch_begin_callbacks()
-                start = time.time()
+                start = time.time() # pylint: disable=unused-variable
                 total_loss = torch.zeros(size=(1,), device=self.device.value)
                 for i, data in enumerate(self.train_data_loader, 0):
                     inputs, labels = data[0].to(self.device.value, non_blocking=True), data[1].to(self.device.value, non_blocking=True)
@@ -97,7 +97,7 @@ class Trainer:
                     total_loss += loss/n_batches_train
                     loss.backward()
                     self.optimiser.step()
-                end = time.time()
+                end = time.time() # pylint: disable=unused-variable
                 #logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss}")
                 self.loss_values["train_loss"].append(round(float(total_loss.data), 3))
 
@@ -147,7 +147,7 @@ class Trainer:
             scaler = torch.cuda.amp.GradScaler()
             while epoch < self.n_epochs and self.stop_training is False:
                 self.model.train()
-                start = time.time()
+                start = time.time() # pylint: disable=unused-variable
                 total_loss = 0
                 total_diagonal_loss = 0
                 total_offdiagonal_loss = 0
@@ -170,7 +170,7 @@ class Trainer:
                     scaler.step(self.optimiser)
                     scaler.update()
 
-                end = time.time()
+                end = time.time() # pylint: disable=unused-variable
                 #logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss/n_batches_train}")
                 self.loss_values["train_loss_diagonal"].append(round(total_diagonal_loss/n_batches_train, 3))
                 self.loss_values["train_loss_offdiagonal"].append(round(total_offdiagonal_loss/n_batches_train, 3))

@@ -1,5 +1,6 @@
 [MASTER]
 ignore=
+    __version__.py,
     setup.py,
     train_longer.py,
     versioneer.py
@@ -16,16 +17,26 @@ ignored-module=
 disable=
     consider-iterating-dictionary,
     consider-using-enumerate,
+    consider-using-generator,
     dangerous-default-value,
+    duplicate-code,
+    invalid-name,
     logging-fstring-interpolation,
     missing-class-docstring,
     missing-function-docstring,
     missing-module-docstring,
+    no-else-return,
+    protected-access,
     unspecified-encoding,
     useless-parent-delegation,
     too-few-public-methods,
     too-many-arguments,
-    too-many-instance-attributes
+    too-many-branches,
+    too-many-instance-attributes,
+    too-many-locals,
+    too-many-return-statements,
+    unnecessary-comprehension,
+    use-dict-literal
 
 
 [FORMAT]

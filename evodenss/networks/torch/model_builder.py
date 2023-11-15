@@ -148,7 +148,7 @@ class ModelBuilder():
             raise e
         except RuntimeError as e:
             print(e)
-            raise InvalidNetwork(str(e))
+            raise InvalidNetwork(str(e)) from e
 
     def _assemble_projector(self) -> LegacyNetwork:
 

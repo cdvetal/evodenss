@@ -23,7 +23,7 @@ __all__ = ['LegacyTransformer', 'BarlowTwinsTransformer']
 logger = logging.getLogger(__name__)
 
 
-class GaussianBlur(object):
+class GaussianBlur:
 
     def __init__(self, p: float) -> None:
         self.p: float = p
@@ -36,7 +36,7 @@ class GaussianBlur(object):
             return img
 
 
-class Solarization(object):
+class Solarization:
     def __init__(self, p: float):
         self.p: float = p
 
