@@ -4,6 +4,7 @@ import filecmp
 import os
 from random import randint, uniform
 import shutil
+import sys
 from typing import Callable, Dict, Generic, List, NewType, Optional, TypeVar
 
 from evodenss.misc.enums import AttributeType
@@ -212,7 +213,7 @@ class Grammar:
         raw_grammar: Optional[List[str]] = self.read_grammar(path)
         if raw_grammar is None:
             print('Grammar file does not exist.')
-            exit(-1)
+            sys.exit(-1)
         return self.parse_grammar(raw_grammar)
 
 
