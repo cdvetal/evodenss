@@ -1,7 +1,7 @@
 from copy import deepcopy
 import logging
 import random
-from typing import Any, cast, Dict, List, Optional, TYPE_CHECKING, Tuple
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
 
 import numpy as np
 
@@ -134,7 +134,8 @@ def mutation(individual: Individual,
                 if insert_pos == 0:
                     module.connections[insert_pos] = [-1]
                 else:
-                    connection_possibilities = list(range(max(0, insert_pos-module.module_configuration.levels_back), insert_pos-1))
+                    connection_possibilities = list(range(max(0, insert_pos-module.module_configuration.levels_back),
+                                                          insert_pos-1))
                     if len(connection_possibilities) < module.module_configuration.levels_back-1:
                         connection_possibilities.append(-1)
 
@@ -166,7 +167,8 @@ def mutation(individual: Individual,
                     module.connections[0] = [-1]
                 if remove_idx == max(module.connections.keys()):
                     module.connections.pop(remove_idx)
-                logger.info(f"Individual {individual_copy.id} is going to have a layer removed from position {remove_idx}")
+                logger.info(f"Individual {individual_copy.id} is going to have a layer removed"
+                            f" from position {remove_idx}")
 
         for layer_idx, layer in enumerate(module.layers):
             #dsge mutation
@@ -176,12 +178,14 @@ def mutation(individual: Individual,
 
             #add connection
             if layer_idx != 0 and random.random() <= add_connection_prob:
-                connection_possibilities = list(range(max(0, layer_idx-module.module_configuration.levels_back), layer_idx-1))
+                connection_possibilities = list(range(max(0, layer_idx-module.module_configuration.levels_back),
+                                                      layer_idx-1))
                 connection_possibilities = list(set(connection_possibilities) - set(module.connections[layer_idx]))
                 if len(connection_possibilities) > 0:
                     new_input: int = random.choice(connection_possibilities)
                     module.connections[layer_idx].append(new_input)
-                logger.info(f"Individual {individual_copy.id} is going to have a new connection at layer {layer_idx}, from {new_input}")
+                logger.info(f"Individual {individual_copy.id} is going to have a new connection at layer {layer_idx},"
+                            f" from {new_input}")
             #remove connection
             r_value = random.random()
             if layer_idx != 0 and r_value <= remove_connection_prob:
@@ -189,7 +193,8 @@ def mutation(individual: Individual,
                 if len(connection_possibilities) > 0:
                     r_connection = random.choice(connection_possibilities)
                     module.connections[layer_idx].remove(r_connection)
-                    logger.info(f"Individual {individual_copy.id} is going to have a connection removed at layer {layer_idx}: {r_connection}")
+                    logger.info(f"Individual {individual_copy.id} is going to have a connection removed at layer"
+                                f" {layer_idx}: {r_connection}")
     #macro level mutation
     for macro in individual_copy.macro:
         if random.random() <= macro_layer_prob:
@@ -252,14 +257,18 @@ def select_fittest(population: List[Individual],
                 assert parent_10min.fitness is not None
 
                 parent_10min.total_allocated_train_time = parent.total_allocated_train_time
-                logger.info(f"Min train time parent: idx: {idx_max_10min}, id: {parent_10min.id}, max fitness detected: {max_fitness_10min}")
-                logger.info(f"Fitnesses from min train individuals before selecting best individual: {[ind.fitness for ind in indvs_10min]}")
-                logger.info(f"Individual {parent_10min.id} has its train extended. Current fitness {parent_10min.fitness}")
+                logger.info(f"Min train time parent: idx: {idx_max_10min}, id: {parent_10min.id},"
+                            f" max fitness detected: {max_fitness_10min}")
+                logger.info(f"Fitnesses from min train individuals before selecting best individual:"
+                            f" {[ind.fitness for ind in indvs_10min]}")
+                logger.info(f"Individual {parent_10min.id} has its train extended."
+                            f" Current fitness {parent_10min.fitness}")
+                path: str = persistence.build_individual_path(checkpoint_base_path, run, generation, parent_10min.id)
                 parent_10min.evaluate(grammar,
                                       cnn_eval,
                                       static_projector_config,
-                                      persistence.build_individual_path(checkpoint_base_path, run, generation, parent_10min.id),
-                                      persistence.build_individual_path(checkpoint_base_path, run, generation, parent_10min.id))
+                                      path,
+                                      path)
 
                 population_fits[population.index(parent_10min)] = parent_10min.fitness
 

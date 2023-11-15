@@ -6,17 +6,14 @@ import logging
 import random
 from typing import Any, Dict, List, Tuple, TYPE_CHECKING
 
-from evodenss.misc.enums import TransformOperation
-
 from PIL import Image, ImageOps, ImageFilter
 from torchvision.transforms import Compose, CenterCrop, ColorJitter, Normalize, RandomApply, \
     RandomCrop, RandomGrayscale, RandomHorizontalFlip, RandomResizedCrop, Resize, \
     ToTensor
 
-import numpy as np
+from evodenss.misc.enums import TransformOperation
 
 if TYPE_CHECKING:
-    from PIL import Image
     from torch import nn, Tensor
 
 

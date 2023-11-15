@@ -1,19 +1,14 @@
 import logging
-from sys import float_info
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING, Union
-
-# from evodenss.neural_networks_torch import NetworkValidator
-from evodenss.networks import Dimensions
-from evodenss.misc.constants import CHANNEL_INDEX, SEPARATOR_CHAR
-from evodenss.misc.enums import Device, LayerType
-from evodenss.misc.utils import InputLayerId, LayerId
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-import torch.nn.functional as F
 
-if TYPE_CHECKING:
-    from evodenss.misc.phenotype_parser import ParsedNetwork
+from evodenss.networks import Dimensions
+from evodenss.misc.constants import SEPARATOR_CHAR
+from evodenss.misc.enums import Device, LayerType
+from evodenss.misc.utils import InputLayerId, LayerId
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +39,7 @@ class EvolvedNetwork(nn.Module):
                               x: Tensor,
                               layer_id: LayerId,
                               input_ids: List[InputLayerId]) -> Tensor:
-        
+
         assert len(input_ids) > 0
         final_input_tensor: Tensor
         input_tensor: Tensor
@@ -66,7 +61,7 @@ class EvolvedNetwork(nn.Module):
                 #if layer_id==5:
                 #    print("here:", input_tensor.shape)
                 #    print("here:", self.__dict__['_modules'][layer_name])
-            layer_inputs.append(input_tensor)        
+            layer_inputs.append(input_tensor)
 
         self._clear_cache()
         #print("length:", len(layer_inputs), input_ids, layer_id)
@@ -112,11 +107,12 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                  projector_model: nn.Module,
                  device: Device,
                  lamb: float):
-        
-        # TODO: DO IT MORE EFFICIENTLY
+
         super(BarlowTwinsNetwork, self).__init__(evolved_layers, layers_connections, output_layer_id)
-        #layer_names: List[str] = list(map(lambda x: x[0], evolved_layers))
         last_layer_name: str = self.id_layername_map[self.output_layer_id]
+
+        # This is needed in the downstream stage, Pylint should ignore it!
+        # pylint: disable=unused-variable
         last_layer_type: LayerType = LayerType[last_layer_name.split(SEPARATOR_CHAR)[0].upper()]
         self.lamb: float = lamb
         self.last_layer_out_features = layer_shapes[InputLayerId(self.output_layer_id)].flatten()
@@ -127,27 +123,6 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                                  affine=False,
                                  device=device.value)
 
-
-
-        # if projector_usage is None:
-        #    # TODO: What if there is no projector? This has to be done at some point I think
-        #    raise NotImplementedError()
-        #    #self.projector = None
-        #    #self.bn = nn.BatchNorm1d(self.last_layer_out_features, affine=False, device=device.value)
-        #if projector_usage == ProjectorUsage.EXPLICIT:
-        #    # projector
-        #    sizes: List[int] = [self.last_layer_out_features] + [512, 128]
-        #    layers: List[nn.Module] = []
-        #    for i in range(len(sizes) - 2):
-        #        layers.append(nn.Linear(sizes[i], sizes[i + 1], bias=False, device=device.value))
-        #        layers.append(nn.BatchNorm1d(sizes[i + 1], device=device.value))
-        #        layers.append(nn.ReLU(inplace=True))
-        #    layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False, device=device.value))
-        #    flatten: List[nn.Module] = [nn.Flatten()] if last_layer_type is not LayerType.FC else []
-        #    self.projector = nn.Sequential(*(flatten + layers))
-        #    self.bn = nn.BatchNorm1d(sizes[-1], affine=False, device=device.value)
-        #else:
-        #    raise NotImplementedError
 
 
     def forward(self, x1: Tensor, x2: Optional[Tensor]=None, batch_size: Optional[int]=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
@@ -197,7 +172,8 @@ class BarlowTwinsNetwork(EvolvedNetwork):
             on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
             off_diag = self._off_diagonal(c).pow_(2).sum()
 
-            loss: Tensor = (on_diag + self.lamb * off_diag)#.div_(self.last_layer_out_features)
+            # loss: Tensor = (on_diag + self.lamb * off_diag).div_(self.last_layer_out_features)
+            loss: Tensor = on_diag + self.lamb * off_diag
 
             return on_diag, off_diag, loss
         else:
@@ -238,7 +214,7 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
         self.relevant_index = len(layers)
         #this was used to inject the original resnet network
         #self.final_layer = nn.Linear(in_features=2048, out_features=10, bias=True, device=device.value) # remove me later and keep the line above
-        
+
         self.softmax = nn.Softmax()
         self.barlow_twins_trained_model.requires_grad_(False)
         # self.barlow_twins_trained_model.fc.requires_grad_(True)

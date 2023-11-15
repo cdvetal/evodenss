@@ -1,7 +1,7 @@
 # type: ignore
 from copy import deepcopy
 import random
-from typing import List
+from typing import Any, Dict, List
 import unittest
 import warnings
 
@@ -118,8 +118,12 @@ class Test(unittest.TestCase):
                                     [original_layers[0]],
                                     [])
         self.assertEqual(obtained_connections, {**connections, **{2: [1]}})
-        self.assertEqual(self.count_unique_layers(ind.modules), self.count_unique_layers(new_ind.modules), "Error: duplicate layer wrong size")
-        self.assertEqual(self.count_layers(ind.modules)+1, self.count_layers(new_ind.modules), "Error: duplicate layer wrong size")
+        self.assertEqual(self.count_unique_layers(ind.modules),
+                         self.count_unique_layers(new_ind.modules),
+                         "Error: duplicate layer wrong size")
+        self.assertEqual(self.count_layers(ind.modules)+1,
+                         self.count_layers(new_ind.modules),
+                         "Error: duplicate layer wrong size")
 
 
     def test_remove_layer(self):
@@ -131,17 +135,19 @@ class Test(unittest.TestCase):
         self.mutation_config['remove_layer'] = 0.0
         obtained_layers = new_ind.modules[0].layers
         original_layers = ind.modules[0].layers
-        
+
         obtained_connections = new_ind.modules[0].connections
         connections.pop(1)
-        
+
         self.assert_layers_mutation(obtained_layers,
                                     original_layers,
                                     [],
                                     [],
                                     [1])
         self.assertEqual(obtained_connections, connections)
-        self.assertEqual(self.count_layers(ind.modules)-1, self.count_layers(new_ind.modules), "Error: remove layer wrong size")
+        self.assertEqual(self.count_layers(ind.modules)-1,
+                         self.count_layers(new_ind.modules),
+                         "Error: remove layer wrong size")
 
 
     def test_dsge_mutation(self):

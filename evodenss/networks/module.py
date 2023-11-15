@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import random
 from typing import Dict, List, TYPE_CHECKING
 
@@ -28,14 +27,15 @@ class Module:
                 self.layers.append(grammar.initialise(self.module_name))
 
         #Initialise connections: feed-forward and allowing skip-connections
-        self.connections = {} 
+        self.connections = {}
 
         for layer_idx in range(num_expansions):
             if layer_idx == 0:
                 #the -1 layer is the input
                 self.connections[layer_idx] = [-1,]
             else:
-                connection_possibilities = list(range(max(0, layer_idx-self.module_configuration.levels_back), layer_idx-1))
+                connection_possibilities = list(range(max(0, layer_idx-self.module_configuration.levels_back),
+                                                      layer_idx-1))
                 if len(connection_possibilities) < self.module_configuration.levels_back-1:
                     connection_possibilities.append(-1)
 

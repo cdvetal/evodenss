@@ -6,12 +6,13 @@ import os
 from time import time
 from typing import TYPE_CHECKING
 
-from evodenss.misc.constants import MODEL_FILENAME, WEIGHTS_FILENAME
-
 import torch
 
+from evodenss.misc.constants import MODEL_FILENAME, WEIGHTS_FILENAME
+
+
 if TYPE_CHECKING:
-    from evodenss.neural_networks_torch.trainers import Trainer
+    from evodenss.networks.torch.trainers import Trainer
 
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ class ModelCheckpointCallback(Callback):
     def on_train_end(self, trainer: Trainer) -> None:
         torch.save(trainer.model, os.path.join(self.model_saving_dir, self.model_filename))
         torch.save(trainer.model.state_dict(), os.path.join(self.model_saving_dir, self.weights_filename))
-        
+
     def on_epoch_begin(self, trainer: Trainer) -> None:
         pass
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, TYPE_CHECKING
+from typing import List
 
 @dataclass
 class ModuleConfig:

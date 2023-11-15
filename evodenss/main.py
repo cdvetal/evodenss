@@ -7,6 +7,9 @@ import random
 import time
 from typing import Any, List, Optional, TYPE_CHECKING
 
+import numpy as np
+import torch
+
 import evodenss
 from evodenss.config import Config
 from evodenss.evolution import engine
@@ -19,12 +22,11 @@ from evodenss.misc.utils import is_valid_file, is_yaml_file
 from evodenss.networks.torch.evaluators import create_evaluator
 
 
-import numpy as np
-import torch
-
 if TYPE_CHECKING:
     from evodenss.networks.torch.evaluators import BaseEvaluator
 
+
+# pylint: disable=redefined-outer-name
 def create_initial_checkpoint(dataset_name: str, config: Config, run: int, is_gpu_run: bool) -> Checkpoint:
 
     fitness_metric_name: FitnessMetricName = FitnessMetricName(config['evolutionary']['fitness_metric'])

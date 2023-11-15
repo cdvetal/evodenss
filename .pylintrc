@@ -1,0 +1,32 @@
+[MASTER]
+ignore=
+    setup.py,
+    train_longer.py,
+    versioneer.py
+
+
+[TYPECHECK]
+ignored-module=
+    PIL,
+    PIL.Image,
+    torch
+
+
+[MESSAGES CONTROL]
+disable=
+    consider-iterating-dictionary,
+    consider-using-enumerate,
+    dangerous-default-value,
+    logging-fstring-interpolation,
+    missing-class-docstring,
+    missing-function-docstring,
+    missing-module-docstring,
+    unspecified-encoding,
+    useless-parent-delegation,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-instance-attributes
+
+
+[FORMAT]
+max-line-length=120

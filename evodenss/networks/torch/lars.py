@@ -1,13 +1,13 @@
+import math
 from typing import Any, Dict, no_type_check
 
 import torch
 from torch.nn.parameter import Parameter
 from torch import optim
 
-import math
 
 class LARS(optim.Optimizer):
-    
+
     def __init__(self,
                  params: Any,
                  batch_size: int,

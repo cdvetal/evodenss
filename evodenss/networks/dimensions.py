@@ -4,12 +4,14 @@ from dataclasses import dataclass
 from math import ceil, floor
 from typing import Tuple, TYPE_CHECKING
 
+from torch import Size
+
 from evodenss.misc.enums import LayerType
 
-from torch import Size
 
 if TYPE_CHECKING:
     from evodenss.misc.phenotype_parser import Layer
+
 
 @dataclass
 class Dimensions:
@@ -25,7 +27,7 @@ class Dimensions:
         kernel_size: int
         padding_w: int
         padding_h: int
-        if layer.layer_type == LayerType.CONV:            
+        if layer.layer_type == LayerType.CONV:
             out_channels = layer.layer_parameters['out_channels']
             if layer.layer_parameters['padding'] == "same":
                 height = input_dimensions.height
@@ -34,13 +36,15 @@ class Dimensions:
                 kernel_size = layer.layer_parameters['kernel_size']
                 height = ceil((input_dimensions.height - kernel_size + 1) / layer.layer_parameters['stride'])
                 width = ceil((input_dimensions.width - kernel_size + 1) / layer.layer_parameters['stride'])
-            elif type(layer.layer_parameters['padding']) is tuple:
+            elif isinstance(layer.layer_parameters['padding'], tuple):
                 padding_h = layer.layer_parameters['padding'][0]
                 padding_w = layer.layer_parameters['padding'][1]
                 kernel_size_h: int = layer.layer_parameters['kernel_size'][0]
                 kernel_size_w: int = layer.layer_parameters['kernel_size'][1]
-                height = ceil((input_dimensions.height - kernel_size_h + 1) / layer.layer_parameters['stride']) + padding_h * 2
-                width = ceil((input_dimensions.width - kernel_size_w + 1) / layer.layer_parameters['stride']) + padding_w * 2
+                height = ceil((input_dimensions.height - kernel_size_h + 1) / \
+                              layer.layer_parameters['stride']) + padding_h * 2
+                width = ceil((input_dimensions.width - kernel_size_w + 1) / \
+                             layer.layer_parameters['stride']) + padding_w * 2
             return cls(out_channels, height, width)
         elif layer.layer_type in [LayerType.POOL_AVG, LayerType.POOL_MAX]:
             assert isinstance(layer.layer_parameters['padding'], str) is True
@@ -72,14 +76,14 @@ class Dimensions:
         else:
             raise ValueError(f"Can't create Dimensions object for layer [{layer.layer_type}]")
 
-    
+
     def compute_adjusting_padding(self,
                                   kernel_size: int,
                                   stride: int) -> Tuple[int, int, int, int]:
         padding_w: float = (self.width - (self.width - kernel_size + 1) / stride) / 2
         padding_h: float = (self.height - (self.height - kernel_size + 1) / stride) / 2
         padding_left: int = ceil(padding_w)
-        padding_right: int = floor(padding_w) 
+        padding_right: int = floor(padding_w)
         padding_top: int = ceil(padding_h)
         padding_bottom: int = floor(padding_h)
         return (padding_left, padding_right, padding_top, padding_bottom)

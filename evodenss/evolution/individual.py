@@ -4,11 +4,12 @@ from copy import deepcopy
 import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
+import numpy as np
+
 from evodenss.networks import Module
 from evodenss.misc.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.fitness_metrics import Fitness
 
-import numpy as np
 
 if TYPE_CHECKING:
     from evodenss.evolution.grammar import Genotype, Grammar
@@ -110,7 +111,7 @@ class Individual:
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Individual):
-            return self.__dict__ == other.__dict__ 
+            return self.__dict__ == other.__dict__
         return False
 
 
@@ -202,12 +203,12 @@ class Individual:
             for i in static_projector_config[:-1]:
                 projector_phenotype += f" projector_layer:fc act:linear out_features:{i} bias:True" + \
                     f" input:{projection_layer_count-1}"
-                projector_phenotype += f" projector_layer:batch_norm_proj act:relu" + \
+                projector_phenotype += " projector_layer:batch_norm_proj act:relu" + \
                     f" input:{projection_layer_count}"
                 projection_layer_count += 2
-            projector_phenotype += f" projector_layer:fc act:linear out_features:{static_projector_config[-1]} bias:True" + \
-                    f" input:{projection_layer_count-1}"
-            projector_phenotype += f" projector_layer:batch_norm_proj act:linear" + \
+            projector_phenotype += f" projector_layer:fc act:linear out_features:{static_projector_config[-1]}" + \
+                " bias:True input:{projection_layer_count-1}"
+            projector_phenotype += " projector_layer:batch_norm_proj act:linear" + \
                 f" input:{projection_layer_count}"
             projection_layer_count += 2
 

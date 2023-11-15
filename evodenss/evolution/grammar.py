@@ -42,7 +42,7 @@ class Attribute(Generic[T]):
         if self.values is not None:
             string += f",{self.values}"
         return string
-    
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Attribute):
             return self.var_type == other.var_type and \
@@ -93,19 +93,19 @@ class Symbol:
 
     def __lt__(self, other: 'Symbol') -> bool:
         return self.name < other.name
-    
+
     def __le__(self, other: 'Symbol') -> bool:
         return self.name <= other.name
 
     def __gt__(self, other: 'Symbol') -> bool:
         return self.name > other.name
-    
+
     def __ge__(self, other: 'Symbol') -> bool:
         return self.name >= other.name
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Symbol):
-            return self.__dict__ == other.__dict__ 
+            return self.__dict__ == other.__dict__
         return False
 
     def __hash__(self) -> int:
@@ -114,10 +114,9 @@ class Symbol:
 Derivation = NewType('Derivation', List[Symbol])
 
 
-class NonTerminal(Symbol):    
+class NonTerminal(Symbol):
     def __str__(self) -> str:
         return f"<{self.name}>"
-
 
 
 @dataclass
@@ -135,7 +134,7 @@ class Terminal(Symbol):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Terminal):
-            return self.__dict__ == other.__dict__ 
+            return self.__dict__ == other.__dict__
         return False
 
 
@@ -147,17 +146,6 @@ class Genotype:
     @classmethod
     def empty(cls) -> 'Genotype':
         return cls({}, {})
-
-    #def add_to_genome(self, non_terminal: NonTerminal, codon: int, derivation: Derivation) -> None:
-    #    if non_terminal not in self.codons.keys():
-    #        self.codons[non_terminal] = [codon]
-    #    else:
-    #        self.codons[non_terminal] = [codon] + self.codons[non_terminal]
-    #        
-    #    if non_terminal not in self.expansions.keys():
-    #        self.expansions[non_terminal] = [derivation]
-    #    else:
-    #        self.expansions[non_terminal] = [derivation] + self.expansions[non_terminal]
 
     def _concatenate_to_dict(self,
                              dict: Dict[K, List[T]],
@@ -191,15 +179,15 @@ class Genotype:
             else:
                 self.codons[i] += other.codons[i]
         return self
-    
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Genotype):
-            return self.__dict__ == other.__dict__ 
+            return self.__dict__ == other.__dict__
         return False
 
 
 class Grammar:
-    
+
     def __init__(self, path: str, backup_path: Optional[str]=None):
         self.grammar = self.get_grammar(path)
         if backup_path is not None:
@@ -215,6 +203,7 @@ class Grammar:
                              "with a different grammar than the one you used initially. "
                              "This is a gentle reminder to double-check the grammar you "
                              "have just passed as parameter.")
+        # pylint: disable=protected-access
         if not shutil._samefile(origin_filepath, destination_filepath): # type: ignore
             shutil.copyfile(origin_filepath, destination_filepath)
 
@@ -304,20 +293,20 @@ class Grammar:
                 genotype.expansions[k] += extra_genotype.expansions[k]
             if k in extra_genotype.codons.keys():
                 genotype.codons[k] += extra_genotype.codons[k]
-        
+
         phenotype: str = " ".join(phenotype_tokens)
         return phenotype
 
 
     def decode_recursive(self,
                          symbol: Symbol,
-                         unconsumed_genotype: Genotype,
+                         unconsumed_geno: Genotype,
                          extra_genotype: Genotype) -> List[str]:
         phenotype: List[str] = []
         if isinstance(symbol, NonTerminal):
             # consume expansion
             expansion: Optional[Derivation] = \
-                unconsumed_genotype.expansions[symbol].pop(0) if len(unconsumed_genotype.expansions[symbol]) > 0 else None
+                unconsumed_geno.expansions[symbol].pop(0) if len(unconsumed_geno.expansions[symbol]) > 0 else None
             # In case there has been a DSGE mutation, a symbol might not have enough codons
             # to continue expanding, thus throwing an error
             if expansion is None:
@@ -325,7 +314,7 @@ class Grammar:
                 expansion = deepcopy(self.grammar[symbol][expansion_possibility])
                 extra_genotype.add_to_genome(symbol, expansion_possibility, expansion, mode='append')
             for expanded_symbol in expansion:
-                phenotype += self.decode_recursive(expanded_symbol, unconsumed_genotype, extra_genotype)
+                phenotype += self.decode_recursive(expanded_symbol, unconsumed_geno, extra_genotype)
         else:
             assert isinstance(symbol, Terminal)
             if symbol.attribute is None:

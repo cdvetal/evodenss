@@ -4,14 +4,14 @@ from enum import unique, Enum
 import logging
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
-from evodenss.misc.proportions import ProportionsIndexes, ProportionsFloat
-from evodenss.networks.torch.transformers import BaseTransformer
-
-import numpy as np
 from sklearn.model_selection import train_test_split
 from torch import Tensor
 from torch.utils.data import Subset
 from torchvision import datasets
+
+from evodenss.misc.proportions import ProportionsIndexes, ProportionsFloat
+from evodenss.networks.torch.transformers import BaseTransformer
+
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
@@ -54,7 +54,7 @@ def load_dataset(dataset_name: str,
     targets: Any
     targets_tensor: Tensor
     # In case we have received the indexes for each subset already
-    if type(proportions) is ProportionsIndexes:
+    if isinstance(proportions, ProportionsIndexes):
         for k in proportions.keys():
             if k == DatasetType.EVO_TEST:
                 subset_dict[k] = Subset(evo_test_data, proportions[k])
@@ -65,7 +65,7 @@ def load_dataset(dataset_name: str,
                     n_downstream_samples = int(len(proportions[k]) * downstream_train_percentage / 100)
                     if n_downstream_samples == 0:
                         logger.warning("Number of training samples is 0. A higher training set percentage is needed")
-                    
+
                     if downstream_train_percentage == 100:
                         downstream_train_idx = proportions[k]
                     else:
@@ -75,7 +75,7 @@ def load_dataset(dataset_name: str,
                             shuffle=True,
                             stratify=targets_tensor[proportions[k]]
                         )
-                    
+
                     subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, downstream_train_idx)
                 else:
                     subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, proportions[k])
@@ -84,7 +84,7 @@ def load_dataset(dataset_name: str,
 
     else:
         # otherwise we'll do it based on the proportions that were asked
-        assert type(proportions) == ProportionsFloat
+        assert isinstance(proportions, ProportionsFloat)
         targets = train_data.targets # type: ignore
         targets_tensor = targets if type(targets) == "torch.Tensor" else Tensor(targets)
         train_indices: List[int] = list(range(len(targets))) # * aug_factor
@@ -105,7 +105,7 @@ def load_dataset(dataset_name: str,
                                                     shuffle=True,
                                                     stratify=stratify)
             subset_dict[DatasetType.EVO_VALIDATION] = Subset(train_data, valid_idx)
-        
+
         if downstream_train_percentage is not None:
             n_downstream_samples = int(len(train_idx) * downstream_train_percentage / 100)
             if n_downstream_samples == 0:
@@ -120,7 +120,7 @@ def load_dataset(dataset_name: str,
             subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, downstream_train_idx)
         else:
             subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, train_idx)
-        
+
         subset_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
 
         return subset_dict

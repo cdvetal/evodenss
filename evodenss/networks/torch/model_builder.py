@@ -3,7 +3,11 @@ from __future__ import annotations
 from collections import Counter
 import logging
 from math import ceil
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TYPE_CHECKING
+import warnings
+from typing import Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
+
+import torch
+from torch import Size, nn, optim, Tensor
 
 from evodenss.misc.constants import SEPARATOR_CHAR
 from evodenss.misc.enums import ActivationType, Device, LayerType, OptimiserType
@@ -13,17 +17,16 @@ from evodenss.networks import Dimensions
 from evodenss.networks.torch import BarlowTwinsNetwork, EvolvedNetwork, LegacyNetwork, LARS, LearningParams, \
     BaseEvaluator, BarlowTwinsEvaluator, LegacyEvaluator
 
-import warnings
+
 warnings.filterwarnings("ignore")
 
-import torch
-from torch import Size, nn, optim, Tensor
 
 if TYPE_CHECKING:
     from evodenss.misc.phenotype_parser import Optimiser, ParsedNetwork, Pretext
 
 
 logger = logging.getLogger(__name__)
+
 
 class ModelBuilder():
 
@@ -34,8 +37,6 @@ class ModelBuilder():
                  input_shape: Size) -> None:
         self.parsed_network: ParsedNetwork = parsed_network
         self.parsed_projector_network: Optional[ParsedNetwork] = parsed_projector_network
-        # self.layers: List[Layer] = parsed_network.layers
-        # self.layers_connections: Dict[LayerId, List[InputLayerId]] = parsed_network.layers_connections
         self.layer_shapes: Dict[InputLayerId, Dimensions] = {
             InputLayerId(-1): Dimensions(channels=input_shape[0],
                                          height=input_shape[1],
@@ -77,7 +78,6 @@ class ModelBuilder():
                                    weight_decay_filter=True,
                                    lars_adaptation_filter=True,
                                    **optimiser.optimiser_parameters)
-            #weight_decay, momentum, 
         else:
             raise ValueError(f"Invalid optimiser name found: {optimiser.optimiser_type}")
         return LearningParams(
@@ -107,9 +107,11 @@ class ModelBuilder():
                      for input_id in connections_to_use[LayerId(i)]}
 
                 minimum_extra_id: int = len(self.parsed_network.layers) + len(collected_extra_torch_layers)
-                extra_layers: Dict[InputLayerId, Layer] = self._get_layers_to_fix_shape_mismatches_resnet_approach(inputs_shapes, minimum_extra_id)
+                extra_layers: Dict[InputLayerId, Layer] = \
+                    self._get_layers_to_fix_shape_mismatches_resnet_approach(inputs_shapes, minimum_extra_id)
                 for input_id, extra_layer in extra_layers.items():
-                    extra_layer_name: str = f"{extra_layer.layer_type.value}{SEPARATOR_CHAR}{self.layer_type_counts[extra_layer.layer_type]}"
+                    extra_layer_name: str = f"{extra_layer.layer_type.value}{SEPARATOR_CHAR}" + \
+                        f"{self.layer_type_counts[extra_layer.layer_type]}"
                     self.layer_type_counts.update([extra_layer.layer_type])
 
                     # Add the new connection in between
@@ -117,7 +119,7 @@ class ModelBuilder():
                     # Fix the old ones
                     connections_to_use[LayerId(i)].remove(input_id)
                     connections_to_use[LayerId(i)].append(InputLayerId(extra_layer.layer_id))
-                    
+
                     layer_to_add = self._create_torch_layer(extra_layer, extra_layer_name)
                     collected_extra_torch_layers.append((extra_layer_name, layer_to_add))
                 layer_to_add = self._create_torch_layer(l, layer_name)
@@ -152,14 +154,16 @@ class ModelBuilder():
 
         assert self.parsed_projector_network is not None
 
-        self.projector_layer_shapes[InputLayerId(-1)] = self.layer_shapes[InputLayerId(self.parsed_network.get_output_layer_id())]
+        self.projector_layer_shapes[InputLayerId(-1)] = \
+            self.layer_shapes[InputLayerId(self.parsed_network.get_output_layer_id())]
 
         layer_to_add: nn.Module
         torch_layers: List[Tuple[str, nn.Module]] = []
         self.projector_layer_type_counts.update([f'projector_{layer_type}' for layer_type in LayerType])
 
         for i, l in enumerate(self.parsed_projector_network.layers):
-            layer_name: str = f"{l.layer_type.value}{SEPARATOR_CHAR}{self.projector_layer_type_counts[f'projector_{l.layer_type}']}"
+            layer_name: str = f"{l.layer_type.value}{SEPARATOR_CHAR}" + \
+                f"{self.projector_layer_type_counts[f'projector_{l.layer_type}']}"
             self.projector_layer_type_counts.update([f'projector_{l.layer_type}'])
 
             layer_to_add = self._create_torch_layer(l, layer_name, is_projector_network=True)
@@ -186,20 +190,23 @@ class ModelBuilder():
                 logging.warning("Shape mismatch found")
                 expected_padding_h = max(ceil((target_shape.height-input_shape.height) / 2), 0)
                 expected_padding_w = max(ceil((target_shape.width-input_shape.width) / 2), 0)
-                expected_kernel_size_h = max(ceil(input_shape.height + (expected_padding_h * 2) - target_shape.height + 1), 1)
-                expected_kernel_size_w = max(ceil(input_shape.height + (expected_padding_w * 2) - target_shape.width + 1), 1)
-                #print("input: ", input_shape)
-                #print()
-                #print("target: ", target_shape, ceil(input_shape.height - expected_kernel_size_h + 1) + expected_padding_h * 2)
-                #print("breakdown adapting: ", expected_padding_h, expected_padding_w, expected_kernel_size_h, expected_kernel_size_w)
-                new_layers_dict[input_id] = Layer(layer_id=LayerId(layer_id),
-                                                  layer_type=LayerType.CONV,
-                                                  layer_parameters={
-                                                    'out_channels': str(target_shape.channels),
-                                                    'kernel_size_fix': str((expected_kernel_size_h, expected_kernel_size_w)),
-                                                    'padding_fix': str((expected_padding_h, expected_padding_w)),
-                                                    'act': 'linear',
-                                                    'stride': '1'})
+                expected_kernel_size_h = max(
+                    ceil(input_shape.height + (expected_padding_h * 2) - target_shape.height + 1),
+                    1
+                )
+                expected_kernel_size_w = max(
+                    ceil(input_shape.height + (expected_padding_w * 2) - target_shape.width + 1),
+                    1
+                )
+                new_layers_dict[input_id] = \
+                    Layer(layer_id=LayerId(layer_id),
+                          layer_type=LayerType.CONV,
+                          layer_parameters={
+                            'out_channels': str(target_shape.channels),
+                            'kernel_size_fix': str((expected_kernel_size_h, expected_kernel_size_w)),
+                            'padding_fix': str((expected_padding_h, expected_padding_w)),
+                            'act': 'linear',
+                            'stride': '1'})
                 layer_id += 1
         return new_layers_dict
 
@@ -207,7 +214,7 @@ class ModelBuilder():
                                             inputs_shapes: Dict[InputLayerId, Dimensions],
                                             minimum_extra_id: int) -> Dict[InputLayerId, Layer]:
         new_layers_dict: Dict[InputLayerId, Layer] = {}
-        
+
         # max_channels: int = min(list(map(lambda x: x.channels, inputs_shapes.values())))
         min_height: int = min(list(map(lambda x: x.height, inputs_shapes.values())))
         min_width: int = min(list(map(lambda x: x.width, inputs_shapes.values())))
@@ -215,12 +222,13 @@ class ModelBuilder():
         for input_id, input_shape in inputs_shapes.items():
             if input_shape.height > min_height or input_shape.width > min_width :
                 logging.warning("Shape mismatch found")
-                new_layers_dict[input_id] = Layer(layer_id=LayerId(layer_id),
-                                                  layer_type=LayerType.POOL_MAX,
-                                                  layer_parameters={'kernel_size_fix': str((input_shape.height-min_height + 1,
-                                                                                            input_shape.width-min_width + 1)),
-                                                                    'padding': 'valid',
-                                                                    'stride': '1'})
+                new_layers_dict[input_id] = \
+                    Layer(layer_id=LayerId(layer_id),
+                          layer_type=LayerType.POOL_MAX,
+                          layer_parameters={'kernel_size_fix': str((input_shape.height-min_height + 1,
+                                                                    input_shape.width-min_width + 1)),
+                                            'padding': 'valid',
+                                            'stride': '1'})
                 layer_id += 1
         return new_layers_dict
 
@@ -256,23 +264,20 @@ class ModelBuilder():
         else:
             # in this case all inputs will have the same dimensions, just take the first one...
             expected_input_dimensions = first_input
-        #else:
-        #    expected_input_dimensions = None
-        
-        #if expected_input_dimensions is None:
-        #    raise InvalidNetwork(f"Invalid network found. Layer [{layer.layer_id}] has inputs with different dimensions: {inputs_shapes}")
 
         if is_projector_network is False:
-            self.layer_shapes[InputLayerId(layer.layer_id)] = Dimensions.from_layer(layer, expected_input_dimensions)
+            self.layer_shapes[InputLayerId(layer.layer_id)] = \
+                Dimensions.from_layer(layer, expected_input_dimensions)
         else:
-            self.projector_layer_shapes[InputLayerId(layer.layer_id)] = Dimensions.from_layer(layer, expected_input_dimensions)
+            self.projector_layer_shapes[InputLayerId(layer.layer_id)] = \
+                Dimensions.from_layer(layer, expected_input_dimensions)
 
         if layer.layer_type == LayerType.CONV:
             layer_to_add = self._build_convolutional_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.BATCH_NORM:
             layer_to_add = self._build_batch_norm_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.BATCH_NORM_PROJ:
-            layer_to_add = self._build_batch_norm_projector_layer(layer, expected_input_dimensions) 
+            layer_to_add = self._build_batch_norm_projector_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.POOL_AVG:
             layer_to_add = self._build_avg_pooling_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.POOL_MAX:
@@ -285,45 +290,52 @@ class ModelBuilder():
             layer_to_add = nn.Identity()
         elif layer.layer_type == LayerType.RELU_AGG:
             layer_to_add = nn.ReLU()
-        #print("== shapes: ", self.layer_shapes)
-        #print("=== ", layer_to_add, layer.layer_id)        
         return layer_to_add
 
     def _build_convolutional_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
+        # pylint: disable=unused-variable
         def init_weights(m: nn.Module) -> None:
             if isinstance(m, nn.Conv2d):
                 torch.nn.init.xavier_uniform_(m.weight)
                 #m.bias.data.fill_(0.01)
-        
+
         layer_to_add: nn.Module
         activation: ActivationType = ActivationType(layer.layer_parameters.pop("act"))
 
         assert layer.layer_parameters['padding'] in ['valid', 'same'] or \
-            type(layer.layer_parameters['padding']) is tuple
+            isinstance(layer.layer_parameters['padding'], tuple)
 
         # TODO: put bias = False if all next layers connected to this layer are batch norm
-        
+
         # If padding = same torch does not support strided convolutions.
         # Check https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html#torch.nn.Conv2d
         if layer.layer_parameters['padding'] == "same":
             layer.layer_parameters['stride'] = 1
         if activation == ActivationType.LINEAR:
-            layer_to_add = nn.Conv2d(**layer.layer_parameters, in_channels=input_dimensions.channels, device=self.device.value)
+            layer_to_add = nn.Conv2d(**layer.layer_parameters,
+                                     in_channels=input_dimensions.channels,
+                                     device=self.device.value)
             #torch.nn.init.xavier_uniform(layer_to_add.weight)
         else:
-            layer_to_add = nn.Sequential(nn.Conv2d(**layer.layer_parameters, in_channels=input_dimensions.channels, device=self.device.value),
+            layer_to_add = nn.Sequential(nn.Conv2d(**layer.layer_parameters,
+                                                   in_channels=input_dimensions.channels,
+                                                   device=self.device.value),
                                          self._create_activation_layer(activation))
             #layer_to_add.apply(init_weights)
         return layer_to_add
 
     def _build_batch_norm_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
-        layer_to_add = nn.BatchNorm2d(**layer.layer_parameters, num_features=input_dimensions.channels, device=self.device.value)
+        layer_to_add = nn.BatchNorm2d(**layer.layer_parameters,
+                                      num_features=input_dimensions.channels,
+                                      device=self.device.value)
         return layer_to_add
-    
+
     def _build_batch_norm_projector_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
         torch_layers_to_add: List[nn.Module] = []
         activation: ActivationType = ActivationType(layer.layer_parameters.pop("act"))
-        layer_to_add = nn.BatchNorm1d(**layer.layer_parameters, num_features=input_dimensions.channels, device=self.device.value)
+        layer_to_add = nn.BatchNorm1d(**layer.layer_parameters,
+                                      num_features=input_dimensions.channels,
+                                      device=self.device.value)
         torch_layers_to_add.append(layer_to_add)
         if activation != ActivationType.LINEAR:
             torch_layers_to_add.append(self._create_activation_layer(activation))
@@ -365,14 +377,18 @@ class ModelBuilder():
         torch_layers_to_add: List[nn.Module] = []
         if layer_name.endswith(f"{LayerType.FC.value}{SEPARATOR_CHAR}1"):
             torch_layers_to_add.append(nn.Flatten())
-            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters, in_features=input_dimensions.flatten(), device=self.device.value))
+            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters,
+                                                 in_features=input_dimensions.flatten(),
+                                                 device=self.device.value))
             #torch.nn.init.xavier_uniform(torch_layers_to_add[1].weight)
             #torch_layers_to_add[1].bias.data.fill_(0.01)
         else:
-            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters, in_features=input_dimensions.channels, device=self.device.value))
+            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters,
+                                                 in_features=input_dimensions.channels,
+                                                 device=self.device.value))
             #torch.nn.init.xavier_uniform(torch_layers_to_add[0].weight)
             #torch_layers_to_add[0].bias.data.fill_(0.01)
         if activation != ActivationType.LINEAR:
             torch_layers_to_add.append(self._create_activation_layer(activation))
-        
+
         return nn.Sequential(*torch_layers_to_add)

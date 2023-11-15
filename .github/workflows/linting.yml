@@ -20,7 +20,7 @@ jobs:
         pip install pylint mypy
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py')
+        pylint --rcfile=.pylintrc $(git ls-files '*.py')
     - name: Analysing the code with mypy
       run: |
-        mypy $(git ls-files '*.py')
+        mypy --config-file=mypy.ini $(git ls-files '*.py')

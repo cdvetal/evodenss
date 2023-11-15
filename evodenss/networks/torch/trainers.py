@@ -1,17 +1,17 @@
 import logging
+import time
+import traceback
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import torch
+from torch import nn, optim
+from torch.utils.data import DataLoader
 
 from evodenss.misc.enums import Device
 from evodenss.misc.utils import InvalidNetwork
 from evodenss.networks.torch.callbacks import Callback
 from evodenss.networks.torch.lars import LARS
 
-from torch import nn, optim
-from torch.utils.data import DataLoader
-
-import time
 
 if TYPE_CHECKING:
     from torch.optim.lr_scheduler import LRScheduler
@@ -88,7 +88,7 @@ class Trainer:
                 total_loss = torch.zeros(size=(1,), device=self.device.value)
                 for i, data in enumerate(self.train_data_loader, 0):
                     inputs, labels = data[0].to(self.device.value, non_blocking=True), data[1].to(self.device.value, non_blocking=True)
-                    if type(self.optimiser) == LARS:
+                    if isinstance(self.optimiser, LARS):
                         self.optimiser.adjust_learning_rate(n_batches_train, self.n_epochs, i)
                     # zero the parameter gradients
                     self.optimiser.zero_grad()
@@ -100,7 +100,7 @@ class Trainer:
                 end = time.time()
                 #logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss}")
                 self.loss_values["train_loss"].append(round(float(total_loss.data), 3))
-                
+
                 if self.validation_data_loader is not None:
                     with torch.no_grad():
                         self.model.eval()
@@ -124,9 +124,8 @@ class Trainer:
             self.trained_epochs = epoch - self.initial_epoch
         except RuntimeError as e:
             print(e)
-            import traceback
             print(traceback.format_exc())
-            raise InvalidNetwork(str(e))
+            raise InvalidNetwork(str(e)) from e
 
     def barlow_twins_train(self, batch_size: int) -> None:
         assert self.validation_data_loader is None
@@ -138,12 +137,12 @@ class Trainer:
             #"val_loss_offdiagonal": [],
             #"val_loss_complete": []
         }
-    
+
         try:
             epoch: int = self.initial_epoch
             n_batches_train: int = len(self.train_data_loader)
             #n_batches_validation: int = len(self.validation_data_loader)
-            
+
             self._call_on_train_begin_callbacks()
             scaler = torch.cuda.amp.GradScaler()
             while epoch < self.n_epochs and self.stop_training is False:
@@ -158,7 +157,7 @@ class Trainer:
                     inputs_a = y_a.to(self.device.value, non_blocking=True)
                     inputs_b = y_b.to(self.device.value, non_blocking=True)
 
-                    if type(self.optimiser) == LARS:
+                    if isinstance(self.optimiser, LARS):
                         self.optimiser.adjust_learning_rate(n_batches_train, self.n_epochs, step)
                     self.optimiser.zero_grad(set_to_none=True)
                     with torch.cuda.amp.autocast():
@@ -204,6 +203,5 @@ class Trainer:
             self.trained_epochs = epoch - self.initial_epoch
         except RuntimeError as e:
             print(e)
-            import traceback
             print(traceback.format_exc())
-            raise InvalidNetwork(str(e))
+            raise InvalidNetwork(str(e)) from e
