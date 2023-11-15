@@ -20,7 +20,7 @@ class EvolvedNetwork(nn.Module):
                  layers_connections: Dict[LayerId, List[InputLayerId]],
                  output_layer_id: LayerId) -> None:
 
-        super(EvolvedNetwork, self).__init__()
+        super().__init__()
         self.cache: Dict[Tuple[InputLayerId, LayerId], Tensor] = {}
         self.evolved_layers: List[Tuple[str, nn.Module]] = evolved_layers
         self.layers_connections: Dict[LayerId, List[InputLayerId]] = layers_connections
@@ -124,12 +124,11 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                                  device=device.value)
 
 
-
     def forward(self, x1: Tensor, x2: Optional[Tensor]=None, batch_size: Optional[int]=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
         if x2 is not None:
             assert batch_size is not None
-            y1 = super(BarlowTwinsNetwork, self).forward(x1)
-            y2 = super(BarlowTwinsNetwork, self).forward(x2)
+            y1 = super().forward(x1)
+            y2 = super().forward(x2)
 
             #import matplotlib.pyplot as plt
             #figure = plt.figure(figsize=(8, 8))
@@ -179,8 +178,8 @@ class BarlowTwinsNetwork(EvolvedNetwork):
         else:
             # In case we use the network for inference rather than training
             assert batch_size is None
-            return super(BarlowTwinsNetwork, self).forward(x1)
-            
+            return super().forward(x1)
+
 
     def _off_diagonal(self, x: Tensor) -> Tensor:
         # return a flattened view of the off-diagonal elements of a square matrix

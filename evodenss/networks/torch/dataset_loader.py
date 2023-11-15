@@ -61,6 +61,7 @@ def load_dataset(dataset_name: str,
             else:
                 if downstream_train_percentage is not None:
                     targets = train_data.targets # type: ignore
+                    # pylint: disable=unidiomatic-typecheck
                     targets_tensor = targets if type(targets) == "torch.Tensor" else Tensor(targets)
                     n_downstream_samples = int(len(proportions[k]) * downstream_train_percentage / 100)
                     if n_downstream_samples == 0:
@@ -86,6 +87,7 @@ def load_dataset(dataset_name: str,
         # otherwise we'll do it based on the proportions that were asked
         assert isinstance(proportions, ProportionsFloat)
         targets = train_data.targets # type: ignore
+        # pylint: disable=unidiomatic-typecheck
         targets_tensor = targets if type(targets) == "torch.Tensor" else Tensor(targets)
         train_indices: List[int] = list(range(len(targets))) # * aug_factor
 

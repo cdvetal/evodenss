@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from math import ceil, floor
 from typing import Tuple, TYPE_CHECKING
 
-from torch import Size
-
 from evodenss.misc.enums import LayerType
 
 

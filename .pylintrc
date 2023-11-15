@@ -16,6 +16,7 @@ ignored-module=
 [MESSAGES CONTROL]
 disable=
     consider-iterating-dictionary,
+    consider-using-dict-items,
     consider-using-enumerate,
     consider-using-generator,
     dangerous-default-value,
@@ -34,7 +35,9 @@ disable=
     too-many-branches,
     too-many-instance-attributes,
     too-many-locals,
+    too-many-nested-blocks,
     too-many-return-statements,
+    too-many-statements,
     unnecessary-comprehension,
     use-dict-literal
 

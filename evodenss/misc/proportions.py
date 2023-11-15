@@ -5,11 +5,11 @@ if TYPE_CHECKING:
     from evodenss.networks.torch.dataset_loader import DatasetType
 
 class ProportionsFloat:
-    
+
     def __init__(self, proportions_dict: Dict[DatasetType, float]):
         self.proportions_dict: Dict[DatasetType, float] = proportions_dict
 
-    def keys(self) -> Any: 
+    def keys(self) -> Any:
         return self.proportions_dict.keys()
 
     def __getitem__(self, key: DatasetType) -> float:
@@ -27,7 +27,7 @@ class ProportionsFloat:
 
 
 class ProportionsIndexes:
-    
+
     def __init__(self, proportions_dict: Dict[DatasetType, List[int]]):
         self.proportions_dict: Dict[DatasetType, List[int]] = proportions_dict
 

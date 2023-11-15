@@ -10,8 +10,7 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 
 from evodenss.misc.enums import Device
-from evodenss.networks.torch.callbacks import EarlyStoppingCallback, \
-    ModelCheckpointCallback, TimedStoppingCallback
+from evodenss.networks.torch.callbacks import ModelCheckpointCallback, TimedStoppingCallback
 from evodenss.networks.torch.trainers import Trainer
 
 

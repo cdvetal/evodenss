@@ -6,13 +6,13 @@ import pickle
 import shutil
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
-from evodenss.misc.constants import MODEL_FILENAME
+import glob
 
 from evodenss.evolution import Individual
+from evodenss.misc.constants import MODEL_FILENAME
 from evodenss.misc.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
 
-import glob
 
 if TYPE_CHECKING:
     from evodenss.config import Config
@@ -75,7 +75,10 @@ class SaveCheckpoint:
     def _delete_unnecessary_files(self, checkpoint: Checkpoint, save_path: str, max_generations: int) -> None:
         assert checkpoint.population is not None
         # remove temporary files to free disk space
-        files_to_delete = glob.glob(f"{save_path}/run_{checkpoint.run}/ind=*_generation={checkpoint.last_processed_generation}/*{MODEL_FILENAME}")
+        files_to_delete = glob.glob(
+            f"{save_path}/"
+            f"run_{checkpoint.run}/"
+            f"ind=*_generation={checkpoint.last_processed_generation}/*{MODEL_FILENAME}")
         for file in files_to_delete:
             os.remove(file)
         gen: int = checkpoint.last_processed_generation - 2
@@ -104,17 +107,21 @@ class SaveCheckpoint:
                                     ind.num_epochs,
                                     ind.total_allocated_train_time,
                                     *ind.metrics]) # type: ignore
-        file_exists: bool = os.path.isfile(os.path.join(save_path, f"run_{checkpoint.run}", STATS_FOLDER_NAME, f"test_accuracies.csv"))
+        file_exists: bool = os.path.isfile(os.path.join(save_path,
+                                                        f"run_{checkpoint.run}",
+                                                        STATS_FOLDER_NAME,
+                                                        "test_accuracies.csv"))
         with open(os.path.join(save_path,
                                f"run_{checkpoint.run}",
                                STATS_FOLDER_NAME,
-                               f"test_accuracies.csv"), 'a') as csvfile:
+                               "test_accuracies.csv"), 'a') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter='\t', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             if file_exists is False:
                 csvwriter.writerow(["generation", "test_accuracy"])
             csvwriter.writerow([checkpoint.last_processed_generation, checkpoint.best_gen_ind_test_accuracy])
 
 def save_overall_best_individual(best_individual_path: str, parent: Individual) -> None:
+    # pylint: disable=unexpected-keyword-arg
     shutil.copytree(best_individual_path,
                     os.path.join(best_individual_path, "..", OVERALL_BEST_FOLDER),
                     dirs_exist_ok=True)
