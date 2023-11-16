@@ -75,7 +75,7 @@ def main(run: int,
 
     checkpoint: Checkpoint
     if possible_checkpoint is None:
-        logger.info("Starting fresh run")
+        logger.info("Starting fresh run") # pylint: disable=used-before-assignment
         random.seed(run)
         np.random.seed(run)
         torch.manual_seed(run)

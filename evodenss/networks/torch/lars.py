@@ -54,7 +54,7 @@ class LARS(optim.Optimizer):
 
     @torch.no_grad()
     @no_type_check
-    def step(self) -> None:
+    def step(self, _) -> None:
         for g in self.param_groups:
             for p in g['params']:
                 dp = p.grad

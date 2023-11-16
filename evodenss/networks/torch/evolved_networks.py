@@ -123,7 +123,7 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                                  affine=False,
                                  device=device.value)
 
-
+    # pylint: disable=arguments-renamed,
     def forward(self, x1: Tensor,
                 x2: Optional[Tensor]=None,
                 batch_size: Optional[int]=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
@@ -205,8 +205,6 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
         last_layer_out_features = barlow_twins_trained_model.layer_shapes[InputLayerId(output_layer_id)].flatten()
         print(last_layer_type, last_layer_out_features)
 
-        #last_layer_out_features = getattr(self.barlow_twins_trained_model, f"{last_layer_type.value}{SEPARATOR_CHAR}{last_layer_count}")[index].out_features
-        #flatten: List[nn.Module] = [nn.Flatten()] if last_layer_type is not LayerType.FC else []
         layers = [] if last_layer_type is LayerType.FC else [nn.Flatten()]
         self.final_layer = nn.Sequential(
             *layers,

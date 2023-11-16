@@ -1,4 +1,3 @@
-import logging
 import random
 import unittest
 
@@ -8,16 +7,12 @@ import torch
 from torchvision.transforms import Compose, ColorJitter, Normalize, \
     RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop , Resize, ToTensor
 
-from evodenss import logger_record_factory
 from evodenss.misc.enums import TransformOperation
 from evodenss.networks.torch.transformers import LegacyTransformer, \
     GaussianBlur, Solarization
 
 
 class Test(unittest.TestCase):
-
-    logging.setLogRecordFactory(logger_record_factory(0))
-    logger = logging.getLogger(__name__)
 
     def _fix_seed(self, seed: int) -> None:
         torch.manual_seed(seed)

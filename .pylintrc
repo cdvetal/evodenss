@@ -21,6 +21,7 @@ disable=
     consider-using-generator,
     dangerous-default-value,
     duplicate-code,
+    fixme,
     invalid-name,
     logging-fstring-interpolation,
     missing-class-docstring,

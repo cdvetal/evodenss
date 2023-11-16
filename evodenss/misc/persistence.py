@@ -72,6 +72,7 @@ class SaveCheckpoint:
         self._delete_unnecessary_files(checkpoint, save_path, max_generations)
         self._save_statistics(save_path, checkpoint)
 
+    # pylint: disable=unused-argument
     def _delete_unnecessary_files(self, checkpoint: Checkpoint, save_path: str, max_generations: int) -> None:
         assert checkpoint.population is not None
         # remove temporary files to free disk space
