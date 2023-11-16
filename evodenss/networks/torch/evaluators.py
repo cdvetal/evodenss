@@ -294,7 +294,8 @@ class LegacyEvaluator(BaseEvaluator):
                  train_time: float,
                  num_epochs: int) -> EvaluationMetrics: #pragma: no cover
 
-        from evodenss.networks.torch.model_builder import ModelBuilder # pylint: disable=import-outside-toplevel
+        # pylint: disable=cyclic-import,import-outside-toplevel
+        from evodenss.networks.torch.model_builder import ModelBuilder
 
         optimiser: Optimiser
         device: Device = self._decide_device()
@@ -439,7 +440,8 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                  train_time: float,
                  num_epochs: int) -> EvaluationMetrics: #pragma: no cover
 
-        from evodenss.networks.torch.model_builder import ModelBuilder # pylint: disable=import-outside-toplevel
+        # pylint: disable=cyclic-import,import-outside-toplevel
+        from evodenss.networks.torch.model_builder import ModelBuilder
 
         parsed_network: ParsedNetwork
         parsed_projector_network: ParsedNetwork
