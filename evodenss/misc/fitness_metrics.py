@@ -125,7 +125,21 @@ class LossMetric(FitnessMetric):
         super().__init__(batch_size, loss_function)
 
     def compute_metric(self, model: nn.Module, data_loader: DataLoader, device: Device) -> float:
-        pass
+        model.eval()
+        total_loss: float
+        n_batches: int = len(data_loader)
+        with torch.no_grad():
+            total_loss_tensor = torch.zeros(size=(1,), device=device.value)
+            for _, data in enumerate(data_loader, 0):
+                inputs, labels = data[0].to(device.value, non_blocking=True), \
+                    data[1].to(device.value, non_blocking=True)
+                outputs = model(inputs)
+                total_loss += self.loss_function(outputs, labels)/n_batches
+        total_loss = float(total_loss_tensor.data)
+        if math.isinf(total_loss) is True or math.isnan(total_loss):
+            raise ValueError(f"Invalid loss (inf or NaN): {total_loss}")
+        else:
+            return total_loss
 
     @classmethod
     def worse_than(cls, this: Fitness, other: Fitness) -> bool:

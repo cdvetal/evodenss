@@ -27,7 +27,7 @@ from evodenss.networks.torch.transformers import BaseTransformer, LegacyTransfor
 from evodenss.networks.torch.evolved_networks import EvaluationBarlowTwinsNetwork
 
 if TYPE_CHECKING:
-    from evodenss.networks import LearningParams
+    from evodenss.networks.torch import LearningParams
     from evodenss.misc.phenotype_parser import ParsedNetwork
 
 __all__ = ['create_evaluator', 'BaseEvaluator', 'BarlowTwinsEvaluator', 'LegacyEvaluator']
