@@ -87,7 +87,8 @@ class Trainer:
                 start = time.time() # pylint: disable=unused-variable
                 total_loss = torch.zeros(size=(1,), device=self.device.value)
                 for i, data in enumerate(self.train_data_loader, 0):
-                    inputs, labels = data[0].to(self.device.value, non_blocking=True), data[1].to(self.device.value, non_blocking=True)
+                    inputs, labels = data[0].to(self.device.value, non_blocking=True), \
+                        data[1].to(self.device.value, non_blocking=True)
                     if isinstance(self.optimiser, LARS):
                         self.optimiser.adjust_learning_rate(n_batches_train, self.n_epochs, i)
                     # zero the parameter gradients
@@ -106,7 +107,8 @@ class Trainer:
                         self.model.eval()
                         total_loss = torch.zeros(size=(1,), device=self.device.value)
                         for i, data in enumerate(self.validation_data_loader, 0):
-                            inputs, labels = data[0].to(self.device.value, non_blocking=True), data[1].to(self.device.value, non_blocking=True)
+                            inputs, labels = data[0].to(self.device.value, non_blocking=True), \
+                                data[1].to(self.device.value, non_blocking=True)
                             outputs = self.model(inputs)
                             total_loss += self.loss_function(outputs, labels)/n_batches_validation
                         self.loss_values["val_loss"].append(round(float(total_loss.data), 3))
@@ -191,10 +193,13 @@ class Trainer:
                 #            total_offdiagonal_loss += all_loss_components[1].item()
                 #
                 #    end = time.time()
-                #    logger.debug(f"[{round(end-start, 2)}s] VALIDATION epoch {epoch} -- loss: {total_loss/n_batches_validation}")
+                #    logger.debug(f"[{round(end-start, 2)}s] VALIDATION epoch {epoch} -- "
+                #                 f"loss: {total_loss/n_batches_validation}")
                 #    self.validation_loss.append(total_loss/n_batches_validation) # Used for early stopping criteria
                 #    self.loss_values["val_loss_diagonal"].append(round(total_diagonal_loss/n_batches_validation, 3))
-                #    self.loss_values["val_loss_offdiagonal"].append(round(total_offdiagonal_loss/n_batches_validation, 3))
+                #    self.loss_values["val_loss_offdiagonal"].append(
+                #        round(total_offdiagonal_loss/n_batches_validation, 3)
+                #    )
                 #    self.loss_values["val_loss_complete"].append(round(total_loss/n_batches_validation, 3))
                 #logger.debug("=============================================================")
                 epoch += 1

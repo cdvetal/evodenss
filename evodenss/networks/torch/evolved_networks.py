@@ -92,7 +92,7 @@ class LegacyNetwork(EvolvedNetwork):
         super().__init__(evolved_layers, layers_connections, output_layer_id)
 
     def forward(self, x: Tensor) -> Optional[Tensor]:
-        return super(LegacyNetwork, self).forward(x)
+        return super().forward(x)
 
 
 class BarlowTwinsNetwork(EvolvedNetwork):
@@ -108,7 +108,7 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                  device: Device,
                  lamb: float):
 
-        super(BarlowTwinsNetwork, self).__init__(evolved_layers, layers_connections, output_layer_id)
+        super().__init__(evolved_layers, layers_connections, output_layer_id)
         last_layer_name: str = self.id_layername_map[self.output_layer_id]
 
         # This is needed in the downstream stage, Pylint should ignore it!
@@ -124,7 +124,9 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                                  device=device.value)
 
 
-    def forward(self, x1: Tensor, x2: Optional[Tensor]=None, batch_size: Optional[int]=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
+    def forward(self, x1: Tensor,
+                x2: Optional[Tensor]=None,
+                batch_size: Optional[int]=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
         if x2 is not None:
             assert batch_size is not None
             y1 = super().forward(x1)
@@ -193,7 +195,7 @@ class BarlowTwinsNetwork(EvolvedNetwork):
 class EvaluationBarlowTwinsNetwork(nn.Module):
 
     def __init__(self, barlow_twins_trained_model: nn.Module, n_neurons: int, device: Device) -> None:
-        super(EvaluationBarlowTwinsNetwork, self).__init__()
+        super().__init__()
         self.barlow_twins_trained_model: nn.Module = barlow_twins_trained_model
 
         # used to append the final layers to evolve networks
@@ -211,8 +213,6 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
             nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True, device=device.value)
         )
         self.relevant_index = len(layers)
-        #this was used to inject the original resnet network
-        #self.final_layer = nn.Linear(in_features=2048, out_features=10, bias=True, device=device.value) # remove me later and keep the line above
 
         self.softmax = nn.Softmax()
         self.barlow_twins_trained_model.requires_grad_(False)

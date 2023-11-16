@@ -156,7 +156,7 @@ class BaseEvaluator(ABC):
             else:
                 raise ValueError(f"Unexpected evaluator type: [{evaluator_type}]")
         else:
-            raise ValueError("Invalid fitness metric") 
+            raise ValueError("Invalid fitness metric")
 
 
     def _get_data_loaders(self,

@@ -149,7 +149,7 @@ class Genotype:
         return cls({}, {})
 
     def _concatenate_to_dict(self,
-                             dict: Dict[K, List[T]],
+                             dict: Dict[K, List[T]], # pylint: disable=redefined-builtin
                              key: K,
                              element: T,
                              mode: str='append') -> Dict[K, List[T]]:

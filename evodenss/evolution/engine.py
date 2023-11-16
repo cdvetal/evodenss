@@ -86,7 +86,10 @@ def evolve(run: int,
                     checkpoint.evaluator,
                     config['network']['learning']['projector'],
                     persistence.build_individual_path(config['checkpoints_path'], run, generation, idx),
-                    persistence.build_individual_path(config['checkpoints_path'], run, generation-1, checkpoint.parent.id),
+                    persistence.build_individual_path(config['checkpoints_path'],
+                                                      run,
+                                                      generation-1,
+                                                      checkpoint.parent.id),
                 )
             )
 
