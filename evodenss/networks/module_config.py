@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, TYPE_CHECKING
+from typing import List
 
 @dataclass
 class ModuleConfig:
@@ -10,5 +10,5 @@ class ModuleConfig:
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, ModuleConfig):
-            return self.__dict__ == other.__dict__ 
+            return self.__dict__ == other.__dict__
         return False

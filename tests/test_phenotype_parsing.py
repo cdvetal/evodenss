@@ -1,6 +1,5 @@
-from typing import Any, Dict, List, Optional
-from parameterized import parameterized
 import unittest
+from typing import Any, Dict, List, Optional
 
 from evodenss.misc.enums import LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import LayerId
@@ -9,31 +8,6 @@ from evodenss.misc.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pret
 optimiser1 = Optimiser(OptimiserType.ADAM, {})
 
 class Test(unittest.TestCase):
-
-    @staticmethod
-    def build_string(layers: List[Dict[str, str]],
-                     inputs: List[List[str]],
-                     optimiser,
-                     prefix=''):
-        final_string: str = ""
-        for l, i in zip(layers, inputs):
-            if l['layer'] == "conv":
-                final_string += f"{prefix}layer:{l['layer']} act:{l['act']} out_features:{l['out_features']} bias:{l['bias']} input:{','.join(i)}"
-            elif l['layer'] == "batch_norm" or l['layer'] == "identity":
-                final_string += f"{prefix}layer:{l['layer']} input:{','.join(i)}"
-            elif l['layer'] == "dropout":
-                final_string += f"{prefix}layer:{l['layer']} rate:{l['rate']} input:{','.join(i)}"
-            elif l['layer'] == "fc":
-                final_string += f"{prefix}layer:{l['layer']} act:{l['act']} out_features:{l['out_features']} bias:{l['bias']} input:{','.join(i)}"
-
-        if optimiser['opt'] == 'adam':
-            final_string += f""
-        elif optimiser['opt'] == 'adam':
-            final_string += f""
-        elif optimiser['opt'] == 'adam':
-            final_string += f""
-
-        return final_string
 
     def setUp(self) -> None:
         phenotype1: str = \
@@ -86,7 +60,7 @@ class Test(unittest.TestCase):
             Layer(LayerId(1), LayerType.FC, {'act':'softmax', 'out_features':'10', 'bias':'True'}),
         ]
         expected_layers_connections: Dict[int, List[int]] = {1: [0], 0: [-1]}
-            
+
         optimiser: Optimiser
         parsed_network: ParsedNetwork
         proj_parsed_network: ParsedNetwork
@@ -124,8 +98,9 @@ class Test(unittest.TestCase):
             Layer(LayerId(9), LayerType.FC, {'act':'softmax', 'out_features':'10', 'bias':'True'})
         ]
         expected_layers_connections: Dict[int, List[int]] = \
-            {9: [8], 8: [7], 7: [6], 6: [5], 5: [4, 2, 3], 4: [3], 3: [2, 0, 1], 2: [1, 0], 1: [0, -1], 1: [0, -1], 0: [-1]}
-            
+            {9: [8], 8: [7], 7: [6], 6: [5], 5: [4, 2, 3], 4: [3],
+             3: [2, 0, 1], 2: [1, 0], 1: [0, -1], 0: [-1]}
+
         optimiser: Optimiser
         parsed_network: ParsedNetwork
         proj_parsed_network: ParsedNetwork

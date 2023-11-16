@@ -1,15 +1,16 @@
 # type: ignore
-from parameterized import parameterized
+import random
 import unittest
 from typing import Any, Dict, List, Optional
+
+from parameterized import parameterized
 
 from evodenss.evolution.grammar import Genotype, Grammar
 from evodenss.evolution.individual import Individual
 from evodenss.networks import ModuleConfig
-from tests.resources.genotype_examples import *
-from tests.resources.phenotype_examples import *
+from tests.resources.genotype_examples import * # pylint: disable=unused-wildcard-import,wildcard-import
+from tests.resources.phenotype_examples import * # pylint: disable=unused-wildcard-import,wildcard-import
 
-import random
 
 class Test(unittest.TestCase):
 
@@ -69,6 +70,7 @@ class Test(unittest.TestCase):
         )
         initialised_individual: Individual = individual.initialise(self.grammar,
                                                                    network_config['reuse_layer'])
+        # pylint: disable=protected-access
         phenotype: str = initialised_individual._decode(self.grammar, static_projector_config)
         self.assertEqual(phenotype, expected_phenotype)
 

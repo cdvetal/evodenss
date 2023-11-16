@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from torch import Tensor
 
@@ -27,5 +27,5 @@ class Checkpoint:
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Checkpoint):
-            return self.__dict__ == other.__dict__ 
+            return self.__dict__ == other.__dict__
         return False

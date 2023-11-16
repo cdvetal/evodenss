@@ -1,22 +1,18 @@
-import logging
-import numpy as np
 import random
 import unittest
 
-import evodenss
-from evodenss.misc.enums import TransformOperation
-from evodenss.networks.torch.transformers import LegacyTransformer, \
-    GaussianBlur, RandomGrayscale, Solarization
-
+import numpy as np
 from PIL import Image
 import torch
 from torchvision.transforms import Compose, ColorJitter, Normalize, \
     RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop , Resize, ToTensor
 
-class Test(unittest.TestCase):
+from evodenss.misc.enums import TransformOperation
+from evodenss.networks.torch.transformers import LegacyTransformer, \
+    GaussianBlur, Solarization
 
-    logging.setLogRecordFactory(evodenss.logger_record_factory(0))
-    logger = logging.getLogger(__name__)
+
+class Test(unittest.TestCase):
 
     def _fix_seed(self, seed: int) -> None:
         torch.manual_seed(seed)
@@ -34,8 +30,8 @@ class Test(unittest.TestCase):
         final_tensor = transformer(original_img)
         expected_tensor = to_tensor_transform(expected_img)
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
-       
-    
+
+
     def test_gaussian_blur(self):
         self._fix_seed(0)
         transformer = LegacyTransformer({TransformOperation.GAUSSIAN_BLUR.value: {'probability': 1.0}})
@@ -48,7 +44,7 @@ class Test(unittest.TestCase):
         expected_tensor = to_tensor_transform(expected_img)
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
-    
+
     def test_random_grayscale(self):
         self._fix_seed(0)
         transformer = LegacyTransformer({TransformOperation.RANDOM_GRAYSCALE.value: {'probability': 1.0}})
@@ -61,7 +57,7 @@ class Test(unittest.TestCase):
         expected_tensor = to_tensor_transform(expected_img)
 
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
-    
+
 
     def test_random_resized_crop(self):
         self._fix_seed(0)
@@ -100,13 +96,13 @@ class Test(unittest.TestCase):
         final_tensor = torch.round((transformer(original_img).clamp(0, 1) * 255)).int()
         expected_tensor = (to_tensor_transform(expected_img) * 255).int()
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
-    
+
 
     def test_color_jitter(self):
         self._fix_seed(0)
         transformer = LegacyTransformer(
             {
-                TransformOperation.COLOR_JITTER.value: 
+                TransformOperation.COLOR_JITTER.value:
                     {
                         'brightness': 0.8,
                         'contrast': 0.8,

@@ -1,7 +1,7 @@
 import logging
 import os
 from typing import Any, Callable
-from .main import main as search
+from .main import main as search # pylint: disable=cyclic-import
 from . import __version__
 __version__ = __version__.get_versions()['version'] # type: ignore
 

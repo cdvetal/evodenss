@@ -3,21 +3,20 @@ import shutil
 import unittest
 import time
 
-from evodenss.misc.enums import Device
-from evodenss.networks.torch.callbacks import EarlyStoppingCallback, \
-    ModelCheckpointCallback, TimedStoppingCallback
-from evodenss.networks.torch.trainers import Trainer
-
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
+from evodenss.misc.enums import Device
+from evodenss.networks.torch.callbacks import ModelCheckpointCallback, TimedStoppingCallback
+from evodenss.networks.torch.trainers import Trainer
+
 
 class Model(nn.Module):
     def __init__(self):
-        super(Model, self).__init__()
+        super().__init__()
         self.stop_training = False
         self.fc = nn.Sequential(nn.Flatten(), nn.Linear(28*28, 10))
 
@@ -71,6 +70,7 @@ class Test(unittest.TestCase):
 
         expected_keys = ['fc.1.weight', 'fc.1.bias']
         for k in expected_keys:
+            # pylint: disable=unsubscriptable-object
             self.assertEqual(model.state_dict()[k].numpy().tolist(),
                              restored_model.state_dict()[k].numpy().tolist())
         self.assertEqual(repr(model._modules), repr(restored_model._modules))

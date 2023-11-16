@@ -43,7 +43,7 @@ class EvaluationMetrics:
         return iter(astuple(self))
 
     def __str__(self) -> str:
-        losses_to_print = {k: self.losses[k][-1] for k in self.losses.keys()}
+        # losses_to_print = {k: self.losses[k][-1] for k in self.losses.keys()}
         return "EvaluationMetrics(" + \
             f"is_valid_solution: {self.is_valid_solution},  " + \
             f"n_trainable_parameters: {self.n_trainable_parameters},  " + \
@@ -74,10 +74,8 @@ class EvaluationMetrics:
         assert self.n_layers == other.n_layers
         assert self.n_layers_projector == other.n_layers_projector
 
-        '''
-        add should affect appending new losses,
-        adding the extra epochs trained and extra training time spent
-        '''
+        # add should affect appending new losses,
+        # adding the extra epochs trained and extra training time spent
         return EvaluationMetrics(
             is_valid_solution=self.is_valid_solution,
             fitness=other.fitness,

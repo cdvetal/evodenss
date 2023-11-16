@@ -2,16 +2,17 @@
 import pickle
 import os
 import shutil
+from typing import Dict
 import unittest
 
 from evodenss.evolution import Individual
 from evodenss.misc import Checkpoint
 from evodenss.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
-from evodenss.misc.persistence import *
+from evodenss.misc.persistence import * # pylint: disable=unused-wildcard-import,wildcard-import
 from evodenss.networks import ModuleConfig
 
 class Test(unittest.TestCase):
-	
+
     def setUp(self):
         self.save_checkpoint: SaveCheckpoint = SaveCheckpoint(None)
         self.restore_checkpoint: RestoreCheckpoint = RestoreCheckpoint(None)
@@ -62,7 +63,7 @@ class Test(unittest.TestCase):
 
 
     def test_build_individual_path(self):
-        folder_name: str = "test_dir" 
+        folder_name: str = "test_dir"
         run: int = 0
         generation: int = 0
         ind_id: int = 0
@@ -73,7 +74,7 @@ class Test(unittest.TestCase):
 
 
     def test_build_overall_best_path(self):
-        folder_name: str = "test_dir" 
+        folder_name: str = "test_dir"
         run: int = 0
         path: str = build_overall_best_path(folder_name, run)
         self.assertEqual(path, os.path.join(folder_name, f"run_{run}", OVERALL_BEST_FOLDER))

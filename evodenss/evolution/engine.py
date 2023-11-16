@@ -1,16 +1,15 @@
 from copy import deepcopy
 import logging
-import os
 import random
 from typing import List
+
+import numpy as np
+import torch
 
 from evodenss.config import Config
 from evodenss.evolution import Grammar, Individual, operators
 from evodenss.misc import Checkpoint, persistence
 from evodenss.misc.fitness_metrics import Fitness
-
-import numpy as np
-import torch
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ def evolve(run: int,
         for idx, ind in enumerate(population):
             ind.current_time = 0
             ind.num_epochs = 0
-            ind.total_training_time_spent = 0.0 # TODO: This might not be right
+            ind.total_training_time_spent = 0.0
             ind.total_allocated_train_time = config['network']['learning']['default_train_time']
             ind.id = idx
             population_fits.append(
@@ -55,12 +54,12 @@ def evolve(run: int,
         assert checkpoint.parent is not None
 
         logger.info("Applying mutation operators")
-        
+
         lambd: int = config['evolutionary']['lambda']
         # generate offspring (by mutation)
         offspring_before_mutation: List[Individual] = [deepcopy(checkpoint.parent) for _ in range(lambd)]
         for idx in range(len(offspring_before_mutation)):
-            offspring_before_mutation[idx].total_training_time_spent = 0.0 # TODO: This might not be right
+            offspring_before_mutation[idx].total_training_time_spent = 0.0
             offspring_before_mutation[idx].id = idx + 1
         offspring: List[Individual] = \
             [operators.mutation(ind,
@@ -87,7 +86,10 @@ def evolve(run: int,
                     checkpoint.evaluator,
                     config['network']['learning']['projector'],
                     persistence.build_individual_path(config['checkpoints_path'], run, generation, idx),
-                    persistence.build_individual_path(config['checkpoints_path'], run, generation-1, checkpoint.parent.id),
+                    persistence.build_individual_path(config['checkpoints_path'],
+                                                      run,
+                                                      generation-1,
+                                                      checkpoint.parent.id),
                 )
             )
 
@@ -108,7 +110,10 @@ def evolve(run: int,
     logger.info(f"Fitnesses: {population_fits}")
 
     # update best individual
-    best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'], run, generation, parent.id)
+    best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'],
+                                                                  run,
+                                                                  generation,
+                                                                  parent.id)
     if checkpoint.best_fitness is None or parent.fitness > checkpoint.best_fitness:
         checkpoint.best_fitness = parent.fitness
         persistence.save_overall_best_individual(best_individual_path, parent)

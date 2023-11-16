@@ -1,18 +1,18 @@
 # type: ignore
 from copy import deepcopy
 import os
-from parameterized import parameterized
+import random
 import textwrap
 import unittest
-# from unittest.mock import patch
 import warnings
 
-from evodenss.evolution.grammar import Genotype, Grammar
-from tests.resources.genotype_examples import *
-from tests.resources.phenotype_examples import *
-
 import numpy as np
-import random
+from parameterized import parameterized
+
+from evodenss.evolution.grammar import Genotype, Grammar
+from tests.resources.genotype_examples import * # pylint: disable=unused-wildcard-import,wildcard-import
+from tests.resources.phenotype_examples import * # pylint: disable=unused-wildcard-import,wildcard-import
+
 
 class Test(unittest.TestCase):
 
@@ -21,7 +21,7 @@ class Test(unittest.TestCase):
         self.simple_grammar_path: str = "tests/resources/simple_grammar.grammar"
         warnings.simplefilter('ignore', category=DeprecationWarning)
 
-    
+
     def test_read_grammar_nn(self):
         expected_filename: str = "used_grammar.yaml"
         expected_output: str = """\
@@ -36,11 +36,11 @@ class Test(unittest.TestCase):
         """
         grammar1: Grammar = Grammar(self.nn_grammar_path)
         self.assertFalse(os.path.exists(expected_filename))
-        self.assertEqual(grammar1.__str__(), textwrap.dedent(expected_output))
+        self.assertEqual(str(grammar1), textwrap.dedent(expected_output))
 
         grammar2: Grammar = Grammar(self.nn_grammar_path, backup_path='.')
         self.assertTrue(os.path.exists(expected_filename))
-        self.assertEqual(grammar2.__str__(), textwrap.dedent(expected_output))
+        self.assertEqual(str(grammar2), textwrap.dedent(expected_output))
         os.remove(expected_filename)
 
 
@@ -55,11 +55,11 @@ class Test(unittest.TestCase):
         """
         grammar1: Grammar = Grammar(self.simple_grammar_path)
         self.assertFalse(os.path.exists(expected_filename))
-        self.assertEqual(grammar1.__str__(), textwrap.dedent(expected_output))
+        self.assertEqual(str(grammar1), textwrap.dedent(expected_output))
 
         grammar2: Grammar = Grammar(self.simple_grammar_path, backup_path='.')
         self.assertTrue(os.path.exists(expected_filename))
-        self.assertEqual(grammar2.__str__(), textwrap.dedent(expected_output))
+        self.assertEqual(str(grammar2), textwrap.dedent(expected_output))
         os.remove(expected_filename)
 
 
@@ -94,7 +94,7 @@ class Test(unittest.TestCase):
         output = grammar.initialise('expr')
         self.assertEqual(output, expected_output)
 
-    
+
     @parameterized.expand([
         (nn_sample1, nn_phenotype1, nn_sample1),
         (nn_sample2, nn_phenotype2, nn_sample2)

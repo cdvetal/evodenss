@@ -154,7 +154,8 @@ ind_test_macro1 = Genotype(
              Terminal(name='lr', attribute=Attribute("float", 1, 0.0001, 0.1, lambda x,y,z: [0.010994878808517258])),
              Terminal(name='beta1', attribute=Attribute("float", 1, 0.5, 0.9999, lambda x,y,z: [0.7755784963206666])),
              Terminal(name='beta2', attribute=Attribute("float", 1, 0.5, 0.9999, lambda x,y,z: [0.8532100487924581])),
-             Terminal(name='weight_decay', attribute=Attribute("float", 1, 1e-06, 0.001, lambda x,y,z: [0.0005478934704170954]))]
+             Terminal(name='weight_decay',
+                      attribute=Attribute("float", 1, 1e-06, 0.001, lambda x,y,z: [0.0005478934704170954]))]
         ],
         NonTerminal(name='early_stop'): [
             [Terminal(name='early_stop', attribute=Attribute("int", 1, 10, 20, lambda x,y,z: [19]))]
@@ -195,8 +196,10 @@ ind_test_macro2 = Genotype(
             [Terminal(name='learning:adam', attribute=None),
              Terminal(name='lr', attribute=Attribute("float", 1, 0.0001, 0.1, lambda x,y,z: [0.09265801171620802])),
              Terminal(name='beta1', attribute=Attribute("float", 1, 0.5, 0.9999, lambda x,y,z: [0.7080483514532836])),
-             Terminal(name='beta2', attribute=Attribute("float", 1, 0.5, 0.9999, lambda x,y,z: [0.9580432907690966])),
-             Terminal(name='weight_decay', attribute=Attribute("float", 1, 1e-06, 0.001, lambda x,y,z: [0.0009222663739074177]))]
+             Terminal(name='beta2',
+                      attribute=Attribute("float", 1, 0.5, 0.9999, lambda x,y,z: [0.9580432907690966])),
+             Terminal(name='weight_decay',
+                      attribute=Attribute("float", 1, 1e-06, 0.001, lambda x,y,z: [0.0009222663739074177]))]
         ],
         NonTerminal(name='early_stop'): [
             [Terminal(name='early_stop', attribute=Attribute("int", 1, 10, 20, lambda x,y,z: [12]))]
@@ -234,9 +237,24 @@ mutation_added_layer_genotype = Genotype(
         ],
         NonTerminal(name='convolution'): [
             [Terminal(name='layer:conv', attribute=None),
-             Terminal(name='out_channels', attribute=Attribute(var_type='int', num_values=1, min_value=32, max_value=256, generator=lambda x,y,z: [216])),
-             Terminal(name='kernel_size', attribute=Attribute(var_type='int', num_values=1, min_value=2, max_value=5, generator=lambda x,y,z: [5])),
-             Terminal(name='stride', attribute=Attribute(var_type='int', num_values=1, min_value=1, max_value=3, generator=lambda x,y,z: [3])),
+             Terminal(name='out_channels',
+                      attribute=Attribute(var_type='int',
+                                          num_values=1,
+                                          min_value=32,
+                                          max_value=256,
+                                          generator=lambda x,y,z: [216])),
+             Terminal(name='kernel_size',
+                      attribute=Attribute(var_type='int',
+                                          num_values=1,
+                                          min_value=2,
+                                          max_value=5,
+                                          generator=lambda x,y,z: [5])),
+             Terminal(name='stride',
+                      attribute=Attribute(var_type='int',
+                                          num_values=1,
+                                          min_value=1,
+                                          max_value=3,
+                                          generator=lambda x,y,z: [3])),
              NonTerminal(name='padding'), NonTerminal(name='activation_function'), NonTerminal(name='bias')]
         ],
         NonTerminal(name='features'): [

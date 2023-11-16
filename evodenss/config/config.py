@@ -2,7 +2,7 @@ import filecmp
 import os
 import logging
 import shutil
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional
 
 from jsonschema import validate # type: ignore
 import yaml # type: ignore
@@ -27,10 +27,11 @@ class Config():
     def _convert_modules_configs_to_dict(self) -> Dict[str, ModuleConfig]:
         modules_configurations: Dict[str, ModuleConfig] = {}
         for module_info in self.config['network']['architecture']['modules']:
-            modules_configurations[module_info['name']] = ModuleConfig(min_expansions=module_info['network_structure'][0],
-                                                                       max_expansions=module_info['network_structure'][1],
-                                                                       initial_network_structure=module_info['network_structure_init'],
-                                                                       levels_back=module_info['levels_back'])
+            modules_configurations[module_info['name']] = \
+                ModuleConfig(min_expansions=module_info['network_structure'][0],
+                             max_expansions=module_info['network_structure'][1],
+                             initial_network_structure=module_info['network_structure_init'],
+                             levels_back=module_info['levels_back'])
         return modules_configurations
 
     def _fix_static_projector_config_if_needed(self) -> Optional[List[int]]:
@@ -64,7 +65,8 @@ class Config():
             raise ValueError("You are probably trying to continue an experiment "
                              "with a different config than the one you used initially. "
                              "This is a gentle reminder to double-check the config you "
-                             "have just passed as parameter.")
+                             "just passed as parameter.")
+        # pylint: disable=protected-access
         if not shutil._samefile(origin_filepath, destination_filepath): # type: ignore
             shutil.copyfile(origin_filepath, destination_filepath)
 
@@ -80,8 +82,10 @@ class Config():
         else:
             self._validate_augmentation_params(self.config['network']['learning']['augmentation']['pretext']['input_a'])
             self._validate_augmentation_params(self.config['network']['learning']['augmentation']['pretext']['input_b'])
-            logger.info(f"Augmentation used for input a in training: {self.config['network']['learning']['augmentation']['pretext']['input_a']}")
-            logger.info(f"Augmentation used for input b in training: {self.config['network']['learning']['augmentation']['pretext']['input_b']}")
+            logger.info(f"Augmentation used for input a in training: "
+                        f"{self.config['network']['learning']['augmentation']['pretext']['input_a']}")
+            logger.info(f"Augmentation used for input b in training: "
+                        f"{self.config['network']['learning']['augmentation']['pretext']['input_b']}")
 
         if self.config['network']['learning']['augmentation']['test'] is not None:
             self._validate_augmentation_params(self.config['network']['learning']['augmentation']['test'])
@@ -90,7 +94,8 @@ class Config():
 
     def _validate_augmentation_params(self, params: Dict[str, Any]) -> None:
         for key in params.keys():
-            assert key in TransformOperation.enum_values(), f"{key} is not recognised as one of the supported transforms"
+            assert key in TransformOperation.enum_values(), \
+                f"{key} is not recognised as one of the supported transforms"
 
     def __getitem__(self, key: str) -> Any:
         return self.config[key]

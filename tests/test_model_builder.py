@@ -1,18 +1,18 @@
 # type: ignore
 import logging
-from typing import List, OrderedDict
+from typing import Dict, List, OrderedDict
 import unittest
-
-import evodenss
-from evodenss.misc.constants import SEPARATOR_CHAR
-from evodenss.misc.enums import Device, LayerType, OptimiserType, PretextType
-from evodenss.misc.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext
-from evodenss.networks import LearningParams, ModelBuilder
-from evodenss.networks.torch import LegacyNetwork
-from evodenss.networks.torch.evaluators import BarlowTwinsEvaluator, LegacyEvaluator
 
 import torch
 from torch import Tensor, nn, optim
+
+import evodenss
+from evodenss.misc.enums import Device, LayerType, OptimiserType, PretextType
+from evodenss.misc.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext
+from evodenss.networks.torch import LearningParams
+from evodenss.networks.torch.evaluators import BarlowTwinsEvaluator, LegacyEvaluator
+from evodenss.networks.torch.model_builder import ModelBuilder
+
 
 class Test(unittest.TestCase):
 
@@ -102,12 +102,13 @@ class Test(unittest.TestCase):
         self.assertEqual(ModelBuilder.assemble_optimiser(fake_params, optimiser),
                          expected_learning_params)
 
-    
+
     def test_assemble_network_1(self):
         layers: List[Layer] = [
             Layer(layer_id=0,
                   layer_type=LayerType.CONV,
-                  layer_parameters={'out_channels': '6', 'kernel_size': '5', 'stride': '1', 'padding': 'same', 'act': 'relu'}),
+                  layer_parameters={'out_channels': '6', 'kernel_size': '5', 'stride': '1',
+                                    'padding': 'same', 'act': 'relu'}),
             Layer(layer_id=1,
                   layer_type=LayerType.BATCH_NORM,
                   layer_parameters={}),
@@ -149,7 +150,7 @@ class Test(unittest.TestCase):
             ('fc-2', nn.Sequential(nn.Linear(in_features=100, out_features=10, bias=True), nn.Softmax(dim=None)))
         ])
         self.assertEqual(repr(model._modules), repr(expected_model_structure))
-    
+
 
     def test_assemble_network_2(self):
 
@@ -263,7 +264,7 @@ class Test(unittest.TestCase):
         expected_projector_model = expected_model_structure.pop('projector_model')
         self.assertEqual(repr(model._modules), repr(expected_model_structure))
         self.assertEqual(repr(projector_model._modules), repr(expected_projector_model))
-    
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -8,9 +8,7 @@
 [![](https://img.shields.io/github/license/adrianovinhas/fast-denser-adriano.svg)](https://github.com/adrianovinhas/fast-denser-adriano/blob/master/LICENSE.md)
 -->
 
-EvoDENSS stands for **Evo**lution of **DE**ep **N**etworks through **S**elf **S**upervision. EvoDENSS performs Neuro-Evolution by evolving the structure of the networks and optimiser aspects (the optimiser instance to use and relevant hyperparameters). It uses self-supervised learning to train the generated networks in order to measure their fitness. It is inspired on Fast-DENSER.
-
-As it stands (version 1.1.1), EvoDENSS is still significantly similar to Fast-DENSER.
+EvoDENSS stands for **Evo**lution of **DE**ep **N**etworks through **S**elf **S**upervision. EvoDENSS performs Neuro-Evolution by evolving the structure of the networks and optimiser aspects (the optimiser instance to use and relevant hyperparameters). Being inspired on Fast-DENSER, it uses self-supervised learning to train the generated networks in order to measure their fitness.
 
 ## Installing
 

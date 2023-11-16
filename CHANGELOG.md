@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 3.0.1 (2023-11-16)
+
+
+Bug Fixes:
+
+- Fixed calculation of a fitness fuction based on loss, for the supervised learning case
+- Set up Github action to put linting and unit testing in place, to enforce better code quality. This allowed to fix several miscellaneous syntax problems.
+
+Documentation updates:
+
+- Update README by fixing typos.
+
+
 ## 3.0.0 (2023-11-13)
 
 
@@ -11,8 +24,7 @@ Features:
 - Projector can be evolved through the framework. This is a breaking change
 - More unit tests added
 - Structure of the project has been slightly changed. This is a breaking change
-- Update framework to use Pytorch 2.0
-
+- Update framework to use Pytorch 2.0. With the support of Pytorch 2.0, a dependency of `llvm-openmp<16` was added, as advised per this [issue](https://github.com/pytorch/pytorch/issues/102269)
 
 Documentation updates:
 
