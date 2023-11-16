@@ -9,8 +9,9 @@ from torch import Tensor, nn, optim
 import evodenss
 from evodenss.misc.enums import Device, LayerType, OptimiserType, PretextType
 from evodenss.misc.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext
-from evodenss.networks import LearningParams, ModelBuilder
+from evodenss.networks.torch import LearningParams
 from evodenss.networks.torch.evaluators import BarlowTwinsEvaluator, LegacyEvaluator
+from evodenss.networks.torch.model_builder import ModelBuilder
 
 
 class Test(unittest.TestCase):
