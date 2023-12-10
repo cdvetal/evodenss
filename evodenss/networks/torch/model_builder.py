@@ -277,7 +277,7 @@ class ModelBuilder():
         elif layer.layer_type == LayerType.BATCH_NORM:
             layer_to_add = self._build_batch_norm_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.BATCH_NORM_PROJ:
-            layer_to_add = self._build_batch_norm_projector_layer(layer, expected_input_dimensions)
+            layer_to_add = self._build_batch_norm_projector_layer(layer, layer_name, expected_input_dimensions)
         elif layer.layer_type == LayerType.POOL_AVG:
             layer_to_add = self._build_avg_pooling_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.POOL_MAX:
@@ -330,13 +330,22 @@ class ModelBuilder():
                                       device=self.device.value)
         return layer_to_add
 
-    def _build_batch_norm_projector_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
+    def _build_batch_norm_projector_layer(self,
+                                          layer: Layer,
+                                          layer_name: str,
+                                          input_dimensions: Dimensions) -> nn.Module:
         torch_layers_to_add: List[nn.Module] = []
         activation: ActivationType = ActivationType(layer.layer_parameters.pop("act"))
-        layer_to_add = nn.BatchNorm1d(**layer.layer_parameters,
-                                      num_features=input_dimensions.channels,
-                                      device=self.device.value)
-        torch_layers_to_add.append(layer_to_add)
+        if layer_name.endswith(f"{LayerType.BATCH_NORM_PROJ.value}{SEPARATOR_CHAR}1"):
+            torch_layers_to_add.append(nn.Flatten())
+            torch_layers_to_add.append(nn.BatchNorm1d(**layer.layer_parameters,
+                                                      num_features=input_dimensions.flatten(),
+                                                      device=self.device.value))
+        else:
+            layer_to_add = nn.BatchNorm1d(**layer.layer_parameters,
+                                          num_features=input_dimensions.channels,
+                                          device=self.device.value)
+            torch_layers_to_add.append(layer_to_add)
         if activation != ActivationType.LINEAR:
             torch_layers_to_add.append(self._create_activation_layer(activation))
         return nn.Sequential(*torch_layers_to_add)

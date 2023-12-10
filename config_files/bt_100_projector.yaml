@@ -1,8 +1,8 @@
 checkpoints_path: ../../results/experiment_bt_100_projector
 
 evolutionary:
-  generations: 75
-  lambda: 6
+  generations: 100
+  lambda: 5
   max_epochs: 100000
   mutation:
     add_connection: 0.0
@@ -12,7 +12,7 @@ evolutionary:
     remove_layer: 0.3
     dsge_layer: 0.1
     macro_layer: 0.3
-    train_longer: 0.03
+    train_longer: 0.01
   fitness_metric: accuracy
 
 network:
@@ -29,8 +29,8 @@ network:
         network_structure: [3,30]
         levels_back: 1
       - name: projector
-        network_structure_init: [2,3]
-        network_structure: [2,4]
+        network_structure_init: [0,2]
+        network_structure: [0,4]
         levels_back: 1
     
   learning:

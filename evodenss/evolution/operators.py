@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 def mutation_dsge(layer: 'Genotype', grammar: Grammar) -> None:
-
     nt_keys: List[NonTerminal] = sorted(list(layer.expansions.keys()))
     random_nt: NonTerminal = random.choice(nt_keys)
     nt_derivation_idx: int = random.randint(0, len(layer.expansions[random_nt])-1)
@@ -29,6 +28,7 @@ def mutation_dsge(layer: 'Genotype', grammar: Grammar) -> None:
     if len(grammar.grammar[random_nt]) > 1:
         all_possibilities: List[Tuple[Symbol, ...]] = \
             [tuple(derivation) for derivation in grammar.grammar[random_nt]]
+        # exclude current derivation to avoid neutral mutation
         sge_possibilities = [list(d) for d in set(all_possibilities) - set([tuple(nt_derivation)])]
         node_type_possibilites.append(NonTerminal)
 
@@ -43,17 +43,29 @@ def mutation_dsge(layer: 'Genotype', grammar: Grammar) -> None:
         if random_mt_type is Terminal:
             symbol_to_mutate: Symbol = random.choice(terminal_symbols_with_attributes)
             assert isinstance(symbol_to_mutate, Terminal) and \
-                symbol_to_mutate.attribute is not None
-            symbol_to_mutate.attribute.generate()
+                symbol_to_mutate.attribute is not None and \
+                symbol_to_mutate.attribute.values is not None
+            is_neutral_mutation: bool = True
+            while is_neutral_mutation is True:
+                current_values = tuple(symbol_to_mutate.attribute.values)
+                symbol_to_mutate.attribute.generate()
+                new_values = tuple(symbol_to_mutate.attribute.values)
+                if current_values != new_values:
+                    is_neutral_mutation = False
         elif random_mt_type is NonTerminal:
             # assignment with side-effect.
             # layer variable will also be affected
-            new_derivation: Derivation = Derivation(random.choice(sge_possibilities))
-            layer.expansions[random_nt][nt_derivation_idx] = new_derivation
+            new_derivation: Derivation = deepcopy(Derivation(random.choice(sge_possibilities)))
+            # this line is here because otherwise the index function
+            # will not be able to find the derivation after we generate values
             layer.codons[random_nt][nt_derivation_idx] = grammar.grammar[random_nt].index(new_derivation)
+            for symbol in new_derivation:
+                if isinstance(symbol, Terminal) and symbol.attribute is not None:
+                    assert symbol.attribute.values is None
+                    symbol.attribute.generate()
+            layer.expansions[random_nt][nt_derivation_idx] = new_derivation
         else:
-            raise AttributeError(f"Invalid value drom random_mt_type: [{random_mt_type}]")
-
+            raise AttributeError(f"Invalid value from random_mt_type: [{random_mt_type}]")
 
 
 def mutation(individual: Individual,
@@ -107,12 +119,12 @@ def mutation(individual: Individual,
     individual_copy.total_allocated_train_time = default_train_time
     individual_copy.metrics = None
 
-    for module in individual_copy.modules:
+    for m_idx, module in enumerate(individual_copy.modules):
 
         #add-layer (duplicate or new)
         for _ in range(random.randint(1,2)):
             if len(module.layers) < module.module_configuration.max_expansions and random.random() <= add_layer_prob:
-                if random.random() <= reuse_layer_prob:
+                if random.random() <= reuse_layer_prob and len(module.layers) > 0:
                     new_layer = random.choice(module.layers)
                 else:
                     new_layer = grammar.initialise(module.module_name)
@@ -145,36 +157,41 @@ def mutation(individual: Individual,
                     if sample_size > 0:
                         module.connections[insert_pos] += random.sample(connection_possibilities, sample_size)
 
-                logger.info(f"Individual {individual.id} is going to have an extra layer at position {insert_pos}")
+                logger.info(f"Individual {individual_copy.id} is going to have an extra layer at "
+                            f"Module {m_idx}: {module.module_name}; position {insert_pos}")
+                #print("**** new layer: ", new_layer)
         #remove-layer
         for _ in range(random.randint(1,2)):
             if len(module.layers) > module.module_configuration.min_expansions and random.random() <= remove_layer_prob:
                 remove_idx = random.randint(0, len(module.layers)-1)
+
+                #print("**** removed layer: ", module.layers[remove_idx])
                 del module.layers[remove_idx]
 
                 #fix connections
-                for _key_ in sorted(module.connections.keys()):
-                    if _key_ > remove_idx:
-                        if _key_ > remove_idx+1 and remove_idx in module.connections[_key_]:
-                            module.connections[_key_].remove(remove_idx)
-
-                        for value_idx, value in enumerate(module.connections[_key_]):
-                            if value >= remove_idx:
-                                module.connections[_key_][value_idx] -= 1
-                        module.connections[_key_-1] = list(set(module.connections.pop(_key_)))
-
-                if remove_idx == 0:
-                    module.connections[0] = [-1]
                 if remove_idx == max(module.connections.keys()):
                     module.connections.pop(remove_idx)
-                logger.info(f"Individual {individual_copy.id} is going to have a layer removed"
-                            f" from position {remove_idx}")
+                else:
+                    for _key_ in sorted(module.connections.keys()):
+                        if _key_ > remove_idx:
+                            if _key_ > remove_idx+1 and remove_idx in module.connections[_key_]:
+                                module.connections[_key_].remove(remove_idx)
+
+                            for value_idx, value in enumerate(module.connections[_key_]):
+                                if value >= remove_idx:
+                                    module.connections[_key_][value_idx] -= 1
+                            module.connections[_key_-1] = list(set(module.connections.pop(_key_)))
+                    if remove_idx == 0:
+                        module.connections[0] = [-1]
+                logger.info(f"Individual {individual_copy.id} is going to have a layer removed from "
+                            f"Module {m_idx}: {module.module_name}; position {remove_idx}")
 
         for layer_idx, layer in enumerate(module.layers):
             #dsge mutation
             if random.random() <= dsge_layer_prob:
                 mutation_dsge(layer, grammar)
-                logger.info(f"Individual {individual_copy.id} is going to have a DSGE mutation")
+                logger.info(f"Individual {individual_copy.id} is going to have a DSGE mutation on "
+                            f"Module {m_idx}: {module.module_name}; position {layer_idx}")
 
             #add connection
             if layer_idx != 0 and random.random() <= add_connection_prob:
@@ -184,8 +201,8 @@ def mutation(individual: Individual,
                 if len(connection_possibilities) > 0:
                     new_input: int = random.choice(connection_possibilities)
                     module.connections[layer_idx].append(new_input)
-                logger.info(f"Individual {individual_copy.id} is going to have a new connection at layer {layer_idx},"
-                            f" from {new_input}")
+                logger.info(f"Individual {individual_copy.id} is going to have a new connection "
+                            f"Module {m_idx}: {module.module_name}; layer {layer_idx}")
             #remove connection
             r_value = random.random()
             if layer_idx != 0 and r_value <= remove_connection_prob:
@@ -193,14 +210,23 @@ def mutation(individual: Individual,
                 if len(connection_possibilities) > 0:
                     r_connection = random.choice(connection_possibilities)
                     module.connections[layer_idx].remove(r_connection)
-                    logger.info(f"Individual {individual_copy.id} is going to have a connection removed at layer"
-                                f" {layer_idx}: {r_connection}")
+                    logger.info(f"Individual {individual_copy.id} is going to have a connection removed from "
+                                f"Module {m_idx}: {module.module_name}; layer {layer_idx}")
     #macro level mutation
     for macro in individual_copy.macro:
         if random.random() <= macro_layer_prob:
             mutation_dsge(macro, grammar)
             logger.info(f"Individual {individual_copy.id} is going to have a macro mutation")
 
+    #print("****************************")
+    #print("****************************")
+    #print("MUTATED INDIVIDUAL:")
+    #for i, module in enumerate(individual_copy.modules):
+    #    for layer_idx, layer_genotype in enumerate(module.layers):
+    #        print("module: ", i, "layer_idx: ", layer_idx, layer_genotype)
+    #        print("--")
+    #print("****************************")
+    #print("****************************")
     return individual_copy
 
 def select_fittest(population: List[Individual],
@@ -264,6 +290,9 @@ def select_fittest(population: List[Individual],
                 logger.info(f"Individual {parent_10min.id} has its train extended."
                             f" Current fitness {parent_10min.fitness}")
                 path: str = persistence.build_individual_path(checkpoint_base_path, run, generation, parent_10min.id)
+                print(f"Reusing individual from path: {path}")
+                print(f"Static projector config: {static_projector_config}")
+                print("Macro genotype from parent 10 min: ", parent_10min.macro)
                 parent_10min.evaluate(grammar,
                                       cnn_eval,
                                       static_projector_config,
@@ -274,10 +303,10 @@ def select_fittest(population: List[Individual],
 
 
         #select the fittest among all retrains and the initial parent
-        assert elite.fitness is not None
-        assert parent_10min.fitness is not None
         if retrain_elite:
+            assert elite.fitness is not None
             if retrain_10min:
+                assert parent_10min.fitness is not None
                 if parent_10min.fitness > elite.fitness and parent_10min.fitness > parent.fitness:
                     return deepcopy(parent_10min)
                 elif elite.fitness > parent_10min.fitness and elite.fitness > parent.fitness:
@@ -290,6 +319,7 @@ def select_fittest(population: List[Individual],
                 else:
                     return deepcopy(parent)
         elif retrain_10min:
+            assert parent_10min.fitness is not None
             if parent_10min.fitness > parent.fitness:
                 return deepcopy(parent_10min)
             else:

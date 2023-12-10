@@ -170,6 +170,7 @@ class Individual:
         layer_counter: int = 0
         projector_phenotype: str = ""
         projection_layer_count: int = 0
+        final_offset: int
         for i, module in enumerate(self.modules):
             offset = layer_counter
             for layer_idx, layer_genotype in enumerate(module.layers):
@@ -180,7 +181,7 @@ class Individual:
                 if "relu_agg" in phenotype_layer and -1 not in module.connections[layer_idx]:
                     current_connections = [-1] + current_connections
                 # END
-                final_offset: int = 0 if "projector_layer" in phenotype_layer else offset
+                final_offset = 0 if "projector_layer" in phenotype_layer else offset
                 phenotype += (
                     f"{phenotype_layer}"
                     f" input:{','.join(map(str, np.array(current_connections) + final_offset))}"

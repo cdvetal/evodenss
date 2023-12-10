@@ -53,6 +53,12 @@ def create_fitness_metric(metric_name: FitnessMetricName,
         elif evaluator_type is BarlowTwinsEvaluator:
             assert batch_size is not None
             fitness_metric = BTLossMetric(batch_size)
+    elif metric_name is FitnessMetricName.COSINE_SIM:
+        if evaluator_type is BarlowTwinsEvaluator:
+            assert batch_size is not None
+            fitness_metric = CosineSimilarityMetric(batch_size)
+        else:
+            raise ValueError("Cosine similarity should be used in the context of Barlow Twins algorithm")
     else:
         raise ValueError(f"Unexpected evaluator type: [{evaluator_type}]")
     return fitness_metric
@@ -155,6 +161,8 @@ class BaseEvaluator(ABC):
                 return LossMetric.worst_fitness()
             else:
                 raise ValueError(f"Unexpected evaluator type: [{evaluator_type}]")
+        elif metric_name is FitnessMetricName.COSINE_SIM:
+            return CosineSimilarityMetric.worst_fitness()
         else:
             raise ValueError("Invalid fitness metric")
 

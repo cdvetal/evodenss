@@ -2,7 +2,7 @@ checkpoints_path: ../../results/experiment_bt_100
 
 evolutionary:
   generations: 75
-  lambda: 1
+  lambda: 6
   max_epochs: 100000
   mutation:
     add_connection: 0.0

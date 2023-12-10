@@ -10,7 +10,7 @@ import torch
 from evodenss.misc.enums import Device
 
 if TYPE_CHECKING:
-    from torch import nn
+    from torch import nn, Tensor
     from torch.utils.data import DataLoader
 
 class Fitness:
@@ -205,3 +205,54 @@ class BTLossMetric(FitnessMetric):
     @classmethod
     def worst_fitness(cls) -> Fitness:
         return Fitness(float_info.max, cls)
+
+
+class CosineSimilarityMetric(FitnessMetric):
+
+    def __init__(self, batch_size: int, loss_function: Any=None) -> None:
+        super().__init__(batch_size, loss_function)
+
+    def compute_metric(self, model: nn.Module, data_loader: DataLoader, device: Device) -> float:
+        from evodenss.networks.torch.evolved_networks import BarlowTwinsNetwork
+        assert isinstance(model, BarlowTwinsNetwork)
+        model.eval()
+        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        total_loss: float
+        n_batches: int = len(data_loader)
+        y1: Tensor
+        y2: Tensor
+        with torch.no_grad():
+            total_loss_tensor = torch.zeros(size=(1,), device=device.value)
+            for _, ((y_a, y_b), _) in enumerate(data_loader, 0):
+                inputs_a = y_a.to(device.value, non_blocking=True)
+                inputs_b = y_b.to(device.value, non_blocking=True)
+                with torch.cuda.amp.autocast():
+                    (y1, y2) = model.forward_encoder(inputs_a, inputs_b)
+                    out = cos(y1, y2)
+
+                total_loss_tensor += out/n_batches
+        total_loss = float(total_loss_tensor.data)
+        if math.isinf(total_loss) is True or math.isnan(total_loss):
+            raise ValueError(f"Invalid loss (inf or NaN): {total_loss}")
+        else:
+            return total_loss
+
+    @classmethod
+    def worse_than(cls, this: Fitness, other: Fitness) -> bool:
+        return this.value > other.value
+
+    @classmethod
+    def better_than(cls, this: Fitness, other: Fitness) -> bool:
+        return this.value < other.value
+
+    @classmethod
+    def worse_or_equal_than(cls, this: Fitness, other: Fitness) -> bool:
+        return this.value >= other.value
+
+    @classmethod
+    def better_or_equal_than(cls, this: Fitness, other: Fitness) -> bool:
+        return this.value <= other.value
+
+    @classmethod
+    def worst_fitness(cls) -> Fitness:
+        return Fitness(-1.0, cls)

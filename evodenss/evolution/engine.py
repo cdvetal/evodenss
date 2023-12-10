@@ -77,6 +77,7 @@ def evolve(run: int,
         population[0].id = 0
         population[0].metrics = None
 
+
         # evaluate population
         population_fits = []
         for idx, ind in enumerate(population):

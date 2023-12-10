@@ -75,3 +75,4 @@ class TransformOperation(ExtendedEnum):
 class FitnessMetricName(ExtendedEnum):
     LOSS = "loss"
     ACCURACY = "accuracy"
+    COSINE_SIM = "cosine_similarity"

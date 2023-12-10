@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
+import torch.utils.checkpoint as checkpoint
 
 from evodenss.networks import Dimensions
 from evodenss.misc.constants import SEPARATOR_CHAR
@@ -33,6 +34,7 @@ class EvolvedNetwork(nn.Module):
 
     def _clear_cache(self) -> None:
         self.cache.clear()
+        torch.cuda.empty_cache()
 
 
     def _process_forward_pass(self,
@@ -63,6 +65,7 @@ class EvolvedNetwork(nn.Module):
                 #    print("here:", self.__dict__['_modules'][layer_name])
             layer_inputs.append(input_tensor)
 
+        del input_tensor
         self._clear_cache()
         #print("length:", len(layer_inputs), input_ids, layer_id)
         #print([x.shape for x in layer_inputs])
@@ -73,9 +76,27 @@ class EvolvedNetwork(nn.Module):
             #old way: final_input_tensor = torch.cat(tuple(layer_inputs), dim=CHANNEL_INDEX)
         else:
             final_input_tensor = layer_inputs[0]
+        del layer_inputs
         #print("final input tensor: ", layer_id, layer_name, final_input_tensor.shape)
-        output_tensor = self.__dict__['_modules'][layer_name](final_input_tensor)
+        # checkpoint convolutional layers as they are the ones that seem
+        # to bring more memory issues evaluating individuals
+        if LayerType.CONV.value in layer_name or LayerType.FC.value in layer_name or \
+            LayerType.IDENTITY.value in layer_name or \
+            LayerType.POOL_MAX.value in layer_name or \
+            LayerType.POOL_AVG.value in layer_name:
+            output_tensor = checkpoint.checkpoint(
+                self.custom(self.__dict__['_modules'][layer_name]),
+                final_input_tensor
+            )
+        else:
+            output_tensor = self.__dict__['_modules'][layer_name](final_input_tensor)
         return output_tensor
+
+    def custom(self, module):
+        def custom_forward(*inputs):
+            inputs = module(inputs[0])
+            return inputs
+        return custom_forward
 
     def forward(self, x: Tensor) -> Optional[Tensor]:
         input_layer_ids: List[InputLayerId]
@@ -123,10 +144,16 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                                  affine=False,
                                  device=device.value)
 
+    def forward_encoder(self, x1: Tensor, x2: Tensor) -> Tuple[Tensor, Tensor]:
+        y1 = super().forward(x1)
+        y2 = super().forward(x2)
+        return y1, y2
+
     # pylint: disable=arguments-renamed,
-    def forward(self, x1: Tensor,
+    def forward(self,
+                x1: Tensor,
                 x2: Optional[Tensor]=None,
-                batch_size: Optional[int]=None) -> Optional[Union[Tuple[Tensor, Tensor, Tensor], Tensor]]:
+                batch_size: Optional[int]=None) -> Union[Tuple[Tensor, Tensor, Tensor], Tensor]:
         if x2 is not None:
             assert batch_size is not None
             y1 = super().forward(x1)

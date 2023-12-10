@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import csv
+import glob
 import os
-import pickle
 import shutil
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
-import glob
+import dill
 
 from evodenss.evolution import Individual
 from evodenss.misc.constants import MODEL_FILENAME
@@ -44,7 +44,7 @@ class RestoreCheckpoint:
     def restore_checkpoint(self, save_path: str, run: int) -> Optional[Checkpoint]:
         if os.path.exists(os.path.join(save_path, f"run_{run}", "checkpoint.pkl")):
             with open(os.path.join(save_path, f"run_{run}", "checkpoint.pkl"), "rb") as handle_checkpoint:
-                checkpoint: Checkpoint = pickle.load(handle_checkpoint)
+                checkpoint: Checkpoint = dill.load(handle_checkpoint)
             return checkpoint
         else:
             return None
@@ -68,7 +68,7 @@ class SaveCheckpoint:
         assert checkpoint.population is not None
         assert checkpoint.parent is not None
         with open(os.path.join(save_path, f"run_{checkpoint.run}", "checkpoint.pkl"), "wb") as handle_checkpoint:
-            pickle.dump(checkpoint, handle_checkpoint, protocol=pickle.HIGHEST_PROTOCOL)
+            dill.dump(checkpoint, handle_checkpoint)
         self._delete_unnecessary_files(checkpoint, save_path, max_generations)
         self._save_statistics(save_path, checkpoint)
 
@@ -127,7 +127,7 @@ def save_overall_best_individual(best_individual_path: str, parent: Individual) 
                     os.path.join(best_individual_path, "..", OVERALL_BEST_FOLDER),
                     dirs_exist_ok=True)
     with open(os.path.join(best_individual_path, "..", OVERALL_BEST_FOLDER, "parent.pkl"), "wb") as handle:
-        pickle.dump(parent, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        dill.dump(parent, handle)
 
 
 def build_individual_path(checkpoint_base_path: str,

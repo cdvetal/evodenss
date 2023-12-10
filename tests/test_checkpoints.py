@@ -1,5 +1,5 @@
 # type: ignore
-import pickle
+import dill
 import os
 import shutil
 from typing import Dict
@@ -46,7 +46,7 @@ class Test(unittest.TestCase):
         self.assertTrue(os.path.exists(expected_path))
 
         with open(expected_path, 'rb') as handle_checkpoint:
-            loaded_checkpoint: Checkpoint = pickle.load(handle_checkpoint)
+            loaded_checkpoint: Checkpoint = dill.load(handle_checkpoint)
         self.assertEqual(test_checkpoint, loaded_checkpoint)
         shutil.rmtree(folder_name)
 

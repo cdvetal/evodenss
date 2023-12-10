@@ -31,6 +31,7 @@ class Attribute(Generic[T]):
 
     def generate(self) -> None:
         self.values = self.generator(self.num_values, self.min_value, self.max_value)
+        assert self.values is not None
 
     def __repr__(self) -> str:
         return f"Attribute(num_values={self.num_values}," + \
@@ -42,6 +43,8 @@ class Attribute(Generic[T]):
         string: str = f"{self.var_type},{self.num_values},{self.min_value},{self.max_value}"
         if self.values is not None:
             string += f",{self.values}"
+        else:
+            string += ",None"
         return string
 
     def __eq__(self, other: object) -> bool:
@@ -257,6 +260,9 @@ class Grammar:
     def initialise(self, start_symbol_name: str) -> Genotype:
         start_symbol: NonTerminal = NonTerminal(start_symbol_name)
         genotype: Genotype = self.initialise_recursive(start_symbol)
+        #print("===============================================================")
+        #print(genotype)
+        #print("===============================================================")
         return genotype
 
 
@@ -285,15 +291,28 @@ class Grammar:
         phenotype_tokens = self.decode_recursive(start_symbol, unconsumed_genotype, extra_genotype)
         # if we decoded an individual that has suffered a DSGE mutation we will update the genotype accordingly
         # therefore, we will remove unconsumed codons/expansions and add extra codons/expansions that were used
+
+        # TODO: This logic should be improved in the future
         for k in unconsumed_genotype.expansions.keys():
             n_expansions: int = len(genotype.expansions[k])
             n_unconsumed_expansions: int = len(unconsumed_genotype.expansions[k])
             genotype.expansions[k] = genotype.expansions[k][:n_expansions - n_unconsumed_expansions]
             genotype.codons[k] = genotype.codons[k][:n_expansions - n_unconsumed_expansions]
+
             if k in extra_genotype.expansions.keys():
                 genotype.expansions[k] += extra_genotype.expansions[k]
             if k in extra_genotype.codons.keys():
                 genotype.codons[k] += extra_genotype.codons[k]
+
+            if not genotype.expansions[k]:
+                genotype.expansions.pop(k)
+            if not genotype.codons[k]:
+                genotype.codons.pop(k)
+
+        for k in extra_genotype.expansions.keys():
+            if k not in genotype.expansions.keys():
+                genotype.expansions[k] = extra_genotype.expansions[k]
+                genotype.codons[k] = extra_genotype.codons[k]
 
         phenotype: str = " ".join(phenotype_tokens)
         return phenotype
@@ -304,10 +323,14 @@ class Grammar:
                          unconsumed_geno: Genotype,
                          extra_genotype: Genotype) -> List[str]:
         phenotype: List[str] = []
+        #print(f"-- symbol: {symbol} == unconsumed_geno: {unconsumed_geno}")
+        #print(f"-- symbol: {symbol} == extra_genotype: {extra_genotype}")
         if isinstance(symbol, NonTerminal):
             # consume expansion
-            expansion: Optional[Derivation] = \
-                unconsumed_geno.expansions[symbol].pop(0) if len(unconsumed_geno.expansions[symbol]) > 0 else None
+            expansion: Optional[Derivation] = None
+            if symbol in unconsumed_geno.expansions.keys() and \
+                len(unconsumed_geno.expansions[symbol]) > 0:
+                expansion = unconsumed_geno.expansions[symbol].pop(0)
             # In case there has been a DSGE mutation, a symbol might not have enough codons
             # to continue expanding, thus throwing an error
             if expansion is None:
@@ -321,6 +344,10 @@ class Grammar:
             if symbol.attribute is None:
                 return [f"{symbol.name}"]
             else:
+                if symbol.attribute.values is None:
+                    #print(symbol.attribute.values)
+                    symbol.attribute.generate()
+                    #print(symbol.attribute.values)
                 assert symbol.attribute.values is not None
                 return [f"{symbol.name}:{','.join(map(str, symbol.attribute.values))}"]
         return phenotype

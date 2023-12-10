@@ -16,5 +16,5 @@
 <pretext> ::= pretext:bt [lamb,inv_power2,1,5,12]
 <projector> ::= <proj_fully_connected> | <proj_batch_norm>
 <proj_fully_connected> ::= projector_layer:fc <activation_function> [out_features,int_power2,1,5,12] <bias>
-<proj_batch_norm> ::= projector_layer:batch_norm <activation_function>
+<proj_batch_norm> ::= projector_layer:batch_norm_proj <activation_function>
 <identity> ::= projector_layer:identity
