@@ -121,6 +121,9 @@ class Test(unittest.TestCase):
         self.assertEqual(phenotype, expected_output, "Error: phenotypes differ")
         # check if after the decoding process, the genotype
         # was updated with new genome and unused genome
+        print(genotype_to_use)
+        print("**************")
+        print(fixed_genotype)
         self.assertEqual(genotype_to_use, fixed_genotype)
 if __name__ == '__main__':
     unittest.main()

@@ -254,7 +254,7 @@ class Test(unittest.TestCase):
             ('pool_max-1', nn.Sequential(nn.MaxPool2d(kernel_size=5, stride=3, padding=0))),
             ('projector_model', OrderedDict([
                 ('fc-1', nn.Sequential(nn.Flatten(), nn.Linear(in_features=64, out_features=20, bias=True))),
-                ('batch_norm_proj-1', nn.Sequential(nn.BatchNorm1d(20), nn.ReLU())),
+                ('batch_norm_proj-1', nn.Sequential(nn.Flatten(), nn.BatchNorm1d(20), nn.ReLU())),
                 ('fc-2', nn.Sequential(nn.Linear(in_features=20, out_features=10, bias=True))),
                 ('batch_norm_proj-2', nn.Sequential(nn.BatchNorm1d(10), nn.ReLU()))
             ])),

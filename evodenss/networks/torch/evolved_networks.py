@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-import torch.utils.checkpoint as checkpoint
+import torch.utils.checkpoint as checkpoint # pylint:disable=consider-using-from-import
 
 from evodenss.networks import Dimensions
 from evodenss.misc.constants import SEPARATOR_CHAR
