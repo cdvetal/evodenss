@@ -213,7 +213,7 @@ class CosineSimilarityMetric(FitnessMetric):
         super().__init__(batch_size, loss_function)
 
     def compute_metric(self, model: nn.Module, data_loader: DataLoader, device: Device) -> float:
-        from evodenss.networks.torch.evolved_networks import BarlowTwinsNetwork
+        from evodenss.networks.torch.evolved_networks import BarlowTwinsNetwork # pylint: disable=cyclic-import,import-outside-toplevel
         assert isinstance(model, BarlowTwinsNetwork)
         model.eval()
         cos = nn.CosineSimilarity(dim=1, eps=1e-6)

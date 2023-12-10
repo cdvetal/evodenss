@@ -1,9 +1,10 @@
 # type: ignore
-import dill
 import os
 import shutil
 from typing import Dict
 import unittest
+
+import dill
 
 from evodenss.evolution import Individual
 from evodenss.misc import Checkpoint
