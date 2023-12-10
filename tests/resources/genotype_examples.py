@@ -286,14 +286,12 @@ dgse_mutated_simple_sample3 = Genotype(
             [Terminal(name='(', attribute=None), NonTerminal(name='expr'), Terminal(name=')', attribute=None)],
             [Terminal(name='(', attribute=None), NonTerminal(name='expr'), Terminal(name=')', attribute=None)],
             [NonTerminal(name='value')]], NonTerminal(name='op'): [[Terminal(name='/', attribute=None)]
-        ],
-        NonTerminal(name='num'): []
+        ]
     },
     codons={
         NonTerminal(name='var'): [0, 0],
         NonTerminal(name='value'): [1, 1],
         NonTerminal(name='expr'): [1, 1, 0, 1, 2, 1, 1, 2],
-        NonTerminal(name='op'): [2],
-        NonTerminal(name='num'): []
+        NonTerminal(name='op'): [2]
     }
 )

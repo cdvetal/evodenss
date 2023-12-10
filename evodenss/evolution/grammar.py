@@ -43,8 +43,6 @@ class Attribute(Generic[T]):
         string: str = f"{self.var_type},{self.num_values},{self.min_value},{self.max_value}"
         if self.values is not None:
             string += f",{self.values}"
-        else:
-            string += ",None"
         return string
 
     def __eq__(self, other: object) -> bool:
