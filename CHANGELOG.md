@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 3.0.2 (2023-12-10)
+
+
+Bug Fixes:
+
+- Genotype was not being correctly updated after it suffers DSGE mutation
+- Refactoring introduced a bug in the remove layer mutation which is being addressed in this new version
+
+
 ## 3.0.1 (2023-11-16)
 
 
