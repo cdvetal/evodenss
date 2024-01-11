@@ -22,6 +22,7 @@ def is_yaml_file(parser: ArgumentParser, arg: Any) -> object:
             return arg
     parser.error(f"The file {arg} is not a yaml file")
 
+
 class InvalidNetwork(Exception):
     def __init__(self, message: str) -> None:
         super().__init__(message)

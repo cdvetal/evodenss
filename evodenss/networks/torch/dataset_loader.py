@@ -28,18 +28,11 @@ class DatasetType(Enum):
     TEST = "test"
 
 
-
 def load_dataset(dataset_name: str,
                  train_transformer: BaseTransformer,
-                 test_transformer: BaseTransformer,
-                 enable_stratify: bool,
-                 proportions: Union[ProportionsFloat, ProportionsIndexes],
-                 downstream_train_percentage: Optional[int]) -> Dict[DatasetType, Subset]:
-
-    train_data: Dataset
-    test_data: Dataset
+                 test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:
     if dataset_name == "fashion-mnist":
-        train_data, test_data = _load_fashion_mnist(train_transformer, test_transformer)
+        train_data, evo_test_data, test_data = _load_fashion_mnist(train_transformer, test_transformer)
     elif dataset_name == "mnist":
         train_data, evo_test_data, test_data = _load_mnist(train_transformer, test_transformer)
     elif dataset_name == "cifar10":
@@ -48,6 +41,21 @@ def load_dataset(dataset_name: str,
         train_data, evo_test_data, test_data = _load_cifar100(train_transformer, test_transformer)
     else:
         raise ValueError(f"Invalid dataset name: {dataset_name}")
+    return train_data, evo_test_data, test_data
+
+
+def load_partitioned_dataset(seed: int,
+                             dataset_name: str,
+                             train_transformer: BaseTransformer,
+                             test_transformer: BaseTransformer,
+                             enable_stratify: bool,
+                             proportions: Union[ProportionsFloat, ProportionsIndexes],
+                             downstream_train_percentage: Optional[int]) -> Dict[DatasetType, Subset]:
+
+    train_data: Dataset
+    evo_test_data: Dataset
+    test_data: Dataset
+    (train_data, evo_test_data, test_data) = load_dataset(dataset_name, train_transformer, test_transformer)
 
     subset_dict: Dict[DatasetType, Subset] = {}
     n_downstream_samples: int
@@ -74,7 +82,8 @@ def load_dataset(dataset_name: str,
                             proportions[k],
                             test_size=downstream_train_percentage / 100,
                             shuffle=True,
-                            stratify=targets_tensor[proportions[k]]
+                            stratify=targets_tensor[proportions[k]],
+                            random_state=seed
                         )
 
                     subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, downstream_train_idx)
@@ -95,7 +104,8 @@ def load_dataset(dataset_name: str,
         train_idx, test_idx = train_test_split(train_indices,
                                                test_size=proportions[DatasetType.EVO_TEST],
                                                shuffle=True,
-                                               stratify=stratify)
+                                               stratify=stratify,
+                                               random_state=seed)
         subset_dict[DatasetType.EVO_TEST] = Subset(evo_test_data, test_idx)
 
         if DatasetType.EVO_VALIDATION in proportions.keys():
@@ -105,7 +115,8 @@ def load_dataset(dataset_name: str,
             train_idx, valid_idx = train_test_split(train_idx,
                                                     test_size=real_validation_proportion,
                                                     shuffle=True,
-                                                    stratify=stratify)
+                                                    stratify=stratify,
+                                                    random_state=seed)
             subset_dict[DatasetType.EVO_VALIDATION] = Subset(train_data, valid_idx)
 
         if downstream_train_percentage is not None:
@@ -118,7 +129,8 @@ def load_dataset(dataset_name: str,
                 _, downstream_train_idx = train_test_split(train_idx,
                                                            test_size=downstream_train_percentage / 100,
                                                            shuffle=True,
-                                                           stratify=targets_tensor[train_idx])
+                                                           stratify=targets_tensor[train_idx],
+                                                           random_state=seed)
             subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, downstream_train_idx)
         else:
             subset_dict[DatasetType.EVO_TRAIN] = Subset(train_data, train_idx)
@@ -128,12 +140,18 @@ def load_dataset(dataset_name: str,
         return subset_dict
 
 def _load_fashion_mnist(train_transformer: BaseTransformer,
-                        test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset]:
+                        test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:
     train_data = datasets.FashionMNIST(
         root="data",
         train=True,
         download=True,
         transform=train_transformer
+    )
+    evo_test_data = datasets.FashionMNIST(
+        root="data",
+        train=True,
+        download=True,
+        transform=test_transformer
     )
     test_data = datasets.FashionMNIST(
         root="data",
@@ -142,7 +160,7 @@ def _load_fashion_mnist(train_transformer: BaseTransformer,
         transform=test_transformer
     )
 
-    return train_data, test_data
+    return train_data, evo_test_data, test_data
 
 def _load_mnist(train_transformer: BaseTransformer,
                 test_transformer: BaseTransformer) -> Tuple[Dataset, Dataset, Dataset]:

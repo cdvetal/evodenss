@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import json
 import logging
 import os
 from time import time
-from typing import TYPE_CHECKING
+from typing import Any, Dict, TYPE_CHECKING
 
 import torch
 
-from evodenss.misc.constants import MODEL_FILENAME, WEIGHTS_FILENAME
+from evodenss.misc.constants import METADATA_FILENAME, MODEL_FILENAME, WEIGHTS_FILENAME
 
 
 if TYPE_CHECKING:
@@ -45,11 +46,16 @@ class ModelCheckpointCallback(Callback):
 
     def __init__(self,
                  model_saving_dir: str,
+                 metadata_info: Dict[str, Any],
                  model_filename: str=MODEL_FILENAME,
-                 weights_filename: str=WEIGHTS_FILENAME) -> None:
+                 weights_filename: str=WEIGHTS_FILENAME,
+                 metadata_filename: str=METADATA_FILENAME) -> None:
         self.model_saving_dir: str = model_saving_dir
         self.model_filename: str = model_filename
+        self.metadata_filename: str = metadata_filename
         self.weights_filename: str = weights_filename
+        self.metadata_info: Dict[str, Any] = metadata_info
+
 
     def on_train_begin(self, trainer: Trainer) -> None:
         pass
@@ -57,12 +63,61 @@ class ModelCheckpointCallback(Callback):
     def on_train_end(self, trainer: Trainer) -> None:
         torch.save(trainer.model, os.path.join(self.model_saving_dir, self.model_filename))
         torch.save(trainer.model.state_dict(), os.path.join(self.model_saving_dir, self.weights_filename))
+        with open(os.path.join(self.model_saving_dir, self.metadata_filename), 'w', encoding='utf-8') as f:
+            json.dump(self._build_structured_metadata_json(self.metadata_info, trainer.trained_epochs),
+                      f,
+                      ensure_ascii=False,
+                      indent=4)
 
     def on_epoch_begin(self, trainer: Trainer) -> None:
         pass
 
     def on_epoch_end(self, trainer: Trainer) -> None:
         pass
+
+    def _build_structured_metadata_json(self,
+                                        metadata_info: Dict[str, Any],
+                                        trained_epochs: int) -> Dict[str, Any]:
+        return {
+            'dataset': {
+                'name': metadata_info['dataset_name'],
+                'pretext': {
+                    'train': metadata_info.get("pretext_train"),
+                    'validation': metadata_info.get("pretext_validation"),
+                    'test': metadata_info.get("pretext_test"),
+                },
+                'downstream':
+                {
+                    'train': metadata_info.get("downstream_train"),
+                    'validation': metadata_info.get("downstream_validation"),
+                    'test': metadata_info.get("downstream_test")
+                }
+            },
+            'learning': {
+                'pretext': {
+                    'algorithm': {
+                        'name': metadata_info.get("pretext_algorithm"),
+                        'params': metadata_info.get("pretext_algorithm_params")
+                    },
+                    'optimiser': {
+                        'name': metadata_info.get("pretext_optimiser"),
+                        'params': metadata_info.get("pretext_optimiser_params")
+                    },
+                    'batch_size': metadata_info.get("pretext_batch_size")
+                },
+                'downstream':
+                {
+                    'optimiser': {
+                        'name': metadata_info.get("downstream_optimiser"),
+                        'params': metadata_info.get("downstream_optimiser_params")
+                    },
+                    'batch_size':  metadata_info.get("downstream_batch_size")
+                }
+            },
+            'trained_pretext_epochs': metadata_info.get("trained_pretext_epochs", trained_epochs),
+            'trained_downstream_epochs': trained_epochs if "trained_pretext_epochs" in metadata_info.keys() else None
+        }
+
 
 
 class TimedStoppingCallback(Callback):
