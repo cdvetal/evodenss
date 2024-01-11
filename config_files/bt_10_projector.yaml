@@ -1,0 +1,98 @@
+checkpoints_path: ../../results/experiment_bt_10_projector
+
+evolutionary:
+  generations: 100
+  lambda: 6
+  max_epochs: 100000
+  mutation:
+    add_connection: 0.0
+    remove_connection: 0.0
+    add_layer: 0.3
+    reuse_layer: 0.2
+    remove_layer: 0.3
+    dsge_layer: 0.1
+    macro_layer: 0.3
+    train_longer: 0.03
+  fitness_metric: accuracy
+
+network:
+
+  architecture:
+    reuse_layer: 0.2
+    macro_structure:
+      - learning
+      - pretext
+    output: identity
+    modules:
+      - name: features
+        network_structure_init: [4,5,6,7]
+        network_structure: [4,30]
+        levels_back: 1
+      - name: projector
+        network_structure_init: [2,2]
+        network_structure: [2,6]
+        levels_back: 1
+    
+  learning:
+    train_percentage: 10
+    data_splits:
+      evo_train: 0.7
+      evo_test: 0.3
+    learning_type: self-supervised
+    default_train_time: 60
+    downstream_epochs: 30
+    downstream_mode: freeze
+    augmentation:
+      pretext:
+        input_a:
+          random_resized_crop:
+            size: 32
+          random_horizontal_flip:
+            probability: 0.5
+          color_jitter:
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.4
+            hue: 0.1
+            probability: 0.8
+          random_grayscale:
+            probability: 0.2
+          normalize:
+            mean: [0.4914, 0.4822, 0.4465]
+            std: [0.2023, 0.1994, 0.2010]
+        input_b:
+          random_resized_crop:
+            size: 32
+          random_horizontal_flip:
+            probability: 0.5
+          color_jitter:
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.4
+            hue: 0.1
+            probability: 0.8
+          random_grayscale:
+            probability: 0.2
+          normalize:
+            mean: [0.4914, 0.4822, 0.4465]
+            std: [0.2023, 0.1994, 0.2010]
+      downstream:
+        random_resized_crop:
+          size: 32
+        random_horizontal_flip:
+          probability: 0.5
+        color_jitter:
+          brightness: 0.4
+          contrast: 0.4
+          saturation: 0.4
+          hue: 0.1
+          probability: 0.8
+        random_grayscale:
+          probability: 0.2
+        normalize:
+          mean: [0.4914, 0.4822, 0.4465]
+          std: [0.2023, 0.1994, 0.2010]
+      test:
+        normalize:
+          mean: [0.4914, 0.4822, 0.4465]
+          std: [0.2023, 0.1994, 0.2010]
