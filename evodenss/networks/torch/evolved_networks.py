@@ -3,7 +3,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-import torch.utils.checkpoint as checkpoint # pylint:disable=consider-using-from-import
 
 from evodenss.networks import Dimensions
 from evodenss.misc.constants import SEPARATOR_CHAR
@@ -77,19 +76,20 @@ class EvolvedNetwork(nn.Module):
         else:
             final_input_tensor = layer_inputs[0]
         del layer_inputs
-        #print("final input tensor: ", layer_id, layer_name, final_input_tensor.shape)
+
         # checkpoint convolutional layers as they are the ones that seem
         # to bring more memory issues evaluating individuals
-        if LayerType.CONV.value in layer_name or LayerType.FC.value in layer_name or \
-            LayerType.IDENTITY.value in layer_name or \
-            LayerType.POOL_MAX.value in layer_name or \
-            LayerType.POOL_AVG.value in layer_name:
-            output_tensor = checkpoint.checkpoint(
-                self.custom(self.__dict__['_modules'][layer_name]),
-                final_input_tensor
-            )
-        else:
-            output_tensor = self.__dict__['_modules'][layer_name](final_input_tensor)
+        #if LayerType.CONV.value in layer_name or LayerType.FC.value in layer_name or \
+        #    LayerType.IDENTITY.value in layer_name or \
+        #    LayerType.POOL_MAX.value in layer_name or \
+        #    LayerType.POOL_AVG.value in layer_name:
+        #    output_tensor = checkpoint.checkpoint(
+        #        self.custom(self.__dict__['_modules'][layer_name]),
+        #        final_input_tensor
+        #    )
+        #else:
+        #    output_tensor = self.__dict__['_modules'][layer_name](final_input_tensor)
+        output_tensor = self.__dict__['_modules'][layer_name](final_input_tensor)
         return output_tensor
 
     def custom(self, module):

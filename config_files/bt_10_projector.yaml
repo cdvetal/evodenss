@@ -1,7 +1,7 @@
-checkpoints_path: ../../results/experiment_bt_100_projector
+checkpoints_path: ../../results/experiment_bt_10_projector
 
 evolutionary:
-  generations: 75
+  generations: 100
   lambda: 6
   max_epochs: 100000
   mutation:
@@ -12,7 +12,7 @@ evolutionary:
     remove_layer: 0.3
     dsge_layer: 0.1
     macro_layer: 0.3
-    train_longer: 0.01
+    train_longer: 0.03
   fitness_metric: accuracy
 
 network:
@@ -34,7 +34,7 @@ network:
         levels_back: 1
     
   learning:
-    train_percentage: 100
+    train_percentage: 10
     data_splits:
       evo_train: 0.7
       evo_test: 0.3

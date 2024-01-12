@@ -5,14 +5,14 @@ import logging
 import os
 from time import time
 import traceback
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 import torch
 from torch import nn, Size
 from torch.utils.data import DataLoader, Subset
 
-from evodenss.misc.constants import DATASETS_INFO, MODEL_FILENAME, WEIGHTS_FILENAME
-from evodenss.misc.enums import Device, FitnessMetricName
+from evodenss.misc.constants import DATASETS_INFO, METADATA_FILENAME, MODEL_FILENAME, WEIGHTS_FILENAME
+from evodenss.misc.enums import Device, FitnessMetricName, OptimiserType
 from evodenss.misc.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.fitness_metrics import * # pylint: disable=unused-wildcard-import,wildcard-import
 from evodenss.misc.proportions import ProportionsIndexes, ProportionsFloat
@@ -20,7 +20,7 @@ from evodenss.misc.utils import InvalidNetwork
 from evodenss.misc.phenotype_parser import parse_phenotype, Optimiser
 from evodenss.networks.torch.callbacks import Callback, EarlyStoppingCallback, \
     ModelCheckpointCallback, TimedStoppingCallback
-from evodenss.networks.torch.dataset_loader import DatasetType, load_dataset
+from evodenss.networks.torch.dataset_loader import DatasetType, load_partitioned_dataset
 from evodenss.networks.torch.trainers import Trainer
 from evodenss.networks.torch.transformers import BaseTransformer, LegacyTransformer, \
     BarlowTwinsTransformer
@@ -67,7 +67,7 @@ def create_evaluator(dataset_name: str,
                      fitness_metric_name: FitnessMetricName,
                      run: int,
                      learning_params: Dict[str, Any],
-                     is_gpu_run: bool,) -> 'BaseEvaluator':
+                     is_gpu_run: bool) -> 'BaseEvaluator':
 
     train_transformer: Optional[BaseTransformer]
     test_transformer: Optional[BaseTransformer]
@@ -218,6 +218,7 @@ class BaseEvaluator(ABC):
             else:
                 return Device.GPU
 
+
     @abstractmethod
     def evaluate(self,
                  phenotype: str,
@@ -229,12 +230,17 @@ class BaseEvaluator(ABC):
         raise NotImplementedError()
 
 
-    def _build_callbacks(self, model_saving_dir: str, train_time: float, early_stop: int | None) -> List[Callback]:
-        callbacks: List[Callback] = [ModelCheckpointCallback(model_saving_dir),
+    def _build_callbacks(self,
+                         model_saving_dir: str,
+                         metadata_info: Dict[str, Any],
+                         train_time: float,
+                         early_stop: int | None) -> List[Callback]:
+        callbacks: List[Callback] = [ModelCheckpointCallback(model_saving_dir, metadata_info),
                                      TimedStoppingCallback(max_seconds=train_time)]
         if early_stop is not None:
             return callbacks + [EarlyStoppingCallback(patience=early_stop)]
         return callbacks
+
 
     def testing_performance(self, model_dir: str) -> float:
         model_filename: str
@@ -285,12 +291,13 @@ class LegacyEvaluator(BaseEvaluator):
                 dataset to be loaded
         """
         self.dataset_name: str = dataset_name
-        dataset: Dict[DatasetType, Subset] = load_dataset(dataset_name,
-                                                          train_transformer,
-                                                          test_transformer,
-                                                          enable_stratify=True,
-                                                          proportions=ProportionsFloat(data_splits),
-                                                          downstream_train_percentage=train_set_percentage)
+        dataset: Dict[DatasetType, Subset] = load_partitioned_dataset(seed,
+                                                                      dataset_name,
+                                                                      train_transformer,
+                                                                      test_transformer,
+                                                                      enable_stratify=True,
+                                                                      proportions=ProportionsFloat(data_splits),
+                                                                      downstream_train_percentage=train_set_percentage)
         super().__init__(fitness_metric_name, seed, user_chosen_device, dataset)
 
 
@@ -332,11 +339,13 @@ class LegacyEvaluator(BaseEvaluator):
             device = self._decide_device()
             self._adapt_model_to_device(torch_model, device)
 
+            trainable_params_count: int = sum(p.numel() for p in torch_model.parameters() if p.requires_grad)
+            if trainable_params_count == 0:
+                raise InvalidNetwork("Network does not contain any trainable parameters.")
             learning_params: LearningParams = ModelBuilder.assemble_optimiser(
                 torch_model.parameters(),
                 optimiser
             )
-            trainable_params_count: int = sum(p.numel() for p in torch_model.parameters() if p.requires_grad)
 
             train_loader: DataLoader
             validation_loader: Optional[DataLoader]
@@ -346,6 +355,16 @@ class LegacyEvaluator(BaseEvaluator):
 
             assert validation_loader is not None
 
+            metadata_dict: Dict[str, Any] = {
+                'downstream_train': self.dataset[DatasetType.EVO_TRAIN].indices,
+                'downstream_validation': self.dataset[DatasetType.EVO_VALIDATION].indices,
+                'downstream_test': self.dataset[DatasetType.EVO_TEST].indices,
+                'downstream_optimiser': optimiser.optimiser_type,
+                'downstream_optimiser_params': optimiser.optimiser_parameters,
+                'downstream_batch_size': learning_params.batch_size,
+                'downstream_early_stop': learning_params.early_stop,
+                'trained_pretext_epochs': None
+            }
             loss_function = nn.CrossEntropyLoss()
             trainer = Trainer(model=torch_model,
                               optimiser=learning_params.torch_optimiser,
@@ -355,7 +374,10 @@ class LegacyEvaluator(BaseEvaluator):
                               n_epochs=learning_params.epochs,
                               initial_epoch=num_epochs,
                               device=device,
-                              callbacks=self._build_callbacks(model_saving_dir, train_time, learning_params.early_stop))
+                              callbacks=self._build_callbacks(model_saving_dir,
+                                                              metadata_dict,
+                                                              train_time,
+                                                              learning_params.early_stop))
             trainer.train()
             fitness_metric: FitnessMetric = create_fitness_metric(self.fitness_metric_name,
                                                                   type(self),
@@ -417,7 +439,8 @@ class BarlowTwinsEvaluator(BaseEvaluator):
         # and measures accuracy using EVO TEST from dataset
         # We need to ensure that test set from the downstream task
         # does not overlap with the train set from the pretext task
-        self.pairwise_dataset: Dict[DatasetType, Subset] = load_dataset(
+        self.pairwise_dataset: Dict[DatasetType, Subset] = load_partitioned_dataset(
+            seed,
             dataset_name,
             train_transformer,
             test_transformer,
@@ -426,7 +449,8 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             downstream_train_percentage=None # Pairwise dataset is only used for the pretext task
         )
 
-        dataset: Dict[DatasetType, Subset] = load_dataset(
+        dataset: Dict[DatasetType, Subset] = load_partitioned_dataset(
+            seed,
             dataset_name,
             supervised_train_transformer,
             supervised_test_transformer,
@@ -471,6 +495,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                                                        parsed_projector_network,
                                                        device,
                                                        Size(input_size))
+
             torch_model = model_builder.assemble_network(type(self), pretext_task)
 
             if reuse_parent_weights is True \
@@ -484,11 +509,13 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             torch_model.to(device.value)
             logger.debug(torch_model)
 
+            trainable_params_count: int = sum(p.numel() for p in torch_model.parameters() if p.requires_grad)
+            if trainable_params_count == 0:
+                raise InvalidNetwork("Network does not contain any trainable parameters.")
             learning_params: LearningParams = ModelBuilder.assemble_optimiser(
                 torch_model.parameters(),
                 optimiser
             )
-            trainable_params_count: int = sum(p.numel() for p in torch_model.parameters() if p.requires_grad)
 
             assert learning_params.batch_size > 1, \
                 "batch size should be > 1, otherwise the BatchNorm1D layer won't work"
@@ -499,6 +526,24 @@ class BarlowTwinsEvaluator(BaseEvaluator):
             train_loader, _, pairwise_test_loader = \
                 self._get_data_loaders(self.pairwise_dataset, learning_params.batch_size)
 
+            validation_indices: Optional[Sequence[int]]
+            if DatasetType.EVO_VALIDATION in self.pairwise_dataset.keys():
+                validation_indices = self.pairwise_dataset[DatasetType.EVO_VALIDATION].indices
+            else:
+                validation_indices = None
+            metadata_pretext_dict: Dict[str, Any] = {
+                'dataset_name': self.dataset_name,
+                'pretext_train': self.pairwise_dataset[DatasetType.EVO_TRAIN].indices,
+                'pretext_validation': validation_indices,
+                'pretext_test': self.pairwise_dataset[DatasetType.EVO_TEST].indices,
+                'pretext_algorithm': self.__class__.__name__,
+                'pretext_algorithm_params': {
+                    'lambda': torch_model.lamb
+                },
+                'pretext_optimiser': optimiser.optimiser_type,
+                'pretext_optimiser_params': optimiser.optimiser_parameters,
+                'pretext_batch_size': learning_params.batch_size
+            }
             trainer = Trainer(model=torch_model,
                               optimiser=learning_params.torch_optimiser,
                               loss_function=nn.CrossEntropyLoss(),
@@ -507,7 +552,10 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                               n_epochs=learning_params.epochs,
                               initial_epoch=num_epochs,
                               device=device,
-                              callbacks=self._build_callbacks(model_saving_dir, train_time, learning_params.early_stop))
+                              callbacks=self._build_callbacks(model_saving_dir,
+                                                              metadata_pretext_dict,
+                                                              train_time,
+                                                              learning_params.early_stop))
 
             trainer.barlow_twins_train(learning_params.batch_size)
             fitness_metric: FitnessMetric = create_fitness_metric(self.fitness_metric_name,
@@ -522,18 +570,44 @@ class BarlowTwinsEvaluator(BaseEvaluator):
 
             complete_model: EvaluationBarlowTwinsNetwork = EvaluationBarlowTwinsNetwork(torch_model, n_classes, device)
             complete_model.to(device.value, non_blocking=True)
-            #print(list(map(lambda x: x[0], complete_model.named_parameters())))
             relevant_index: int = complete_model.relevant_index
             params_to_tune = [param for name, param in complete_model.named_parameters()
                               if name in {f'final_layer.{relevant_index}.weight', f'final_layer.{relevant_index}.bias'}]
 
+            downstream_lr: float = 1e-3
+            downstream_weight_decay: float = 1e-6
+            downstream_optimiser: torch.optim.Adam = torch.optim.Adam(params_to_tune,
+                                                                      lr=downstream_lr,
+                                                                      weight_decay=downstream_weight_decay)
+            if DatasetType.EVO_VALIDATION in self.dataset.keys():
+                validation_indices = self.dataset[DatasetType.EVO_VALIDATION].indices
+            else:
+                validation_indices = None
+            metadata_downstream_dict: Dict[str, Any] = {
+                'downstream_train': self.dataset[DatasetType.EVO_TRAIN].indices,
+                'downstream_validation': validation_indices,
+                'downstream_test': self.dataset[DatasetType.EVO_TEST].indices,
+                'downstream_optimiser': OptimiserType.ADAM,
+                'downstream_optimiser_params': {
+                    'lr': downstream_lr,
+                    'weight_decay': downstream_weight_decay,
+                    'betas': (0.9, 0.999)
+                },
+                'trained_pretext_epochs': trainer.trained_epochs,
+                'downstream_batch_size': learning_params.batch_size
+            }
+            for k in metadata_pretext_dict.keys():
+                metadata_downstream_dict[k] = metadata_pretext_dict[k]
+
             callbacks: List[Callback] = [
                 ModelCheckpointCallback(model_saving_dir,
                                         model_filename=f"complete_{MODEL_FILENAME}",
-                                        weights_filename=f"complete_{WEIGHTS_FILENAME}")
+                                        weights_filename=f"complete_{WEIGHTS_FILENAME}",
+                                        metadata_filename=f"complete_{METADATA_FILENAME}",
+                                        metadata_info=metadata_downstream_dict)
             ]
             last_layer_trainer = Trainer(model=complete_model,
-                                         optimiser=torch.optim.Adam(params_to_tune, lr=1e-3, weight_decay=1e-6),
+                                         optimiser=downstream_optimiser,
                                          loss_function=nn.CrossEntropyLoss(),
                                          train_data_loader=train_loader,
                                          validation_data_loader=validation_loader,
@@ -542,6 +616,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                                          device=device,
                                          callbacks=callbacks)
             last_layer_trainer.train()
+
             if isinstance(fitness_metric, AccuracyMetric):
                 fitness_value = Fitness(
                     fitness_metric.compute_metric(complete_model, normal_test_loader, device),

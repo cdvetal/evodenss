@@ -40,7 +40,7 @@ class LayerType(ExtendedEnum):
     RELU_AGG = "relu_agg"
 
 @unique
-class OptimiserType(Enum):
+class OptimiserType(str, Enum):
     RMSPROP = "rmsprop"
     GRADIENT_DESCENT = "gradient_descent"
     ADAM = "adam"
