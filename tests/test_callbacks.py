@@ -51,7 +51,8 @@ class Test(unittest.TestCase):
     def test_model_saving(self):
         folder_name = "test_dir"
         os.makedirs(folder_name, exist_ok=True)
-        callback_to_test = ModelCheckpointCallback(model_saving_dir=folder_name, metadata_info={})
+        callback_to_test = ModelCheckpointCallback(model_saving_dir=folder_name,
+                                                   metadata_info={'dataset_name': 'fake_dataset_name'})
         model = Model()
         optimiser = optim.RMSprop(params=model.parameters(), lr=0.1, alpha=0.3, weight_decay=0.001)
         trainer = Trainer(model,
