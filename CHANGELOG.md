@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 3.1.0 (2024-01-12)
+
+Features:
+
+- Model artifacts have now an associated metadata file associated which can be used to further extend the train of the model
+- Add new CLI to extend the train of individuals trained with Barlow Twins
+
+Bug Fixes:
+
+- Removed model processing checkppoint as it producing incorrect results
+
 ## 3.0.2 (2023-12-10)
 
 
