@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import astuple, dataclass, fields
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Iterator, Optional, TYPE_CHECKING
 
-from evodenss.misc.fitness_metrics import Fitness
+if TYPE_CHECKING:
+    from evodenss.metrics.fitness_metrics import Fitness
 
 @dataclass
 class EvaluationMetrics:
@@ -14,7 +15,7 @@ class EvaluationMetrics:
     n_layers: int
     n_layers_projector: int
     training_time_spent: float
-    losses: Dict[str, List[float]]
+    losses: dict[str, list[float]]
     n_epochs: int
     total_epochs_trained: int
     max_epochs_reached: bool
@@ -36,7 +37,7 @@ class EvaluationMetrics:
         )
 
     @classmethod
-    def list_fields(cls) -> List[str]:
+    def list_fields(cls) -> list[str]:
         return [field.name for field in fields(cls)]
 
     def __iter__(self) -> Iterator[Any]:

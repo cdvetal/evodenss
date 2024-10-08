@@ -8,16 +8,15 @@ from typing import Any, Callable, Optional, TYPE_CHECKING
 
 import dill
 
-from evodenss.evolution import Individual
+from evodenss.config.pydantic import Config, get_config
+from evodenss.evolution.individual import Individual
 from evodenss.misc.constants import MODEL_FILENAME
-from evodenss.misc.evaluation_metrics import EvaluationMetrics
+from evodenss.metrics.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
 
-
 if TYPE_CHECKING:
-    from evodenss.config import Config
     from evodenss.evolution.grammar import Grammar
-    from evodenss.misc import Checkpoint
+    from evodenss.misc.checkpoint import Checkpoint
 
 
 __all__ = ['RestoreCheckpoint', 'SaveCheckpoint', 'save_overall_best_individual',
@@ -31,15 +30,15 @@ class RestoreCheckpoint:
     def __call__(self,
                  run: int,
                  dataset_name: str,
-                 config: Config,
                  grammar: Grammar,
+                 config: Config,
                  is_gpu_run: bool) -> None:
         self.f(run,
                dataset_name,
-               config,
                grammar,
+               config,
                is_gpu_run,
-               possible_checkpoint=self.restore_checkpoint(config['checkpoints_path'], run))
+               possible_checkpoint=self.restore_checkpoint(config.checkpoints_path, run))
 
     def restore_checkpoint(self, save_path: str, run: int) -> Optional[Checkpoint]:
         if os.path.exists(os.path.join(save_path, f"run_{run}", "checkpoint.pkl")):
@@ -60,8 +59,8 @@ class SaveCheckpoint:
         new_checkpoint: Checkpoint = self.f(*args)
         # we assume the config is the last parameter in the function decorated
         self._save_checkpoint(new_checkpoint,
-                              args[-1]['checkpoints_path'],
-                              args[-1]['evolutionary']['generations'])
+                              get_config().checkpoints_path,
+                              get_config().evolutionary.generations)
         return new_checkpoint
 
     def _save_checkpoint(self, checkpoint: Checkpoint, save_path: str, max_generations: int) -> None:
@@ -72,7 +71,6 @@ class SaveCheckpoint:
         self._delete_unnecessary_files(checkpoint, save_path, max_generations)
         self._save_statistics(save_path, checkpoint)
 
-    # pylint: disable=unused-argument
     def _delete_unnecessary_files(self, checkpoint: Checkpoint, save_path: str, max_generations: int) -> None:
         assert checkpoint.population is not None
         # remove temporary files to free disk space
@@ -122,7 +120,6 @@ class SaveCheckpoint:
             csvwriter.writerow([checkpoint.last_processed_generation, checkpoint.best_gen_ind_test_accuracy])
 
 def save_overall_best_individual(best_individual_path: str, parent: Individual) -> None:
-    # pylint: disable=unexpected-keyword-arg
     shutil.copytree(best_individual_path,
                     os.path.join(best_individual_path, "..", OVERALL_BEST_FOLDER),
                     dirs_exist_ok=True)
