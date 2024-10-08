@@ -8,7 +8,7 @@ from torchvision.transforms import Compose, ColorJitter, Normalize, \
     RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop , Resize, ToTensor
 
 from evodenss.misc.enums import TransformOperation
-from evodenss.networks.torch.transformers import LegacyTransformer, \
+from evodenss.networks.transformers import LegacyTransformer, \
     GaussianBlur, Solarization
 
 

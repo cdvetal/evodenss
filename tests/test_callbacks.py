@@ -10,8 +10,9 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 
 from evodenss.misc.enums import Device
-from evodenss.networks.torch.callbacks import ModelCheckpointCallback, TimedStoppingCallback
-from evodenss.networks.torch.trainers import Trainer
+from evodenss.misc.metadata_info import MetadataInfo, TrainingInfo
+from evodenss.train.callbacks import ModelCheckpointCallback, TimedStoppingCallback
+from evodenss.train.trainers import Trainer
 
 
 class Model(nn.Module):
@@ -52,7 +53,20 @@ class Test(unittest.TestCase):
         folder_name = "test_dir"
         os.makedirs(folder_name, exist_ok=True)
         callback_to_test = ModelCheckpointCallback(model_saving_dir=folder_name,
-                                                   metadata_info={'dataset_name': 'fake_dataset_name'})
+                                                   metadata_info=MetadataInfo(
+                                                       pretext_training_info=None,
+                                                       downstream_training_info=TrainingInfo(
+                                                           dataset_name="fake",
+                                                           train_indices=[],
+                                                           validation_indices=[],
+                                                           test_indices=[],
+                                                           optimiser_name="opt",
+                                                           optimiser_parameters={},
+                                                           batch_size=42,
+                                                           early_stop=None,
+                                                           trained_epochs=None),
+                                                       )
+                                                   )
         model = Model()
         optimiser = optim.RMSprop(params=model.parameters(), lr=0.1, alpha=0.3, weight_decay=0.001)
         trainer = Trainer(model,
@@ -71,7 +85,6 @@ class Test(unittest.TestCase):
 
         expected_keys = ['fc.1.weight', 'fc.1.bias']
         for k in expected_keys:
-            # pylint: disable=unsubscriptable-object
             self.assertEqual(model.state_dict()[k].numpy().tolist(),
                              restored_model.state_dict()[k].numpy().tolist())
         self.assertEqual(repr(model._modules), repr(restored_model._modules))
