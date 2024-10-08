@@ -64,7 +64,7 @@ class Test(unittest.TestCase):
                                                            optimiser_parameters={},
                                                            batch_size=42,
                                                            early_stop=None,
-                                                           trained_epochs=None),
+                                                           trained_epochs=0),
                                                        )
                                                    )
         model = Model()

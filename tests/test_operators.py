@@ -79,7 +79,7 @@ class Test(unittest.TestCase):
         random.seed(0)
         self.mutation_config.add_layer = 1.0
         ind, grammar = self.create_individual()
-        new_ind = mutation.mutate(deepcopy(ind), grammar, self.mutation_config, 60)
+        new_ind = mutation.mutate(deepcopy(ind), grammar, 0, self.mutation_config, 60)
         self.mutation_config.add_layer = 0.0
         obtained_layers = new_ind.individual_genotype.modules_dict['features'].layers
         original_layers = ind.individual_genotype.modules_dict['features'].layers
@@ -102,7 +102,7 @@ class Test(unittest.TestCase):
         self.mutation_config.reuse_layer = 1.0
 
         ind, grammar = self.create_individual()
-        new_ind = mutation.mutate(ind, grammar, self.mutation_config, 60)
+        new_ind = mutation.mutate(ind, grammar, 0, self.mutation_config, 60)
 
         self.mutation_config.add_layer = 0.0
         self.mutation_config.reuse_layer = 0.0
@@ -129,7 +129,7 @@ class Test(unittest.TestCase):
         self.mutation_config.remove_layer = 1.0
         ind, grammar = self.create_individual()
         connections = ind.individual_genotype.modules_dict['features'].connections
-        new_ind = mutation.mutate(deepcopy(ind), grammar, self.mutation_config, 60)
+        new_ind = mutation.mutate(deepcopy(ind), grammar, 0, self.mutation_config, 60)
         self.mutation_config.remove_layer = 0.0
         obtained_layers = new_ind.individual_genotype.modules_dict['features'].layers
         original_layers = ind.individual_genotype.modules_dict['features'].layers
@@ -153,10 +153,9 @@ class Test(unittest.TestCase):
         grammar = Grammar("tests/resources/simple_grammar.grammar")
         sample_to_mutate = deepcopy(simple_sample1)
         expected_sample = deepcopy(simple_sample1)
-        expected_sample.expansions[NonTerminal(name='value')][0] = [NonTerminal(name='num')]
-        expected_sample.codons[NonTerminal(name='value')][0] = 0
-        mutation._mutation_dsge(sample_to_mutate, grammar, 1.0,
-                                {'individual': 0, 'module': 'features', 'layer': 0})
+        expected_sample.expansions[NonTerminal(name='value')][1] = [NonTerminal(name='var')]
+        expected_sample.codons[NonTerminal(name='value')][1] = 1
+        mutation._mutation_dsge(sample_to_mutate, grammar)
 
         self.assertEqual(sample_to_mutate, expected_sample)
 
