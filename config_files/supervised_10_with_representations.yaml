@@ -1,4 +1,4 @@
-checkpoints_path: ../../results/experiment_supervised_10
+checkpoints_path: ../../results/experiment_supervised100_with_representation
 
 evolutionary:
   generations: 75
@@ -22,14 +22,6 @@ network:
     reuse_layer: 0.2
     output: softmax
     modules:
-      - name: features
-        network_structure_init:
-          min_expansions: 3
-          max_expansions: 6
-        network_structure:
-          min_expansions: 3
-          max_expansions: 30
-        levels_back: 1
       - name: classification
         network_structure_init:
           min_expansions: 1
