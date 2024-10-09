@@ -5,7 +5,7 @@ import json
 import logging
 import os
 from time import time
-from typing import TYPE_CHECKING
+from typing import Any, Dict, TYPE_CHECKING
 
 import torch
 
@@ -82,6 +82,50 @@ class ModelCheckpointCallback(Callback):
 
     def on_epoch_end(self, trainer: Trainer) -> None:
         pass
+
+    def _build_structured_metadata_json(self,
+                                        metadata_info: Dict[str, Any],
+                                        trained_epochs: int) -> Dict[str, Any]:
+        return {
+            'dataset': {
+                'name': metadata_info['dataset_name'],
+                'pretext': {
+                    'train': metadata_info.get("pretext_train"),
+                    'validation': metadata_info.get("pretext_validation"),
+                    'test': metadata_info.get("pretext_test"),
+                },
+                'downstream':
+                {
+                    'train': metadata_info.get("downstream_train"),
+                    'validation': metadata_info.get("downstream_validation"),
+                    'test': metadata_info.get("downstream_test")
+                }
+            },
+            'learning': {
+                'pretext': {
+                    'algorithm': {
+                        'name': metadata_info.get("pretext_algorithm"),
+                        'params': metadata_info.get("pretext_algorithm_params")
+                    },
+                    'optimiser': {
+                        'name': metadata_info.get("pretext_optimiser"),
+                        'params': metadata_info.get("pretext_optimiser_params")
+                    },
+                    'batch_size': metadata_info.get("pretext_batch_size")
+                },
+                'downstream':
+                {
+                    'optimiser': {
+                        'name': metadata_info.get("downstream_optimiser"),
+                        'params': metadata_info.get("downstream_optimiser_params")
+                    },
+                    'batch_size':  metadata_info.get("downstream_batch_size")
+                }
+            },
+            'trained_pretext_epochs': metadata_info.get("trained_pretext_epochs", trained_epochs),
+            'trained_downstream_epochs': trained_epochs if "trained_pretext_epochs" in metadata_info.keys() else None
+        }
+
 
 
 class TimedStoppingCallback(Callback):

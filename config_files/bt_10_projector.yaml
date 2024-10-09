@@ -1,4 +1,4 @@
-checkpoints_path: ../../results/dryrun_bt_10_projector
+checkpoints_path: ../../results/experiment_bt_10_projector
 
 evolutionary:
   generations: 100
