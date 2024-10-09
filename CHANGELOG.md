@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 4.0.0 (2024-10-09)
+
+Features:
+
+- Each individual tracks the mutations that it got from the very beginning until present point
+- In case of evolution with SSL learning, projector networks can either be statically defined or evolved
+- lambda parameter from BarlowTwins is now being evolved as well rather than statically defined
+- Downstream parameters can now be fully defined from configuration (not just the number of epochs, but optimiser details too)
+- Control over each data subset can be done with more granularity in the config. The size of each subset can be defined by ratios or absolute numbers
+- User can now define if a data subset needs to be static regardless of the seed/run, or if the data subset depends on the seed/run that is passed via CLI
+- Configuration parameters can be overriden via CLI using `--override`
+- Evolution using supervised learning allows for partial evolution. One can do so by loading representation model as an input to an evolved network. Representation weights can be either frozen or finetuned
+
+Bug Fixes:
+
+- Logging is now working more appropriately by redirecting to both stdin and a log file. It works at the INFO level for stdin, and at DEBUG level for a file
+- Fixed bug where config option to freeze or finetune representations was not really working
+- In experiments with limited labeled data, we ensure that the run only uses that limited data and nothing more. Previously, evo_test subset was not being included in the percentage of labeled data defined by the user
+
+Other improvements:
+
+- Configuration parameters are now defined and handled with [Pydantic](https://docs.pydantic.dev/)
+- Barlow Twins Loss decoupled from the BarlowTwinsNetwork class to allow the inclusion of different loss functions in the future
+
+
 ## 3.1.0 (2024-01-12)
 
 Features:
@@ -9,7 +34,7 @@ Features:
 
 Bug Fixes:
 
-- Removed model processing checkppoint as it producing incorrect results
+- Removed model processing checkppoint as it was producing incorrect results
 
 ## 3.0.2 (2023-12-10)
 
