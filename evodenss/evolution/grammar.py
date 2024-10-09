@@ -5,12 +5,17 @@ import os
 from random import randint, uniform
 import shutil
 import sys
-from typing import Callable, Dict, Generic, List, NewType, Optional, TypeVar
+from typing import Callable, Generic, NewType, Protocol, Optional, TypeVar
 
+from evodenss.evolution.genotype import Genotype
 from evodenss.misc.enums import AttributeType
 
 
-T = TypeVar('T')
+class Comparable(Protocol):
+    def __le__(self: 'T', other: 'T') -> bool: ...
+    def __ge__(self: 'T', other: 'T') -> bool: ...
+
+T = TypeVar('T', bound=Comparable)
 K = TypeVar('K')
 
 
@@ -21,17 +26,23 @@ class Attribute(Generic[T]):
                  num_values: int,
                  min_value: T,
                  max_value: T,
-                 generator: Callable[[int,T,T], List[T]]) -> None:
+                 generator: Callable[[int,T,T], list[T]]) -> None:
         self.var_type = var_type
         self.num_values: int = num_values
         self.min_value: T = min_value
         self.max_value: T = max_value
-        self.generator: Callable[[int,T,T], List[T]] = generator
-        self.values: Optional[List[T]] = None
+        self.generator: Callable[[int,T,T], list[T]] = generator
+        self.values: Optional[list[T]] = None
 
     def generate(self) -> None:
         self.values = self.generator(self.num_values, self.min_value, self.max_value)
         assert self.values is not None
+
+    def override_value(self, values_to_override: list[T]) -> None:
+        self.values = values_to_override
+        for v in values_to_override:
+            assert v >= self.min_value, f"error overriding value for attribute. {v} < {self.min_value}"
+            assert v <= self.max_value, f"error overriding value for attribute. {v} > {self.max_value}"
 
     def __repr__(self) -> str:
         return f"Attribute(num_values={self.num_values}," + \
@@ -113,7 +124,7 @@ class Symbol:
     def __hash__(self) -> int:
         return hash(repr(self))
 
-Derivation = NewType('Derivation', List[Symbol])
+Derivation = NewType('Derivation', list[Symbol])
 
 
 class NonTerminal(Symbol):
@@ -140,54 +151,6 @@ class Terminal(Symbol):
         return False
 
 
-@dataclass
-class Genotype:
-    expansions: Dict[NonTerminal, List[Derivation]]
-    codons: Dict[Symbol, List[int]]
-
-    @classmethod
-    def empty(cls) -> 'Genotype':
-        return cls({}, {})
-
-    def _concatenate_to_dict(self,
-                             dict: Dict[K, List[T]], # pylint: disable=redefined-builtin
-                             key: K,
-                             element: T,
-                             mode: str='append') -> Dict[K, List[T]]:
-        if key not in dict.keys():
-            dict[key] = [element]
-        else:
-            if mode == 'append':
-                dict[key] = dict[key] + [element]
-            elif mode == 'prepend':
-                dict[key] = [element] + dict[key]
-            else:
-                raise ValueError(f"Unrecognised value: [{mode}]. Only 'append' and 'prepend are accepted")
-        return dict
-
-    def add_to_genome(self, non_terminal: NonTerminal, codon: int, derivation: Derivation, mode: str) -> None:
-        self.codons = self._concatenate_to_dict(self.codons, non_terminal, codon, mode)
-        self.expansions = self._concatenate_to_dict(self.expansions, non_terminal, derivation, mode)
-
-    def __iadd__(self, other: 'Genotype') -> 'Genotype':
-        for k in other.expansions.keys():
-            if k not in self.expansions.keys():
-                self.expansions[k] = other.expansions[k]
-            else:
-                self.expansions[k] += other.expansions[k]
-        for i in other.codons.keys():
-            if i not in self.codons.keys():
-                self.codons[i] = other.codons[i]
-            else:
-                self.codons[i] += other.codons[i]
-        return self
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Genotype):
-            return self.__dict__ == other.__dict__
-        return False
-
-
 class Grammar:
 
     def __init__(self, path: str, backup_path: Optional[str]=None):
@@ -205,20 +168,19 @@ class Grammar:
                              "with a different grammar than the one you used initially. "
                              "This is a gentle reminder to double-check the grammar you "
                              "have just passed as parameter.")
-        # pylint: disable=protected-access
         if not shutil._samefile(origin_filepath, destination_filepath): # type: ignore
             shutil.copyfile(origin_filepath, destination_filepath)
 
 
-    def get_grammar(self, path: str) -> Dict[NonTerminal, List[Derivation]]:
-        raw_grammar: Optional[List[str]] = self.read_grammar(path)
+    def get_grammar(self, path: str) -> dict[NonTerminal, list[Derivation]]:
+        raw_grammar: Optional[list[str]] = self.read_grammar(path)
         if raw_grammar is None:
             print('Grammar file does not exist.')
             sys.exit(-1)
         return self.parse_grammar(raw_grammar)
 
 
-    def read_grammar(self, path: str) -> Optional[List[str]]:
+    def read_grammar(self, path: str) -> Optional[list[str]]:
         try:
             with open(path, 'r') as f_in:
                 raw_grammar = f_in.readlines()
@@ -227,14 +189,14 @@ class Grammar:
             return None
 
 
-    def parse_grammar(self, raw_grammar: List[str]) -> Dict[NonTerminal, List[Derivation]]:
+    def parse_grammar(self, raw_grammar: list[str]) -> dict[NonTerminal, list[Derivation]]:
         grammar = {}
         for rule in raw_grammar:
             non_terminal_name, raw_rule_expansions = rule.rstrip('\n').split('::=')
             nt_symbol: Symbol = Symbol.create_symbol(non_terminal_name)
             assert isinstance(nt_symbol, NonTerminal)
 
-            rule_expansions: List[Derivation] = []
+            rule_expansions: list[Derivation] = []
             for production_rule in raw_rule_expansions.split('|'):
                 rule_expansions.append(Derivation(
                     [Symbol.create_symbol(symbol_name)
@@ -247,9 +209,9 @@ class Grammar:
     def __str__(self) -> str:
         print_str = ''
         for _key_ in sorted(self.grammar):
-            production_list: List[str] = []
+            production_list: list[str] = []
             for production in self.grammar[_key_]:
-                symbols: List[str] = [str(symbol) for symbol in production]
+                symbols: list[str] = [str(symbol) for symbol in production]
                 production_list.append(" ".join(symbols))
             print_str += f"{str(_key_)} ::= {' | '.join(production_list)}\n"
         return print_str
@@ -283,7 +245,7 @@ class Grammar:
                start_symbol_name: str,
                genotype: Genotype) -> str:
         start_symbol: NonTerminal = NonTerminal(start_symbol_name)
-        phenotype_tokens: List[str]
+        phenotype_tokens: list[str]
         unconsumed_genotype: Genotype = deepcopy(genotype)
         extra_genotype: Genotype = Genotype.empty() # to keep track of any extra codons/expansions that were used
         phenotype_tokens = self.decode_recursive(start_symbol, unconsumed_genotype, extra_genotype)
@@ -319,8 +281,8 @@ class Grammar:
     def decode_recursive(self,
                          symbol: Symbol,
                          unconsumed_geno: Genotype,
-                         extra_genotype: Genotype) -> List[str]:
-        phenotype: List[str] = []
+                         extra_genotype: Genotype) -> list[str]:
+        phenotype: list[str] = []
         #print(f"-- symbol: {symbol} == unconsumed_geno: {unconsumed_geno}")
         #print(f"-- symbol: {symbol} == extra_genotype: {extra_genotype}")
         if isinstance(symbol, NonTerminal):

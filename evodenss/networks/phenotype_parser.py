@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import reduce
 from itertools import takewhile, dropwhile
-from typing import cast, Any, Dict, List, Optional, Set, Tuple
+from typing import cast, Any, Optional, Set
 
 from evodenss.misc.enums import Entity, LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import InputLayerId, LayerId
@@ -11,12 +11,12 @@ class Layer:
     def __init__(self,
                  layer_id: LayerId,
                  layer_type: LayerType,
-                 layer_parameters: Dict[str, str]) -> None:
+                 layer_parameters: dict[str, str]) -> None:
         self.layer_id: LayerId = layer_id
         self.layer_type: LayerType = layer_type
-        self.layer_parameters: Dict[str, Any] = dict(self._convert(k, v) for k,v in layer_parameters.items())
+        self.layer_parameters: dict[str, Any] = dict(self._convert(k, v) for k,v in layer_parameters.items())
 
-    def _convert(self, key: str, value: str) -> Tuple[str, Any]:
+    def _convert(self, key: str, value: str) -> tuple[str, Any]:
         if key == "bias":
             return key, value.title() == "True"
         elif key in ["rate"]:
@@ -42,11 +42,14 @@ class Layer:
     def __str__(self) -> str:
         return f"Layer [{self.layer_type}] with id [{self.layer_id}] and params: {self.layer_parameters}"
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 @dataclass
 class ParsedNetwork:
-    layers: List[Layer]
-    layers_connections: Dict[LayerId, List[InputLayerId]]
+    layers: list[Layer]
+    layers_connections: dict[LayerId, list[InputLayerId]]
 
     # It gets the layer id that corresponds to the final/output layer
     def get_output_layer_id(self) -> LayerId:
@@ -58,15 +61,18 @@ class ParsedNetwork:
         result: Set[int] = keyset.difference(values_set)
         assert len(result) == 1
         return LayerId(list(result)[0])
+    
+    def is_empty(self) -> bool:
+        return not self.layers and not self.layers_connections
 
 
 class Optimiser:
 
     def __init__(self,
                  optimiser_type: OptimiserType,
-                 optimiser_parameters: Dict[str, str]) -> None:
+                 optimiser_parameters: dict[str, str]) -> None:
         self.optimiser_type: OptimiserType = optimiser_type
-        self.optimiser_parameters: Dict[str, Any] = {
+        self.optimiser_parameters: dict[str, Any] = {
             k: self._convert(k, v) for k,v in optimiser_parameters.items()
         }
 
@@ -90,9 +96,9 @@ class Pretext:
 
     def __init__(self,
                  pretext_type: PretextType,
-                 pretext_parameters: Dict[str, str]) -> None:
+                 pretext_parameters: dict[str, str]) -> None:
         self.pretext_type: PretextType = pretext_type
-        self.pretext_parameters: Dict[str, Any] = {
+        self.pretext_parameters: dict[str, Any] = {
             k: self._convert(k, v) for k,v in pretext_parameters.items()
         }
 
@@ -107,29 +113,29 @@ class Pretext:
             return self.__dict__ == other.__dict__
         return False
 
-def parse_phenotype(phenotype: str) -> Tuple[ParsedNetwork,ParsedNetwork, Optimiser, Optional[Pretext]]:
-    phenotype_as_list: List[List[str]] = \
+def parse_phenotype(phenotype: str) -> tuple[ParsedNetwork, ParsedNetwork, Optimiser, Optional[Pretext]]:
+    phenotype_as_list: list[list[str]] = \
         list(map(lambda x: x.split(":"), phenotype.split(" ")))
 
     optimiser: Optimiser
     pretext_task: Optional[Pretext] = None
-    layers: List[Layer] = []
-    layers_connections: Dict[LayerId, List[InputLayerId]] = {}
-    projector_layers: List[Layer] = []
-    projector_layers_connections: Dict[LayerId, List[InputLayerId]] = {}
+    layers: list[Layer] = []
+    layers_connections: dict[LayerId, list[InputLayerId]] = {}
+    projector_layers: list[Layer] = []
+    projector_layers_connections: dict[LayerId, list[InputLayerId]] = {}
     layer_id: int = 0
     projector_layer_id: int = 0
     while phenotype_as_list:
         entity: Entity = Entity(phenotype_as_list[0][0])
         name: str = phenotype_as_list[0][1]
-        entity_parameters: Dict[str, str] = {
+        entity_parameters: dict[str, str] = {
             kv[0]: kv[1]
             for kv in takewhile(lambda kv: kv[0] not in Entity.enum_values(),
                                 phenotype_as_list[1:])
         }
         phenotype_as_list = list(dropwhile(lambda kv: kv[0] not in Entity.enum_values(),
                                            phenotype_as_list[1:]))
-        input_info: List[InputLayerId]
+        input_info: list[InputLayerId]
         if entity == Entity.LAYER:
             input_info = \
                 list(map(lambda x: InputLayerId(int(x)), entity_parameters.pop("input").split(",")))

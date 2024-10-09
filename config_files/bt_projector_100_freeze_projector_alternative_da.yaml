@@ -1,4 +1,4 @@
-checkpoints_path: ../../results/experiment_bt_10_projector
+checkpoints_path: ../../results/bt_projector_100_freeze_projector_alternative_da
 
 evolutionary:
   generations: 100
@@ -27,9 +27,8 @@ evolutionary:
         beta2: 0.999
 
 network:
-
   architecture:
-    reuse_layer: 0.2
+    reuse_layer: 0.15
     output: identity
     modules:
       - name: features
@@ -50,14 +49,13 @@ network:
         levels_back: 1
     extra_components:
       - learning
-      - pretext
-    
+      - pretext 
   learning:
     data_splits:
       labelled:
-        percentage: 10 # downstream_train + validation + evo_test = percentage
+        percentage: 100 # downstream_train + validation + evo_test = percentage
         downstream_train:
-          partition_ratio: 0.08
+          partition_ratio: 0.8
           amount_to_use: 1.0
           replacement: false
         validation:
@@ -65,7 +63,7 @@ network:
           amount_to_use: 1.0
           replacement: false
         evo_test:
-          partition_ratio: 0.02
+          partition_ratio: 0.2
           amount_to_use: 1.0
           replacement: false
       unlabelled:
@@ -78,6 +76,9 @@ network:
     augmentation:
       pretext:
         input_a:
+          random_crop:
+            size: 32
+            padding: 4
           random_resized_crop:
             size: 32
           random_horizontal_flip:

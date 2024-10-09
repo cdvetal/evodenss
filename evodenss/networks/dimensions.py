@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import ceil, floor
-from typing import Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from evodenss.misc.enums import LayerType
 
 
 if TYPE_CHECKING:
-    from evodenss.misc.phenotype_parser import Layer
+    from evodenss.networks.phenotype_parser import Layer
 
 
 @dataclass
@@ -51,7 +51,7 @@ class Dimensions:
             if layer.layer_parameters['padding'] == "valid":
                 padding_w = padding_h = 0
             elif layer.layer_parameters['padding'] == "same":
-                paddings: Tuple[int, int, int, int] = \
+                paddings: tuple[int, int, int, int] = \
                     input_dimensions.compute_adjusting_padding(layer.layer_parameters['kernel_size'],
                                                                layer.layer_parameters['stride'])
                 padding_w = paddings[2] + paddings[3]
@@ -78,7 +78,7 @@ class Dimensions:
 
     def compute_adjusting_padding(self,
                                   kernel_size: int,
-                                  stride: int) -> Tuple[int, int, int, int]:
+                                  stride: int) -> tuple[int, int, int, int]:
         padding_w: float = (self.width - (self.width - kernel_size + 1) / stride) / 2
         padding_h: float = (self.height - (self.height - kernel_size + 1) / stride) / 2
         padding_left: int = ceil(padding_w)

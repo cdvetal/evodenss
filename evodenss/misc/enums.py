@@ -1,7 +1,8 @@
 from enum import unique, Enum
-from typing import Any, List
+from typing import Any
 
 import torch
+
 
 @unique
 class AttributeType(Enum):
@@ -10,10 +11,12 @@ class AttributeType(Enum):
     INT_POWER2_INV = "inv_power2"
     FLOAT = "float"
 
+
 class ExtendedEnum(Enum):
     @classmethod
-    def enum_values(cls) -> List[Any]:
+    def enum_values(cls) -> list[Any]:
         return list(map(lambda c: c.value, cls)) # type: ignore
+
 
 @unique
 class Entity(ExtendedEnum):
@@ -22,10 +25,12 @@ class Entity(ExtendedEnum):
     PROJECTOR_LAYER = "projector_layer"
     PRETEXT_TASK = "pretext"
 
+
 @unique
 class Device(Enum):
     CPU = "cpu"
     GPU = "mps" if torch.backends.mps.is_available() else "cuda:0"
+
 
 @unique
 class LayerType(ExtendedEnum):
@@ -39,6 +44,7 @@ class LayerType(ExtendedEnum):
     IDENTITY = "identity"
     RELU_AGG = "relu_agg"
 
+
 @unique
 class OptimiserType(str, Enum):
     RMSPROP = "rmsprop"
@@ -46,9 +52,11 @@ class OptimiserType(str, Enum):
     ADAM = "adam"
     LARS = "lars"
 
+
 @unique
 class PretextType(Enum):
     BT = "bt"
+
 
 @unique
 class ActivationType(Enum):
@@ -56,6 +64,7 @@ class ActivationType(Enum):
     RELU = "relu"
     SIGMOID = "sigmoid"
     SOFTMAX = "softmax"
+
 
 @unique
 class TransformOperation(ExtendedEnum):
@@ -71,8 +80,38 @@ class TransformOperation(ExtendedEnum):
     CENTER_CROP = "center_crop"
     RESIZE = "resize"
 
+
+class MutationType(ExtendedEnum):
+    TRAIN_LONGER = "train_longer"
+    ADD_LAYER = "add_layer"
+    REUSE_LAYER = "add_layer"
+    REMOVE_LAYER = "remove_layer"
+    DSGE_TOPOLOGICAL = "dsge_topological"
+    ADD_CONNECTION = "add_connection"
+    REMOVE_CONNECTION = "remove_connection"
+    DSGE_NON_TOPOLOGICAL = "dsge_non_topological"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @unique
 class FitnessMetricName(ExtendedEnum):
-    LOSS = "loss"
+    KNN_ACCURACY = "knn_accuracy"
+    DOWNSTREAM_ACCURACY = "downstream_accuracy"
     ACCURACY = "accuracy"
-    COSINE_SIM = "cosine_similarity"
+
+
+class Goal(Enum):
+    maximise = "maximise"
+    minimise = "minimise"
+
+
+class DownstreamMode(Enum):
+    freeze = "freeze"
+    finetune = "finetune"
+
+
+class LearningType(Enum):
+    supervised = "supervised"
+    self_supervised = "self-supervised"

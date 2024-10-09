@@ -1,126 +1,171 @@
 from copy import deepcopy
 import logging
 import random
-from typing import List
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
-from evodenss.config import Config
-from evodenss.evolution import Grammar, Individual, operators
-from evodenss.misc import Checkpoint, persistence
-from evodenss.misc.fitness_metrics import Fitness
+from evodenss.config.pydantic import get_config, get_fitness_extra_params
+from evodenss.evolution.operators import mutation, selection
+from evodenss.evolution.grammar import Grammar
+from evodenss.evolution.individual import Individual
+from evodenss.misc import persistence
+from evodenss.misc.checkpoint import Checkpoint
+from evodenss.misc.enums import DownstreamMode, FitnessMetricName, OptimiserType
+
+if TYPE_CHECKING:
+    from evodenss.metrics.fitness_metrics import Fitness
+    from evodenss.dataset.dataset_loader import DatasetType
+    from torch.utils.data import Subset
 
 logger = logging.getLogger(__name__)
 
 @persistence.SaveCheckpoint
 def evolve(run: int,
-           grammar: Grammar,
            generation: int,
-           checkpoint: Checkpoint,
-           config: Config) -> Checkpoint:
+           dataset: dict['DatasetType', 'Subset'],
+           grammar: Grammar,
+           checkpoint: Checkpoint) -> Checkpoint:
 
     logger.info(f"Performing generation: {generation}")
+    population: list[Individual]
+    population_fits: list[Fitness] = []
 
-    population: List[Individual]
-    population_fits: List[Fitness]
+    lambda_: int = get_config().evolutionary.lambda_
+
     if generation == 0:
         logger.info("Creating the initial population")
 
         #create initial population
         population = [
-            Individual(config['network']['architecture'], _id_, seed=run) \
-                .initialise(grammar,
-                            config['network']['architecture']['reuse_layer'])
-            for _id_ in range(config['evolutionary']['lambda'])
+            Individual(grammar,
+                       get_config().network.architecture,
+                       _id_,
+                       True)
+            for _id_ in range(lambda_)
         ]
 
         #set initial population variables and evaluate population
-        population_fits = []
         for idx, ind in enumerate(population):
-            ind.current_time = 0
-            ind.num_epochs = 0
-            ind.total_training_time_spent = 0.0
-            ind.total_allocated_train_time = config['network']['learning']['default_train_time']
             ind.id = idx
+            ind.total_allocated_train_time = get_config().network.learning.default_train_time
+            ind.reset_keys('current_time', 'num_epochs', 'total_training_time_spent')
             population_fits.append(
-                ind.evaluate(grammar,
-                             checkpoint.evaluator,
-                             config['network']['learning']['projector'],
-                             persistence.build_individual_path(config['checkpoints_path'], run, generation, idx))
+                ind.evaluate(
+                    grammar,
+                    dataset,
+                    checkpoint.evaluator,
+                    get_config().network.architecture.projector,
+                    persistence.build_individual_path(get_config().checkpoints_path, run, generation, idx)
+                )
             )
-
     else:
         assert checkpoint.parent is not None
 
         logger.info("Applying mutation operators")
 
-        lambd: int = config['evolutionary']['lambda']
         # generate offspring (by mutation)
-        offspring_before_mutation: List[Individual] = [deepcopy(checkpoint.parent) for _ in range(lambd)]
+        offspring_before_mutation: list[Individual] = [deepcopy(checkpoint.parent) for _ in range(lambda_)]
         for idx in range(len(offspring_before_mutation)):
-            offspring_before_mutation[idx].total_training_time_spent = 0.0
+            offspring_before_mutation[idx].reset_keys('total_training_time_spent')
             offspring_before_mutation[idx].id = idx + 1
-        offspring: List[Individual] = \
-            [operators.mutation(ind,
-                                grammar,
-                                config['evolutionary']['mutation'],
-                                config['network']['learning']['default_train_time'])
+        offspring: list[Individual] = \
+            [mutation.mutate(ind,
+                             grammar,
+                             generation,
+                             get_config().evolutionary.mutation,
+                             get_config().network.learning.default_train_time)
              for ind in offspring_before_mutation]
 
         assert checkpoint.parent is not None
         population = [deepcopy(checkpoint.parent)] + offspring
 
         # set elite variables to re-evaluation
-        population[0].current_time = 0
-        population[0].num_epochs = 0
-        population[0].id = 0
-        population[0].metrics = None
-
+        population[0].reset_keys('id', 'current_time', 'num_epochs', 'metrics')
 
         # evaluate population
-        population_fits = []
         for idx, ind in enumerate(population):
             population_fits.append(
                 ind.evaluate(
                     grammar,
+                    dataset,
                     checkpoint.evaluator,
-                    config['network']['learning']['projector'],
-                    persistence.build_individual_path(config['checkpoints_path'], run, generation, idx),
-                    persistence.build_individual_path(config['checkpoints_path'],
+                    get_config().network.architecture.projector,
+                    persistence.build_individual_path(get_config().checkpoints_path, run, generation, idx),
+                    persistence.build_individual_path(get_config().checkpoints_path,
                                                       run,
                                                       generation-1,
-                                                      checkpoint.parent.id),
+                                                      checkpoint.parent.id)
                 )
             )
+        
 
     logger.info("Selecting the fittest individual")
+    selection_method: str = 'fittest'
+    #selection_method_params: Optional[dict] = None
     # select parent
-    parent = operators.select_fittest(
-                population,
-                population_fits,
-                grammar,
-                checkpoint.evaluator,
-                config['network']['learning']['projector'],
-                run,
-                generation,
-                config['checkpoints_path'],
-                config['network']['learning']["default_train_time"])
+    parent: Individual = selection.select_fittest(
+        selection_method,
+        population,
+        grammar,
+        dataset,
+        checkpoint.evaluator,
+        get_config().network.architecture.projector,
+        run,
+        generation,
+        get_config().checkpoints_path,
+        get_config().network.learning.default_train_time
+    )
     assert parent.fitness is not None
 
     logger.info(f"Fitnesses: {population_fits}")
 
     # update best individual
-    best_individual_path: str = persistence.build_individual_path(config['checkpoints_path'],
+    best_individual_path: str = persistence.build_individual_path(get_config().checkpoints_path,
                                                                   run,
                                                                   generation,
                                                                   parent.id)
     if checkpoint.best_fitness is None or parent.fitness > checkpoint.best_fitness:
         checkpoint.best_fitness = parent.fitness
         persistence.save_overall_best_individual(best_individual_path, parent)
-    best_test_acc: float = checkpoint.evaluator.testing_performance(best_individual_path)
+    fitness_metric_name: FitnessMetricName = get_config().evolutionary.fitness.metric_name
+    best_test_acc: float
+    if fitness_metric_name == FitnessMetricName.KNN_ACCURACY:
+        best_test_acc = \
+            checkpoint.evaluator.testing_performance(
+                dataset=dataset,
+                model_dir=best_individual_path,
+                fitness_metric_name=FitnessMetricName.KNN_ACCURACY,
+                dataset_name=checkpoint.evaluator.dataset_name,
+                **get_fitness_extra_params())
+        best_test_acc_linear: float = \
+            checkpoint.evaluator.testing_performance(
+                dataset=dataset,
+                model_dir=best_individual_path,
+                fitness_metric_name=FitnessMetricName.DOWNSTREAM_ACCURACY,
+                dataset_name=checkpoint.evaluator.dataset_name,
+                batch_size=2048,
+                downstream_mode=DownstreamMode.finetune,
+                downstream_epochs=50,
+                optimiser_type=OptimiserType.ADAM,
+                optimiser_parameters={'lr': 0.001, 'weight_decay': 0.000001, 'beta1': 0.9, 'beta2': 0.999},
+                **get_fitness_extra_params()
+                )
+        logger.info(f"Generation best test accuracy (KNN): {best_test_acc}")
+        logger.info(f"Generation best test accuracy (Linear): {best_test_acc_linear}")
+    else:
+        best_test_acc = \
+            checkpoint.evaluator.testing_performance(
+                dataset,
+                best_individual_path,
+                fitness_metric_name,
+                model_saving_dir=persistence.build_individual_path(
+                    get_config().checkpoints_path, run, generation, idx
+                ),
+                **get_fitness_extra_params())
 
-    logger.info(f"Generation best test accuracy: {best_test_acc}")
+        logger.info(f"Generation best test accuracy: {best_test_acc}")
 
     logger.info(f"Best fitness of generation {generation}: {max(population_fits)}")
     logger.info(f"Best overall fitness: {checkpoint.best_fitness}\n\n\n")

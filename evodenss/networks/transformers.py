@@ -4,13 +4,15 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 import logging
 import random
-from typing import Any, Dict, List, Tuple, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
-from PIL import Image, ImageOps, ImageFilter
+from PIL import Image, ImageFilter, ImageOps
+from PIL.Image import Image as ImageType # https://github.com/python-pillow/Pillow/issues/6676
 from torchvision.transforms import Compose, CenterCrop, ColorJitter, Normalize, RandomApply, \
     RandomCrop, RandomGrayscale, RandomHorizontalFlip, RandomResizedCrop, Resize, \
     ToTensor
 
+from evodenss.config.pydantic import PretextAugmentation
 from evodenss.misc.enums import TransformOperation
 
 if TYPE_CHECKING:
@@ -28,7 +30,7 @@ class GaussianBlur:
     def __init__(self, p: float) -> None:
         self.p: float = p
 
-    def __call__(self, img: Image) -> Image:
+    def __call__(self, img: ImageType) -> ImageType:
         if random.random() < self.p:
             sigma: float = random.random() * 1.9 + 0.1
             return img.filter(ImageFilter.GaussianBlur(sigma))
@@ -40,7 +42,7 @@ class Solarization:
     def __init__(self, p: float):
         self.p: float = p
 
-    def __call__(self, img: Image) -> Image:
+    def __call__(self, img: ImageType) -> ImageType:
         if random.random() < self.p:
             return ImageOps.solarize(img)
         else:
@@ -52,7 +54,7 @@ class BaseTransformer(ABC):
     def __init__(self) -> None:
         pass
 
-    def _get_transform_op(self, operation: TransformOperation, params: Dict[str, Any]) -> Any:
+    def _get_transform_op(self, operation: TransformOperation, params: dict[str, Any]) -> Any:
         final_params = deepcopy(params)
         if operation == TransformOperation.RANDOM_CROP:
             return RandomCrop(**final_params)
@@ -67,7 +69,7 @@ class BaseTransformer(ABC):
         elif operation == TransformOperation.RANDOM_RESIZED_CROP:
             if "scale" in final_params.keys():
                 final_params['scale'] = tuple(map(float, final_params['scale'][1:-1].split(',')))
-            return RandomResizedCrop(**final_params, interpolation=Image.BICUBIC)
+            return RandomResizedCrop(**final_params, interpolation=Image.Resampling.BICUBIC)
         elif operation == TransformOperation.RANDOM_GRAYSCALE:
             final_params['p'] = final_params.pop("probability")
             return RandomGrayscale(**final_params)
@@ -84,8 +86,8 @@ class BaseTransformer(ABC):
         else:
             raise ValueError(f"Cannot create transformation object from name {operation}")
 
-    def _create_compose_transform(self, transform_details: Dict[str, Any]) -> Compose:
-        augmentation_ops: List[nn.Module] = []
+    def _create_compose_transform(self, transform_details: dict[str, Any]) -> Compose:
+        augmentation_ops: list[nn.Module] = []
         operation: TransformOperation
         for name, params in transform_details.items():
             operation = TransformOperation(name)
@@ -100,17 +102,17 @@ class BaseTransformer(ABC):
         return Compose(augmentation_ops)
 
     @abstractmethod
-    def __call__(self, img: Image) -> Any:
+    def __call__(self, img: ImageType) -> Any:
         raise NotImplementedError("__call__ method should not be used by a BaseTransformer object")
 
 
 class LegacyTransformer(BaseTransformer):
 
-    def __init__(self, augmentation_params: Dict[str, Any]) -> None:
+    def __init__(self, augmentation_params: dict[str, Any]) -> None:
         super().__init__()
         self.transform: Compose = self._create_compose_transform(augmentation_params)
 
-    def __call__(self, img: Image) -> Any:
+    def __call__(self, img: ImageType) -> Any:
         if img.mode == 'RGBA':
             return self.transform(img.convert('RGB')) # random grayscale fails when an image has 4 channels
         return self.transform(img)
@@ -118,12 +120,12 @@ class LegacyTransformer(BaseTransformer):
 
 class BarlowTwinsTransformer(BaseTransformer):
 
-    def __init__(self, augmentation_params: Dict[str, Any]) -> None:
+    def __init__(self, augmentation_params: PretextAugmentation) -> None:
         super().__init__()
-        self.transform_a: Compose = self._create_compose_transform(augmentation_params['input_a'])
-        self.transform_b: Compose = self._create_compose_transform(augmentation_params['input_b'])
+        self.transform_a: Compose = self._create_compose_transform(augmentation_params.input_a)
+        self.transform_b: Compose = self._create_compose_transform(augmentation_params.input_b)
 
-    def __call__(self, img: Image) -> Tuple[Tensor, Tensor]:
+    def __call__(self, img: ImageType) -> tuple[Tensor, Tensor]:
         if img.mode == 'RGBA':
             img = img.convert('RGB') # random grayscale fails when an image has 4 channels
         aug_input_a = self.transform_a(img)

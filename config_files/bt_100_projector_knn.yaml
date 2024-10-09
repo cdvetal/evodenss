@@ -1,4 +1,4 @@
-checkpoints_path: ../../results/experiment_bt_10_projector
+checkpoints_path: ../../results/dry_run_bt_knn
 
 evolutionary:
   generations: 100
@@ -14,17 +14,10 @@ evolutionary:
     dsge_non_topological: 0.3
     train_longer: 0.03
   fitness:
-    metric_name: downstream_accuracy
+    metric_name: knn_accuracy
     parameters:
-      downstream_mode: freeze
-      downstream_epochs: 30
-      batch_size: 2048
-      optimiser_type: "adam"
-      optimiser_parameters:
-        lr: 0.001
-        weight_decay: 0.000001
-        beta1: 0.9
-        beta2: 0.999
+      k: 200
+      t: 0.1
 
 network:
 
@@ -55,9 +48,9 @@ network:
   learning:
     data_splits:
       labelled:
-        percentage: 10 # downstream_train + validation + evo_test = percentage
+        percentage: 100 # downstream_train + validation + evo_test = percentage
         downstream_train:
-          partition_ratio: 0.08
+          partition_ratio: 0.8
           amount_to_use: 1.0
           replacement: false
         validation:
@@ -65,7 +58,7 @@ network:
           amount_to_use: 1.0
           replacement: false
         evo_test:
-          partition_ratio: 0.02
+          partition_ratio: 0.2
           amount_to_use: 1.0
           replacement: false
       unlabelled:
@@ -78,6 +71,9 @@ network:
     augmentation:
       pretext:
         input_a:
+          random_crop:
+            size: 32
+            padding: 4
           random_resized_crop:
             size: 32
           random_horizontal_flip:

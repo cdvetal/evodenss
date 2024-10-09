@@ -1,22 +1,37 @@
+from dataclasses import dataclass
 import logging
 import time
 import traceback
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
+from evodenss.dataset.dataset_loader import DatasetType
 from evodenss.misc.enums import Device
 from evodenss.misc.utils import InvalidNetwork
-from evodenss.networks.torch.callbacks import Callback
-from evodenss.networks.torch.lars import LARS
+from evodenss.networks.phenotype_parser import Optimiser
+from evodenss.train.callbacks import Callback
+from evodenss.train.lars import LARS
+from evodenss.train.learning_parameters import LearningParams
 
 
 if TYPE_CHECKING:
     from torch.optim.lr_scheduler import LRScheduler
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TrainingInfo:
+    torch_model: nn.Module
+    optimiser: Optimiser
+    learning_params: LearningParams
+    loaders_dict: dict[DatasetType, DataLoader]
+    starting_epoch: int
+    n_trainable_parameters: int
+    n_layers: int
 
 
 class Trainer:
@@ -30,7 +45,8 @@ class Trainer:
                  n_epochs: int,
                  initial_epoch: int,
                  device: Device,
-                 callbacks: List[Callback]=[],
+                 callbacks: list[Callback]=[],
+                 representation_model: Optional[nn.Module]=None,
                  scheduler: Optional['LRScheduler']=None) -> None:
         self.model: nn.Module = model
         self.optimiser: optim.Optimizer = optimiser
@@ -40,11 +56,13 @@ class Trainer:
         self.n_epochs: int = n_epochs
         self.initial_epoch: int = initial_epoch
         self.device: Device = device
-        self.callbacks: List[Callback] = callbacks
+        self.callbacks: list[Callback] = callbacks
         self.stop_training: bool = False
         self.trained_epochs: int = 0
-        self.loss_values: Dict[str, List[float]] = {}
-        self.validation_loss: List[float] = []
+        self.loss_values: dict[str, list[float]] = {}
+        self.validation_loss: list[float] = []
+        self.representation_model: Optional[nn.Module] = representation_model
+
         self.scheduler: Optional['LRScheduler'] = scheduler
 
         # cuda stuff
@@ -71,7 +89,7 @@ class Trainer:
     def train(self) -> None:
         #assert self.validation_data_loader is not None
 
-        logging.info("Initiating supervised training")
+        logger.debug("Initiating supervised training")
         self.loss_values = { "train_loss": [], "val_loss": [] }
         try:
             epoch: int = self.initial_epoch
@@ -83,8 +101,9 @@ class Trainer:
             self._call_on_train_begin_callbacks()
 
             while epoch < self.n_epochs and self.stop_training is False:
+                logger.debug(f"Starting Downstream Epoch {epoch}")
                 self._call_on_epoch_begin_callbacks()
-                start = time.time() # pylint: disable=unused-variable
+                start = time.time() # noqa: F841
                 total_loss = torch.zeros(size=(1,), device=self.device.value)
                 for i, data in enumerate(self.train_data_loader, 0):
                     inputs, labels = data[0].to(self.device.value, non_blocking=True), \
@@ -93,14 +112,18 @@ class Trainer:
                         self.optimiser.adjust_learning_rate(n_batches_train, self.n_epochs, i)
                     # zero the parameter gradients
                     self.optimiser.zero_grad()
+                    if self.representation_model is not None:
+                        inputs = self.representation_model(inputs)
                     outputs = self.model(inputs)
                     loss = self.loss_function(outputs, labels)
                     total_loss += loss/n_batches_train
                     loss.backward()
                     self.optimiser.step()
-                end = time.time() # pylint: disable=unused-variable
+                end = time.time() # noqa: F841
                 #logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss}")
                 self.loss_values["train_loss"].append(round(float(total_loss.data), 3))
+                logger.debug(f"Loss: {round(float(total_loss.data), 3)}")
+                logger.debug("=============================================================")
 
                 if self.validation_data_loader is not None:
                     with torch.no_grad():
@@ -109,27 +132,27 @@ class Trainer:
                         for i, data in enumerate(self.validation_data_loader, 0):
                             inputs, labels = data[0].to(self.device.value, non_blocking=True), \
                                 data[1].to(self.device.value, non_blocking=True)
+                            if self.representation_model is not None:
+                                inputs = self.representation_model(inputs)
                             outputs = self.model(inputs)
                             total_loss += self.loss_function(outputs, labels)/n_batches_validation
                         self.loss_values["val_loss"].append(round(float(total_loss.data), 3))
                         self.validation_loss.append(float(total_loss.data)) # Used for early stopping criteria
                     self.model.train()
-                    end = time.time()
+                    end = time.time() # noqa: F841
                     #logger.info(f"[{round(end-start, 2)}s] VALIDATION epoch {epoch} -- loss: {total_loss}")
                 if self.scheduler is not None:
                     self.scheduler.step()
                 epoch += 1
-                #logger.info("=============================================================")
                 self._call_on_epoch_end_callbacks()
 
             self._call_on_train_end_callbacks()
             self.trained_epochs = epoch - self.initial_epoch
         except RuntimeError as e:
-            print(e)
-            print(traceback.format_exc())
+            logger.warning(traceback.format_exc())
             raise InvalidNetwork(str(e)) from e
 
-    def barlow_twins_train(self, batch_size: int) -> None:
+    def barlow_twins_train(self) -> None:
         assert self.validation_data_loader is None
         self.loss_values = {
             "train_loss_diagonal": [],
@@ -149,7 +172,7 @@ class Trainer:
             scaler = torch.cuda.amp.GradScaler()
             while epoch < self.n_epochs and self.stop_training is False:
                 self.model.train()
-                start = time.time() # pylint: disable=unused-variable
+                start = time.time() # noqa: F841
                 total_loss = 0
                 total_diagonal_loss = 0
                 total_offdiagonal_loss = 0
@@ -163,20 +186,23 @@ class Trainer:
                         self.optimiser.adjust_learning_rate(n_batches_train, self.n_epochs, step)
                     self.optimiser.zero_grad(set_to_none=True)
                     with torch.cuda.amp.autocast():
-                        all_loss_components = self.model.forward(inputs_a, inputs_b, batch_size)
-                        total_loss += all_loss_components[-1].item()
-                        total_diagonal_loss += all_loss_components[0].item()
-                        total_offdiagonal_loss += all_loss_components[1].item()
-
-                    scaler.scale(all_loss_components[-1]).backward()
+                        z_a = self.model.forward(inputs_a)
+                        z_b = self.model.forward(inputs_b)
+                        loss, diagonal_loss, off_diagonal_loss = self.loss_function(z_a, z_b)
+                        total_loss += loss.item()
+                        total_diagonal_loss += diagonal_loss.item()
+                        total_offdiagonal_loss += off_diagonal_loss.item()
+                    scaler.scale(loss).backward()
                     scaler.step(self.optimiser)
                     scaler.update()
 
-                end = time.time() # pylint: disable=unused-variable
+                end = time.time() # noqa: F841
                 #logger.info(f"[{round(end-start, 2)}s] TRAIN epoch {epoch} -- loss: {total_loss/n_batches_train}")
                 self.loss_values["train_loss_diagonal"].append(round(total_diagonal_loss/n_batches_train, 3))
                 self.loss_values["train_loss_offdiagonal"].append(round(total_offdiagonal_loss/n_batches_train, 3))
                 self.loss_values["train_loss_complete"].append(round(total_loss/n_batches_train, 3))
+                logger.debug(f"Epoch: {epoch} Loss: {round(total_loss/n_batches_train, 3)}")
+                logger.debug("----------------")
                 #self.model.eval()
                 #with torch.no_grad():
                 #    start = time.time()
@@ -207,6 +233,5 @@ class Trainer:
             self._call_on_train_end_callbacks()
             self.trained_epochs = epoch - self.initial_epoch
         except RuntimeError as e:
-            print(e)
-            print(traceback.format_exc())
+            logger.warning(traceback.format_exc())
             raise InvalidNetwork(str(e)) from e

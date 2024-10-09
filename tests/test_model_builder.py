@@ -1,26 +1,26 @@
-# type: ignore
 import logging
-from typing import Dict, List, OrderedDict
+from typing import OrderedDict
 import unittest
 
 import torch
-from torch import Tensor, nn, optim
+from torch import Size, Tensor, nn, optim
 
 import evodenss
 from evodenss.misc.enums import Device, LayerType, OptimiserType, PretextType
-from evodenss.misc.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext
-from evodenss.networks.torch import LearningParams
-from evodenss.networks.torch.evaluators import BarlowTwinsEvaluator, LegacyEvaluator
-from evodenss.networks.torch.model_builder import ModelBuilder
+from evodenss.misc.utils import InputLayerId, LayerId
+from evodenss.networks.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext
+from evodenss.train.learning_parameters import LearningParams
+from evodenss.networks.evaluators import BarlowTwinsEvaluator, LegacyEvaluator
+from evodenss.networks.model_builder import ModelBuilder
 
 
 class Test(unittest.TestCase):
 
     logging.setLogRecordFactory(evodenss.logger_record_factory(0))
-    logger = logging.getLogger(__name__)
+    logger: logging.Logger = logging.getLogger(__name__)
 
-    def test_assemble_optimiser_1(self):
-        fake_params: List[Tensor] = [torch.tensor([0.859, -0.0032])]
+    def test_assemble_optimiser_1(self) -> None:
+        fake_params: list[Tensor] = [torch.tensor([0.859, -0.0032], requires_grad=True)]
         optimiser: Optimiser = Optimiser(
             OptimiserType.ADAM,
             {"lr": "0.07889346277843777",
@@ -47,8 +47,8 @@ class Test(unittest.TestCase):
                          expected_learning_params)
 
 
-    def test_assemble_optimiser_2(self):
-        fake_params: List[Tensor] = [torch.tensor([0.859, -0.0032])]
+    def test_assemble_optimiser_2(self) -> None:
+        fake_params: list[Tensor] = [torch.tensor([0.859, -0.0032], requires_grad=True)]
         optimiser: Optimiser = Optimiser(
             OptimiserType.RMSPROP,
             {"lr": "0.09678321949252514",
@@ -74,8 +74,8 @@ class Test(unittest.TestCase):
                          expected_learning_params)
 
 
-    def test_assemble_optimiser_3(self):
-        fake_params: List[Tensor] = [torch.tensor([0.859, -0.0032])]
+    def test_assemble_optimiser_3(self) -> None:
+        fake_params: list[Tensor] = [torch.tensor([0.859, -0.0032], requires_grad=True)]
         optimiser: Optimiser = Optimiser(
             OptimiserType.GRADIENT_DESCENT,
             {"lr": "0.021251395366932026",
@@ -103,34 +103,41 @@ class Test(unittest.TestCase):
                          expected_learning_params)
 
 
-    def test_assemble_network_1(self):
-        layers: List[Layer] = [
-            Layer(layer_id=0,
+    def test_assemble_network_1(self) -> None:
+        layers: list[Layer] = [
+            Layer(layer_id=LayerId(0),
                   layer_type=LayerType.CONV,
                   layer_parameters={'out_channels': '6', 'kernel_size': '5', 'stride': '1',
                                     'padding': 'same', 'act': 'relu'}),
-            Layer(layer_id=1,
+            Layer(layer_id=LayerId(1),
                   layer_type=LayerType.BATCH_NORM,
                   layer_parameters={}),
-            Layer(layer_id=2,
+            Layer(layer_id=LayerId(2),
                   layer_type=LayerType.DROPOUT,
                   layer_parameters={'rate': '0.48283254514084895'}),
-            Layer(layer_id=3,
+            Layer(layer_id=LayerId(3),
                   layer_type=LayerType.POOL_MAX,
                   layer_parameters={'kernel_size': '5', 'stride': '3', 'padding': 'valid'}),
-            Layer(layer_id=4,
+            Layer(layer_id=LayerId(4),
                   layer_type=LayerType.FC,
                   layer_parameters={'act':'relu', 'out_features':'100', 'bias':'True'}),
-            Layer(layer_id=5,
+            Layer(layer_id=LayerId(5),
                   layer_type=LayerType.FC,
                   layer_parameters={'act':'softmax', 'out_features':'10', 'bias':'True'})
         ]
 
         model_builder: ModelBuilder = ModelBuilder(
-            parsed_network=ParsedNetwork(layers=layers,
-                                         layers_connections={6: [5], 5: [4], 4: [3], 3: [2], 2: [1], 1: [0], 0: [-1]}),
+            parsed_network=ParsedNetwork(
+                layers=layers,
+                layers_connections={LayerId(6): [InputLayerId(5)],
+                                    LayerId(5): [InputLayerId(4)],
+                                    LayerId(4): [InputLayerId(3)],
+                                    LayerId(3): [InputLayerId(2)],
+                                    LayerId(2): [InputLayerId(1)],
+                                    LayerId(1): [InputLayerId(0)],
+                                    LayerId(0): [InputLayerId(-1)]}),
             parsed_projector_network=None,
-            input_shape=(1, 28, 28),
+            input_shape=Size([1, 28, 28]),
             device=Device.CPU
         )
         model = model_builder.assemble_network(LegacyEvaluator)
@@ -152,46 +159,46 @@ class Test(unittest.TestCase):
         self.assertEqual(repr(model._modules), repr(expected_model_structure))
 
 
-    def test_assemble_network_2(self):
+    def test_assemble_network_2(self) -> None:
 
-        layers: List[Layer] = [
-            Layer(layer_id=0,
+        layers: list[Layer] = [
+            Layer(layer_id=LayerId(0),
                   layer_type=LayerType.DROPOUT,
                   layer_parameters={'rate': '0.48283254514084895'}),
-            Layer(layer_id=1,
+            Layer(layer_id=LayerId(1),
                   layer_type=LayerType.BATCH_NORM,
                   layer_parameters={}),
-            Layer(layer_id=2,
+            Layer(layer_id=LayerId(2),
                   layer_type=LayerType.POOL_MAX,
                   layer_parameters={'kernel_size': '2', 'stride': '1', 'padding': 'valid'}),
-            Layer(layer_id=3,
+            Layer(layer_id=LayerId(3),
                   layer_type=LayerType.POOL_MAX,
                   layer_parameters={'kernel_size': '5', 'stride': '3', 'padding': 'valid'}),
-            Layer(layer_id=4,
+            Layer(layer_id=LayerId(4),
                   layer_type=LayerType.POOL_AVG,
                   layer_parameters={'kernel_size': '3', 'stride': '2', 'padding': 'same'}),
-            Layer(layer_id=5,
+            Layer(layer_id=LayerId(5),
                   layer_type=LayerType.DROPOUT,
                   layer_parameters={'rate': '0.2804266331697851'}),
-            Layer(layer_id=6,
+            Layer(layer_id=LayerId(6),
                   layer_type=LayerType.FC,
                   layer_parameters={'act':'softmax', 'out_features':'10', 'bias':'True'}),
         ]
 
-        expected_layer_connections: Dict[int, List[int]] = {
-            6: [5],
-            5: [4],
-            4: [1, 2, 3],
-            3: [0, 1, 2],
-            2: [0, 1],
-            1: [-1, 0],
-            0: [-1]
+        expected_layer_connections: dict[LayerId, list[InputLayerId]] = {
+            LayerId(6): [InputLayerId(5)],
+            LayerId(5): [InputLayerId(4)],
+            LayerId(4): [InputLayerId(1), InputLayerId(2), InputLayerId(3)],
+            LayerId(3): [InputLayerId(0), InputLayerId(1), InputLayerId(2)],
+            LayerId(2): [InputLayerId(0), InputLayerId(1)],
+            LayerId(1): [InputLayerId(-1), InputLayerId(0)],
+            LayerId(0): [InputLayerId(-1)]
         }
         model_builder: ModelBuilder = ModelBuilder(
             parsed_network=ParsedNetwork(layers=layers,
                                          layers_connections=expected_layer_connections),
             parsed_projector_network=None,
-            input_shape=(1, 28, 28),
+            input_shape=Size([1, 28, 28]),
             device=Device.CPU
         )
         model = model_builder.assemble_network(LegacyEvaluator)
@@ -212,42 +219,49 @@ class Test(unittest.TestCase):
         self.assertEqual(repr(model._modules), repr(expected_model_structure))
 
 
-    def test_assemble_network_with_projector(self):
-        layers: List[Layer] = [
-            Layer(layer_id=0,
+    def test_assemble_network_with_projector(self) -> None:
+        layers: list[Layer] = [
+            Layer(layer_id=LayerId(0),
                   layer_type=LayerType.BATCH_NORM,
                   layer_parameters={}),
-            Layer(layer_id=1,
+            Layer(layer_id=LayerId(1),
                   layer_type=LayerType.DROPOUT,
                   layer_parameters={'rate': '0.48283254514084895'}),
-            Layer(layer_id=2,
+            Layer(layer_id=LayerId(2),
                   layer_type=LayerType.POOL_MAX,
                   layer_parameters={'kernel_size': '5', 'stride': '3', 'padding': 'valid'})
         ]
-        projector_layers: List[Layer] = [
-            Layer(layer_id=0,
+        projector_layers: list[Layer] = [
+            Layer(layer_id=LayerId(0),
                   layer_type=LayerType.FC,
                   layer_parameters={'act':'linear', 'out_features':'20', 'bias':'True'}),
-            Layer(layer_id=1,
+            Layer(layer_id=LayerId(1),
                   layer_type=LayerType.BATCH_NORM_PROJ,
                   layer_parameters={'act':'relu'}),
-            Layer(layer_id=2,
+            Layer(layer_id=LayerId(2),
                   layer_type=LayerType.FC,
                   layer_parameters={'act':'linear', 'out_features':'10', 'bias':'True'}),
-            Layer(layer_id=3,
+            Layer(layer_id=LayerId(3),
                   layer_type=LayerType.BATCH_NORM_PROJ,
                   layer_parameters={'act':'relu'})
         ]
 
         model_builder: ModelBuilder = ModelBuilder(
-            parsed_network=ParsedNetwork(layers=layers,
-                                         layers_connections={2: [1], 1: [0], 0: [-1]}),
-            parsed_projector_network=ParsedNetwork(layers=projector_layers,
-                                                   layers_connections={3: [2], 2: [1], 1: [0], 0: [-1]}),
-            input_shape=(1, 28, 28),
+            parsed_network=ParsedNetwork(
+                layers=layers,
+                layers_connections={LayerId(2): [InputLayerId(1)],
+                                    LayerId(1): [InputLayerId(0)],
+                                    LayerId(0): [InputLayerId(-1)]}),
+            parsed_projector_network=ParsedNetwork(
+                layers=projector_layers,
+                layers_connections={LayerId(3): [InputLayerId(2)],
+                                    LayerId(2): [InputLayerId(1)],
+                                    LayerId(1): [InputLayerId(0)],
+                                    LayerId(0): [InputLayerId(-1)]}),
+            input_shape=Size([1, 28, 28]),
             device=Device.CPU
         )
-        model = model_builder.assemble_network(BarlowTwinsEvaluator, Pretext(PretextType.BT, {'lamb': 0.01}))
+        model = model_builder.assemble_network(BarlowTwinsEvaluator, Pretext(PretextType.BT, {'lamb': '0.01'}))
         expected_model_structure = OrderedDict([
             ('batch_norm-1', nn.BatchNorm2d(num_features=1)),
             ('dropout-1', nn.Dropout(p=0.48283254514084895, inplace=False)),
@@ -257,10 +271,10 @@ class Test(unittest.TestCase):
                 ('batch_norm_proj-1', nn.Sequential(nn.Flatten(), nn.BatchNorm1d(20), nn.ReLU())),
                 ('fc-2', nn.Sequential(nn.Linear(in_features=20, out_features=10, bias=True))),
                 ('batch_norm_proj-2', nn.Sequential(nn.BatchNorm1d(10), nn.ReLU()))
-            ])),
-            ('bn', nn.BatchNorm1d(num_features=10, affine=False))
+            ]))
         ])
         projector_model = model._modules.pop('projector_model')
+        assert projector_model is not None
         expected_projector_model = expected_model_structure.pop('projector_model')
         self.assertEqual(repr(model._modules), repr(expected_model_structure))
         self.assertEqual(repr(projector_model._modules), repr(expected_projector_model))

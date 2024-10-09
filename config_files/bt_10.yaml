@@ -1,44 +1,73 @@
-checkpoints_path: ../../results/experiment_bt_100
+checkpoints_path: ../../results/experiment_bt_10
 
 evolutionary:
-  generations: 75
+  generations: 100
   lambda: 6
   max_epochs: 100000
   mutation:
     add_connection: 0.0
     remove_connection: 0.0
     add_layer: 0.3
-    reuse_layer: 0.2
+    reuse_layer: 0.15
     remove_layer: 0.3
-    dsge_layer: 0.1
-    macro_layer: 0.3
+    dsge_topological: 0.15
+    dsge_non_topological: 0.3
     train_longer: 0.03
-  fitness_metric: accuracy
+  fitness:
+    metric_name: downstream_accuracy
+    parameters:
+      downstream_mode: freeze
+      downstream_epochs: 30
+      batch_size: 2048
+      optimiser_type: "adam"
+      optimiser_parameters:
+        lr: 0.001
+        weight_decay: 0.000001
+        beta1: 0.9
+        beta2: 0.999
 
 network:
   architecture:
-    reuse_layer: 0.2
-    macro_structure:
-      - learning
-      - pretext
+    reuse_layer: 0.15
     output: identity
-    modules:
-      - name: features
-        network_structure_init: [3,4,5,6]
-        network_structure: [3,30]
-        levels_back: 1
-  learning:
     projector:
       - 512
       - 128
-    train_percentage: 10
+    modules:
+      - name: features
+        network_structure_init:
+          min_expansions: 4
+          max_expansions: 7
+        network_structure:
+          min_expansions: 4
+          max_expansions: 30
+        levels_back: 1
+    extra_components:
+      - learning
+      - pretext
+  learning:
     data_splits:
-      evo_train: 0.7
-      evo_test: 0.3
+      labelled:
+        percentage: 10
+        downstream_train:
+          partition_ratio: 0.08
+          amount_to_use: 1.0
+          replacement: false
+        validation:
+          partition_ratio: 0.0
+          amount_to_use: 1.0
+          replacement: false
+        evo_test:
+          partition_ratio: 0.02
+          amount_to_use: 1.0
+          replacement: false
+      unlabelled:
+        # pretext_train + downstream_train <= percentage
+        pretext_train:
+          amount_to_use: 1.0
+          replacement: false
     learning_type: self-supervised
-    default_train_time: 60
-    downstream_epochs: 30
-    downstream_mode: freeze
+    default_train_time: 120
     augmentation:
       pretext:
         input_a:

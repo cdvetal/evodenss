@@ -1,9 +1,9 @@
 import unittest
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from evodenss.misc.enums import LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import LayerId
-from evodenss.misc.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext, parse_phenotype
+from evodenss.networks.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext, parse_phenotype
 
 optimiser1 = Optimiser(OptimiserType.ADAM, {})
 
@@ -37,12 +37,12 @@ class Test(unittest.TestCase):
             "learning:lars lr_weights:0.10604385506377026 lr_biases:0.001 momentum:0.8158013267718259 " \
             "weight_decay:1e-07 batch_size:256 epochs:50 " \
             "pretext:bt lamb:0.03125"
-        self.phenotypes: List[str] = [phenotype1, phenotype2, phenotype3]
+        self.phenotypes: list[str] = [phenotype1, phenotype2, phenotype3]
 
-        self.optimiser1_params: Dict[str, Any] = {}
-        self.optimiser2_params: Dict[str, Any] = {}
-        self.optimiser3_params: Dict[str, Any] = {}
-        self.optimiser4_params: Dict[str, Any] = {}
+        self.optimiser1_params: dict[str, Any] = {}
+        self.optimiser2_params: dict[str, Any] = {}
+        self.optimiser3_params: dict[str, Any] = {}
+        self.optimiser4_params: dict[str, Any] = {}
 
 
     def test_parse_phenotype1(self) -> None:
@@ -55,11 +55,11 @@ class Test(unittest.TestCase):
                            "early_stop": "5",
                            "batch_size": "406",
                            "epochs": "10000"})
-        expected_layers: List[Layer] = [
+        expected_layers: list[Layer] = [
             Layer(LayerId(0), LayerType.FC, {'act':'linear', 'out_features':'1142', 'bias':'False'}),
             Layer(LayerId(1), LayerType.FC, {'act':'softmax', 'out_features':'10', 'bias':'True'}),
         ]
-        expected_layers_connections: Dict[int, List[int]] = {1: [0], 0: [-1]}
+        expected_layers_connections: dict[int, list[int]] = {1: [0], 0: [-1]}
 
         optimiser: Optimiser
         parsed_network: ParsedNetwork
@@ -85,7 +85,7 @@ class Test(unittest.TestCase):
                            "early_stop": "18",
                            "batch_size": "292",
                            "epochs": "10000"})
-        expected_layers: List[Layer] = [
+        expected_layers: list[Layer] = [
             Layer(LayerId(0), LayerType.DROPOUT, {'rate': '0.48283254514084895'}),
             Layer(LayerId(1), LayerType.BATCH_NORM, {}),
             Layer(LayerId(2), LayerType.POOL_MAX, {'kernel_size': '2', 'stride': '1', 'padding': 'valid'}),
@@ -97,7 +97,7 @@ class Test(unittest.TestCase):
             Layer(LayerId(8), LayerType.DROPOUT, {'rate': '0.6968873473903937'}),
             Layer(LayerId(9), LayerType.FC, {'act':'softmax', 'out_features':'10', 'bias':'True'})
         ]
-        expected_layers_connections: Dict[int, List[int]] = \
+        expected_layers_connections: dict[int, list[int]] = \
             {9: [8], 8: [7], 7: [6], 6: [5], 5: [4, 2, 3], 4: [3],
              3: [2, 0, 1], 2: [1, 0], 1: [0, -1], 0: [-1]}
 
@@ -124,18 +124,18 @@ class Test(unittest.TestCase):
                            "weight_decay": "0.0000001",
                            "batch_size": "256",
                            "epochs": "50"})
-        expected_layers: List[Layer] = [
+        expected_layers: list[Layer] = [
             Layer(LayerId(0), LayerType.CONV, {'out_channels':'128', 'kernel_size':'2', 'stride':'2',
                                                'padding':'same', 'act':'sigmoid', 'bias':'False'}),
             Layer(LayerId(1), LayerType.BATCH_NORM, {}),
         ]
-        expected_layers_connections: Dict[int, List[int]] = {1: [0], 0: [-1]}
-        expected_proj_layers: List[Layer] = [
+        expected_layers_connections: dict[int, list[int]] = {1: [0], 0: [-1]}
+        expected_proj_layers: list[Layer] = [
             Layer(LayerId(0), LayerType.FC, {'act':'linear', 'out_features':'1024', 'bias':'True'}),
             Layer(LayerId(1), LayerType.FC, {'act':'relu', 'out_features':'1024', 'bias':'True'}),
             Layer(LayerId(2), LayerType.IDENTITY, {}),
         ]
-        expected_proj_layers_connections: Dict[int, List[int]] = {2: [1], 1: [0], 0: [-1]}
+        expected_proj_layers_connections: dict[int, list[int]] = {2: [1], 1: [0], 0: [-1]}
         expected_pretext_task: Pretext = Pretext(PretextType.BT, {"lamb": "0.03125"})
 
         optimiser: Optimiser

@@ -4,28 +4,30 @@ from collections import Counter
 import logging
 from math import ceil
 import warnings
-from typing import Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
+from typing import Iterable, Optional, TYPE_CHECKING
 
 import torch
 from torch import Size, nn, optim, Tensor
 
 from evodenss.misc.constants import SEPARATOR_CHAR
 from evodenss.misc.enums import ActivationType, Device, LayerType, OptimiserType
-from evodenss.misc.phenotype_parser import Layer
+from evodenss.networks.phenotype_parser import Layer
 from evodenss.misc.utils import InvalidNetwork, InputLayerId, LayerId
-from evodenss.networks import Dimensions
-from evodenss.networks.torch import BarlowTwinsNetwork, EvolvedNetwork, LegacyNetwork, LARS, LearningParams, \
-    BaseEvaluator, BarlowTwinsEvaluator, LegacyEvaluator
+from evodenss.networks.dimensions import Dimensions
+from evodenss.networks.evolved_networks import BarlowTwinsNetwork, EvolvedNetwork, LegacyNetwork
+from evodenss.train.lars import LARS
+from evodenss.train.learning_parameters import LearningParams
+from evodenss.networks.evaluators import BaseEvaluator, BarlowTwinsEvaluator, LegacyEvaluator
 
 
 warnings.filterwarnings("ignore")
 
 
 if TYPE_CHECKING:
-    from evodenss.misc.phenotype_parser import Optimiser, ParsedNetwork, Pretext
+    from evodenss.networks.phenotype_parser import Optimiser, ParsedNetwork, Pretext
 
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class ModelBuilder():
@@ -37,18 +39,21 @@ class ModelBuilder():
                  input_shape: Size) -> None:
         self.parsed_network: ParsedNetwork = parsed_network
         self.parsed_projector_network: Optional[ParsedNetwork] = parsed_projector_network
-        self.layer_shapes: Dict[InputLayerId, Dimensions] = {
+        self.layer_shapes: dict[InputLayerId, Dimensions] = {
             InputLayerId(-1): Dimensions(channels=input_shape[0],
                                          height=input_shape[1],
                                          width=input_shape[2])
         }
-        self.projector_layer_shapes: Dict[InputLayerId, Dimensions] = {}
+        self.projector_layer_shapes: dict[InputLayerId, Dimensions] = {}
         self.layer_type_counts: Counter = Counter([])
         self.projector_layer_type_counts: Counter = Counter([])
         self.device = device
 
     @classmethod
     def assemble_optimiser(cls, model_parameters: Iterable[Tensor], optimiser: Optimiser) -> LearningParams:
+        if not [p.requires_grad for p in model_parameters if p.requires_grad is True]:
+            raise InvalidNetwork("Network does not contain any trainable parameters.")
+
         early_stop: Optional[int] = optimiser.optimiser_parameters.pop("early_stop", None)
         batch_size: int = optimiser.optimiser_parameters.pop("batch_size")
         epochs: int = optimiser.optimiser_parameters.pop("epochs")
@@ -92,9 +97,9 @@ class ModelBuilder():
                          evaluation_type: type[BaseEvaluator],
                          pretext_task: Optional[Pretext]=None) -> EvolvedNetwork:
         layer_to_add: nn.Module
-        torch_layers: List[Tuple[str, nn.Module]] = []
-        connections_to_use: Dict[LayerId, List[InputLayerId]] = self.parsed_network.layers_connections
-        collected_extra_torch_layers: List[Tuple[str, nn.Module]] = []
+        torch_layers: list[tuple[str, nn.Module]] = []
+        connections_to_use: dict[LayerId, list[InputLayerId]] = self.parsed_network.layers_connections
+        collected_extra_torch_layers: list[tuple[str, nn.Module]] = []
         self.layer_type_counts.update([layer_type for layer_type in LayerType])
 
         try:
@@ -102,12 +107,12 @@ class ModelBuilder():
                 layer_name: str = f"{l.layer_type.value}{SEPARATOR_CHAR}{self.layer_type_counts[l.layer_type]}"
                 self.layer_type_counts.update([l.layer_type])
 
-                inputs_shapes: Dict[InputLayerId, Dimensions] = \
+                inputs_shapes: dict[InputLayerId, Dimensions] = \
                     {input_id: self.layer_shapes[input_id]
                      for input_id in connections_to_use[LayerId(i)]}
 
                 minimum_extra_id: int = len(self.parsed_network.layers) + len(collected_extra_torch_layers)
-                extra_layers: Dict[InputLayerId, Layer] = \
+                extra_layers: dict[InputLayerId, Layer] = \
                     self._get_layers_to_fix_shape_mismatches_resnet_approach(inputs_shapes, minimum_extra_id)
                 for input_id, extra_layer in extra_layers.items():
                     extra_layer_name: str = f"{extra_layer.layer_type.value}{SEPARATOR_CHAR}" + \
@@ -158,7 +163,7 @@ class ModelBuilder():
             self.layer_shapes[InputLayerId(self.parsed_network.get_output_layer_id())]
 
         layer_to_add: nn.Module
-        torch_layers: List[Tuple[str, nn.Module]] = []
+        torch_layers: list[tuple[str, nn.Module]] = []
         self.projector_layer_type_counts.update([f'projector_{layer_type}' for layer_type in LayerType])
 
         for i, l in enumerate(self.parsed_projector_network.layers):
@@ -178,10 +183,10 @@ class ModelBuilder():
                              self.parsed_projector_network.get_output_layer_id())
 
     def _get_layers_to_fix_shape_mismatches_resnet_approach(self,
-                                                            inputs_shapes: Dict[InputLayerId, Dimensions],
-                                                            minimum_extra_id: int) -> Dict[InputLayerId, Layer]:
+                                                            inputs_shapes: dict[InputLayerId, Dimensions],
+                                                            minimum_extra_id: int) -> dict[InputLayerId, Layer]:
         # assumes that of the inputs will be the beginning of the module, just like a resnet block
-        new_layers_dict: Dict[InputLayerId, Layer] = {}
+        new_layers_dict: dict[InputLayerId, Layer] = {}
         minimum_input_id: InputLayerId = min(list(inputs_shapes.keys()))
         target_shape: Dimensions = inputs_shapes.pop(minimum_input_id) # side effect: removes element from dict
         layer_id: int = minimum_extra_id
@@ -211,9 +216,9 @@ class ModelBuilder():
         return new_layers_dict
 
     def _get_layers_to_fix_shape_mismatches(self,
-                                            inputs_shapes: Dict[InputLayerId, Dimensions],
-                                            minimum_extra_id: int) -> Dict[InputLayerId, Layer]:
-        new_layers_dict: Dict[InputLayerId, Layer] = {}
+                                            inputs_shapes: dict[InputLayerId, Dimensions],
+                                            minimum_extra_id: int) -> dict[InputLayerId, Layer]:
+        new_layers_dict: dict[InputLayerId, Layer] = {}
 
         # max_channels: int = min(list(map(lambda x: x.channels, inputs_shapes.values())))
         min_height: int = min(list(map(lambda x: x.height, inputs_shapes.values())))
@@ -293,7 +298,6 @@ class ModelBuilder():
         return layer_to_add
 
     def _build_convolutional_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
-        # pylint: disable=unused-variable
         def init_weights(m: nn.Module) -> None:
             if isinstance(m, nn.Conv2d):
                 torch.nn.init.xavier_uniform_(m.weight)
@@ -334,7 +338,7 @@ class ModelBuilder():
                                           layer: Layer,
                                           layer_name: str,
                                           input_dimensions: Dimensions) -> nn.Module:
-        torch_layers_to_add: List[nn.Module] = []
+        torch_layers_to_add: list[nn.Module] = []
         activation: ActivationType = ActivationType(layer.layer_parameters.pop("act"))
         if layer_name.endswith(f"{LayerType.BATCH_NORM_PROJ.value}{SEPARATOR_CHAR}1"):
             torch_layers_to_add.append(nn.Flatten())
@@ -351,26 +355,26 @@ class ModelBuilder():
         return nn.Sequential(*torch_layers_to_add)
 
     def _build_avg_pooling_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
-        torch_layers_to_add: List[nn.Module] = []
+        torch_layers_to_add: list[nn.Module] = []
         padding_type: str = layer.layer_parameters.pop("padding")
         layer.layer_parameters['padding'] = 0
         torch_layers_to_add.append(nn.AvgPool2d(**layer.layer_parameters))
         if padding_type == "same":
             # https://github.com/pytorch/pytorch/issues/3298
-            padding_to_apply: Tuple[int, int, int, int] = \
+            padding_to_apply: tuple[int, int, int, int] = \
                 input_dimensions.compute_adjusting_padding(layer.layer_parameters['kernel_size'],
                                                            layer.layer_parameters['stride'])
             torch_layers_to_add.append(nn.ZeroPad2d(padding_to_apply))
         return nn.Sequential(*torch_layers_to_add)
 
     def _build_max_pooling_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:
-        torch_layers_to_add: List[nn.Module] = []
+        torch_layers_to_add: list[nn.Module] = []
         padding_type: str = layer.layer_parameters.pop("padding")
         layer.layer_parameters['padding'] = 0
         torch_layers_to_add.append(nn.MaxPool2d(**layer.layer_parameters))
         if padding_type == "same":
             # https://github.com/pytorch/pytorch/issues/3298
-            padding_to_apply: Tuple[int, int, int, int] = \
+            padding_to_apply: tuple[int, int, int, int] = \
                 input_dimensions.compute_adjusting_padding(layer.layer_parameters['kernel_size'],
                                                            layer.layer_parameters['stride'])
             torch_layers_to_add.append(nn.ZeroPad2d(padding_to_apply))
@@ -383,7 +387,7 @@ class ModelBuilder():
 
     def _build_dense_layer(self, layer: Layer, layer_name: str, input_dimensions: Dimensions) -> nn.Sequential:
         activation = ActivationType(layer.layer_parameters.pop("act"))
-        torch_layers_to_add: List[nn.Module] = []
+        torch_layers_to_add: list[nn.Module] = []
         if layer_name.endswith(f"{LayerType.FC.value}{SEPARATOR_CHAR}1"):
             torch_layers_to_add.append(nn.Flatten())
             torch_layers_to_add.append(nn.Linear(**layer.layer_parameters,

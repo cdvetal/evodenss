@@ -9,12 +9,12 @@ evolutionary:
     add_layer: 0.8
     reuse_layer: 0.8
     remove_layer: 0.8
-    dsge_layer: 0.8
-    macro_layer: 0.8
+    dsge_topological: 0.8
+    dsge_non_topological: 0.8
     train_longer: 0.2
-  fitness_metric: accuracy
+  fitness:
+    metric_name: accuracy
 network:
-
   architecture:
     reuse_layer: 0.8
     macro_structure:
@@ -30,11 +30,21 @@ network:
         network_structure: [1,2]
         levels_back: 1
   learning:
-    train_percentage: 100
     data_splits:
-      evo_train: 0.7
-      evo_validation: 0.2
-      evo_test: 0.1
+      labelled:
+        percentage: 100 # downstream_train + validation + evo_test = percentage
+        downstream_train:
+          partition_ratio: 0.8
+          amount_to_use: 1.0
+          replacement: false
+        validation:
+          partition_ratio: 0.0
+          amount_to_use: 1.0
+          replacement: false
+        evo_test:
+          partition_ratio: 0.2
+          amount_to_use: 1.0
+          replacement: false
     learning_type: supervised
     augmentation:
       train:

@@ -1,16 +1,16 @@
+# To be used to build a conda environment to run CEML on 
+# macOS with MPS support. Tested on macOS 13.6.7 (01/07/2024)
 name: evodenss
+
 channels:
-  - pytorch
-  - nvidia
-  - conda-forge
+  - defaults
 
 dependencies:
   - python=3.10
+  - openblas=0.3.21  # https://stackoverflow.com/questions/70242015/python-how-to-solve-the-numpy-importerror-on-apple-silicon
   - pip=24.0
-  - pytorch=2.3.1
-  - torchvision=0.18.1
-  - pytorch-cuda=12.1
-  - jsonschema=4.22.0
+  - pytorch::pytorch=2.3.1
+  - pytorch::torchvision=0.18.1
   - scikit-learn=1.4.2
   - pyyaml=6.0.1
   - dill=0.3.8
@@ -22,3 +22,5 @@ dependencies:
     - ruff==0.6.6
     - mypy==1.11.2
     - pydantic==2.8.2
+
+  

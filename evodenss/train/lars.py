@@ -1,5 +1,5 @@
 import math
-from typing import Any, Dict, no_type_check
+from typing import Any, no_type_check
 
 import torch
 from torch.nn.parameter import Parameter
@@ -21,7 +21,7 @@ class LARS(optim.Optimizer):
         # we initialise lt with 0 just to comply with superclass params
         # in practice lt is going to be dynamic and separated
         # (one for weights and another for biases)
-        defaults: Dict[str, Any] = dict(
+        defaults: dict[str, Any] = dict(
             lr=0.0,
             weight_decay=weight_decay,
             momentum=momentum,
