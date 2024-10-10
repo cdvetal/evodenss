@@ -295,39 +295,23 @@ class DataSplits(BaseModel):
 
 class Labelled(BaseModel):
     percentage: Annotated[int, Field(strict=True, ge=1, le=100)]
-    downstream_train: DownstreamTrain
-    validation: Validation
-    evo_test: EvoTest
-    model_config = ConfigDict(extra='forbid')
-
-
-class DownstreamTrain(BaseModel):
-    partition_ratio: float
-    amount_to_use: IntOrFloat
-    replacement: bool
-    model_config = ConfigDict(extra='forbid')
-
-
-class Validation(BaseModel):
-    partition_ratio: float
-    amount_to_use: IntOrFloat
-    replacement: bool
-    model_config = ConfigDict(extra='forbid')
-
-
-class EvoTest(BaseModel):
-    partition_ratio: float
-    amount_to_use: IntOrFloat
-    replacement: bool
+    downstream_train: SubsetDefinition
+    validation: SubsetDefinition
+    evo_test: SubsetDefinition
     model_config = ConfigDict(extra='forbid')
 
 
 class Unlabelled(BaseModel):
-    pretext_train: PretextTrain
+    pretext_train: SubsetDefinitionNoPartition
     model_config = ConfigDict(extra='forbid')
 
+class SubsetDefinitionNoPartition(BaseModel):
+    amount_to_use: IntOrFloat
+    replacement: bool
+    model_config = ConfigDict(extra='forbid')
 
-class PretextTrain(BaseModel):
+class SubsetDefinition(BaseModel):
+    partition_ratio: float
     amount_to_use: IntOrFloat
     replacement: bool
     model_config = ConfigDict(extra='forbid')

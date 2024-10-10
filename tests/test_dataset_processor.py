@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from evodenss.config.pydantic import DataSplits, DownstreamTrain, EvoTest, Labelled, Validation, init_context
+from evodenss.config.pydantic import DataSplits, Labelled, SubsetDefinition, init_context
 from evodenss.dataset.dataset_loader import DatasetProcessor, DatasetType
 from evodenss.misc.constants import DEFAULT_SEED
 from evodenss.misc.enums import LearningType
@@ -43,15 +43,15 @@ class Test(unittest.TestCase):
                 unlabelled=None,
                 labelled=Labelled(
                     percentage=1,
-                    downstream_train=DownstreamTrain(
+                    downstream_train=SubsetDefinition(
                         partition_ratio=train_partition_ratio,
                         amount_to_use=1.0,
                         replacement=False),
-                    validation=Validation(
+                    validation=SubsetDefinition(
                         partition_ratio=validation_partition_ratio,
                         amount_to_use=1.0,
                         replacement=False),
-                    evo_test=EvoTest(
+                    evo_test=SubsetDefinition(
                         partition_ratio=test_partition_ratio,
                         amount_to_use=1.0,
                         replacement=False)
