@@ -12,7 +12,7 @@ from evodenss.misc.checkpoint import Checkpoint
 from evodenss.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
 from evodenss.misc.enums import LearningType
 from evodenss.misc.persistence import build_individual_path, build_overall_best_path, RestoreCheckpoint, SaveCheckpoint
-from evodenss.networks.module import ModuleConfig
+from evodenss.config.pydantic import ModuleConfig
 
 
 class Test(unittest.TestCase):

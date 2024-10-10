@@ -77,7 +77,6 @@ warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 strict_equality = true
-strict_concatenate = true
 check_untyped_defs = true
 disallow_subclassing_any = true
 disallow_any_generics = true
@@ -90,10 +89,6 @@ extra_checks = true
 disallow_untyped_decorators = false
 follow_imports_for_stubs = false
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow-untyped-decorators = false
 
 
 
