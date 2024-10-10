@@ -19,7 +19,7 @@ from evodenss.misc.constants import DATASETS_INFO, DEFAULT_SEED, STATS_FOLDER_NA
 from evodenss.misc.enums import DownstreamMode, FitnessMetricName, OptimiserType
 from evodenss.misc.persistence import RestoreCheckpoint, build_overall_best_path
 from evodenss.misc.utils import ConfigPairAction, is_valid_file, is_yaml_file
-from evodenss.dataset.dataset_loader import DatasetProcessor, create_dataset_processor
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, create_dataset_processor
 from evodenss.networks.evaluators import BaseEvaluator
 
 
@@ -105,7 +105,7 @@ def main(run: int,
     total_generations: int = config.evolutionary.generations
     max_epochs: int = config.evolutionary.max_epochs
     proportions: DataSplits = config.network.learning.data_splits
-    dataset: dict[DatasetType, Subset] = \
+    dataset: dict[DatasetType, Subset[ConcreteDataset]] = \
         dataset_processor.load_partitioned_dataset(dataset_name, proportions, DEFAULT_SEED)
 
     logger.info("Dataset partition sizes:")
@@ -115,7 +115,7 @@ def main(run: int,
 
     for gen in range(checkpoint.last_processed_generation + 1, total_generations):
         # check the total number of epochs (stop criteria)
-        if checkpoint.total_epochs is not None and checkpoint.total_epochs >= max_epochs:
+        if checkpoint.total_epochs >= max_epochs:
             break
         checkpoint = engine.evolve(run, gen, dataset, grammar, checkpoint)
 

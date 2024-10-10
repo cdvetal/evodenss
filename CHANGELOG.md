@@ -1,6 +1,17 @@
 # CHANGELOG
 
+## 4.0.1 (2024-10-10)
+
+
+Other improvements:
+
+- Simplified Pydantic classes that defined Subsets
+- Integrated Pylance settings into pyproject.toml
+- Fixed Pylance (Pyright) complaints regarding types
+
+
 ## 4.0.0 (2024-10-09)
+
 
 Features:
 
@@ -27,6 +38,7 @@ Other improvements:
 
 ## 3.1.0 (2024-01-12)
 
+
 Features:
 
 - Model artifacts have now an associated metadata file associated which can be used to further extend the train of the model
@@ -35,6 +47,7 @@ Features:
 Bug Fixes:
 
 - Removed model processing checkppoint as it was producing incorrect results
+
 
 ## 3.0.2 (2023-12-10)
 

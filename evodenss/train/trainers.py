@@ -8,7 +8,7 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
-from evodenss.dataset.dataset_loader import DatasetType
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
 from evodenss.misc.enums import Device
 from evodenss.misc.utils import InvalidNetwork
 from evodenss.networks.phenotype_parser import Optimiser
@@ -28,7 +28,7 @@ class TrainingInfo:
     torch_model: nn.Module
     optimiser: Optimiser
     learning_params: LearningParams
-    loaders_dict: dict[DatasetType, DataLoader]
+    loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]]
     starting_epoch: int
     n_trainable_parameters: int
     n_layers: int
@@ -39,8 +39,8 @@ class Trainer:
     def __init__(self,
                  model: nn.Module,
                  optimiser: optim.Optimizer,
-                 train_data_loader: DataLoader,
-                 validation_data_loader: Optional[DataLoader],
+                 train_data_loader: DataLoader[ConcreteDataset],
+                 validation_data_loader: Optional[DataLoader[ConcreteDataset]],
                  loss_function: Any,
                  n_epochs: int,
                  initial_epoch: int,
@@ -51,8 +51,8 @@ class Trainer:
         self.model: nn.Module = model
         self.optimiser: optim.Optimizer = optimiser
         self.loss_function: Any = loss_function
-        self.train_data_loader: DataLoader = train_data_loader
-        self.validation_data_loader: Optional[DataLoader] = validation_data_loader
+        self.train_data_loader: DataLoader[ConcreteDataset] = train_data_loader
+        self.validation_data_loader: Optional[DataLoader[ConcreteDataset]] = validation_data_loader
         self.n_epochs: int = n_epochs
         self.initial_epoch: int = initial_epoch
         self.device: Device = device

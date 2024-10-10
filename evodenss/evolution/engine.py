@@ -16,7 +16,7 @@ from evodenss.misc.enums import DownstreamMode, FitnessMetricName, OptimiserType
 
 if TYPE_CHECKING:
     from evodenss.metrics.fitness_metrics import Fitness
-    from evodenss.dataset.dataset_loader import DatasetType
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from torch.utils.data import Subset
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 @persistence.SaveCheckpoint
 def evolve(run: int,
            generation: int,
-           dataset: dict['DatasetType', 'Subset'],
+           dataset: dict['DatasetType', 'Subset[ConcreteDataset]'],
            grammar: Grammar,
            checkpoint: Checkpoint) -> Checkpoint:
 

@@ -22,7 +22,7 @@ class Dimensions:
         out_channels: int
         height: int
         width: int
-        kernel_size: int
+        kernel_size: int|tuple[int,int]
         padding_w: int
         padding_h: int
         if layer.layer_type == LayerType.CONV:
@@ -32,6 +32,7 @@ class Dimensions:
                 width = input_dimensions.width
             elif layer.layer_parameters['padding'] == "valid":
                 kernel_size = layer.layer_parameters['kernel_size']
+                assert isinstance(kernel_size, int)
                 height = ceil((input_dimensions.height - kernel_size + 1) / layer.layer_parameters['stride'])
                 width = ceil((input_dimensions.width - kernel_size + 1) / layer.layer_parameters['stride'])
             elif isinstance(layer.layer_parameters['padding'], tuple):
@@ -60,7 +61,7 @@ class Dimensions:
             kernel_h: int
             if isinstance(kernel_size, int):
                 kernel_w = kernel_h = kernel_size
-            elif isinstance(kernel_size, tuple):
+            else:
                 kernel_h = kernel_size[0]
                 kernel_w = kernel_size[1]
             height = ceil((input_dimensions.height - kernel_h + 1) / layer.layer_parameters['stride']) + padding_h

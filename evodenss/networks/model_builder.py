@@ -45,8 +45,8 @@ class ModelBuilder():
                                          width=input_shape[2])
         }
         self.projector_layer_shapes: dict[InputLayerId, Dimensions] = {}
-        self.layer_type_counts: Counter = Counter([])
-        self.projector_layer_type_counts: Counter = Counter([])
+        self.layer_type_counts: Counter[LayerType] = Counter([])
+        self.projector_layer_type_counts: Counter[str] = Counter([])
         self.device = device
 
     @classmethod

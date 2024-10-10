@@ -25,7 +25,7 @@ class MutationLog:
         return iter(astuple(self))
 
 
-def enable_tracking(mutation_type: MutationType) -> Callable[[Callable[P, T]], Callable[P, None]]:
+def enable_tracking(mutation_type: MutationType) -> Callable[[Callable[P, T]], Callable[P, None]]: # pyright: ignore
 
     def track_mutation(mutation_type: MutationType, data_to_track: dict[str, Any]) -> None:
         individual: Individual = data_to_track.pop("individual")

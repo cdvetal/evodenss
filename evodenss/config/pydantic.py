@@ -21,11 +21,11 @@ from evodenss.misc.utils import ConfigPair
 Probability = Annotated[float, Field(strict=True, ge=0.0, le=1.0)]
 IntOrFloat = Annotated[int, Field(strict=True, ge=1)] | Annotated[float, Field(strict=True, ge=0.0, le=1.0)]
 
-_init_context_var: ContextVar = ContextVar('_init_context_var', default={})
+_init_context_var: ContextVar[dict[str, Any]] = ContextVar('_init_context_var', default={})
 
 @contextmanager
 def init_context(value: dict[str, Any]) -> Iterator[None]:
-    token = _init_context_var.set(value) # type: ignore
+    token = _init_context_var.set(value)
     try:
         yield
     finally:
@@ -73,6 +73,7 @@ class Config(BaseModel):
             _backup_used_config(validated_config, config_path, validated_config.checkpoints_path)
             return validated_config
 
+    @classmethod
     def load_from_dict(cls, config_dict: dict[Any, Any]) -> Config:
         return Config.model_validate(config_dict, context=_init_context_var.get())
 
@@ -100,7 +101,7 @@ def _backup_used_config(config: Config, origin_filepath: str, destination: str) 
         shutil.copyfile(origin_filepath, destination_filepath)
 
 def get_config() -> Config:
-    return cast(Config, ConfigBuilder())
+    return ConfigBuilder() # type: ignore
 
 
 class EvolutionaryConfig(BaseModel):
@@ -295,39 +296,23 @@ class DataSplits(BaseModel):
 
 class Labelled(BaseModel):
     percentage: Annotated[int, Field(strict=True, ge=1, le=100)]
-    downstream_train: DownstreamTrain
-    validation: Validation
-    evo_test: EvoTest
-    model_config = ConfigDict(extra='forbid')
-
-
-class DownstreamTrain(BaseModel):
-    partition_ratio: float
-    amount_to_use: IntOrFloat
-    replacement: bool
-    model_config = ConfigDict(extra='forbid')
-
-
-class Validation(BaseModel):
-    partition_ratio: float
-    amount_to_use: IntOrFloat
-    replacement: bool
-    model_config = ConfigDict(extra='forbid')
-
-
-class EvoTest(BaseModel):
-    partition_ratio: float
-    amount_to_use: IntOrFloat
-    replacement: bool
+    downstream_train: SubsetDefinition
+    validation: SubsetDefinition
+    evo_test: SubsetDefinition
     model_config = ConfigDict(extra='forbid')
 
 
 class Unlabelled(BaseModel):
-    pretext_train: PretextTrain
+    pretext_train: SubsetDefinitionNoPartition
     model_config = ConfigDict(extra='forbid')
 
+class SubsetDefinitionNoPartition(BaseModel):
+    amount_to_use: IntOrFloat
+    replacement: bool
+    model_config = ConfigDict(extra='forbid')
 
-class PretextTrain(BaseModel):
+class SubsetDefinition(BaseModel):
+    partition_ratio: float
     amount_to_use: IntOrFloat
     replacement: bool
     model_config = ConfigDict(extra='forbid')

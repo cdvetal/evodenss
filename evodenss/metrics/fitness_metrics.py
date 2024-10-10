@@ -13,7 +13,7 @@ from evodenss.misc.metadata_info import MetadataInfo
 from evodenss.misc.utils import InvalidNetwork
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork, EvaluationBarlowTwinsNetwork
 from evodenss.networks.phenotype_parser import Optimiser
-from evodenss.dataset.dataset_loader import DatasetType
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
 from evodenss.train.callbacks import Callback, ModelCheckpointCallback
 from evodenss.train.learning_parameters import LearningParams
 from evodenss.train.trainers import Trainer
@@ -79,7 +79,10 @@ class FitnessMetric(ABC):
         return fitness_metric
 
     @abstractmethod
-    def compute_metric(self, model: nn.Module, loaders_dict: dict[DatasetType, DataLoader], device: Device) -> float:
+    def compute_metric(self,
+                       model: nn.Module,
+                       loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]],
+                       device: Device) -> float:
         raise NotImplementedError()
 
     @classmethod
@@ -114,7 +117,10 @@ class AccuracyMetric(FitnessMetric):
         super().__init__()
         self.representation_model = representation_model
 
-    def compute_metric(self, model: nn.Module, loaders_dict: dict[DatasetType, DataLoader], device: Device) -> float:
+    def compute_metric(self,
+                       model: nn.Module,
+                       loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]],
+                       device: Device) -> float:
         model.eval()
         correct_guesses: float = 0
         size: int = 0
@@ -156,7 +162,7 @@ class DownstreamAccuracyMetric(FitnessMetric):
 
     def __init__(self,
                  dataset_name: str,
-                 dataset: dict[DatasetType, Subset],
+                 dataset: dict[DatasetType, Subset[ConcreteDataset]],
                  batch_size: int,
                  downstream_mode: DownstreamMode,
                  downstream_epochs: int,
@@ -165,7 +171,7 @@ class DownstreamAccuracyMetric(FitnessMetric):
                  model_saving_dir: Optional[str]=None) -> None:
         super().__init__()
         self.dataset_name: str = dataset_name
-        self.dataset: dict[DatasetType, Subset] = dataset
+        self.dataset: dict[DatasetType, Subset[ConcreteDataset]] = dataset
         self.model_saving_dir: Optional[str] = model_saving_dir
         self.downstream_mode: DownstreamMode = downstream_mode
         self.optimiser_type: OptimiserType = optimiser_type
@@ -186,7 +192,7 @@ class DownstreamAccuracyMetric(FitnessMetric):
             model.barlow_twins_trained_model.requires_grad_(False)
             model.final_layer.requires_grad_(True)
         elif self.downstream_mode == DownstreamMode.finetune:
-            params_to_tune = [param for name, param in model_parameters]
+            params_to_tune = [param for _, param in model_parameters]
             model.barlow_twins_trained_model.requires_grad_(True)
             model.final_layer.requires_grad_(True)
         else:
@@ -196,7 +202,7 @@ class DownstreamAccuracyMetric(FitnessMetric):
 
     def compute_metric(self,
                        model: nn.Module,
-                       loaders_dict: dict[DatasetType, DataLoader],
+                       loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]],
                        device: Device) -> float:
         from evodenss.networks.model_builder import ModelBuilder
         n_classes: int = DATASETS_INFO[self.dataset_name]["classes"]
@@ -316,7 +322,10 @@ class KNNAccuracyMetric(FitnessMetric):
         pred_labels = pred_scores.argsort(dim=-1, descending=True)
         return pred_labels
 
-    def compute_metric(self, model: nn.Module, loaders_dict: dict[DatasetType, DataLoader], device: Device) -> float:
+    def compute_metric(self,
+                       model: nn.Module,
+                       loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]],
+                       device: Device) -> float:
         try:
             model.eval()
             # cast(BarlowTwinsNetwork, model).projector_model = nn.Identity()

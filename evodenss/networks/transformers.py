@@ -4,19 +4,18 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 import logging
 import random
-from typing import Any, TYPE_CHECKING
+from typing import cast, Any
 
-from PIL import Image, ImageFilter, ImageOps
+from PIL import ImageFilter, ImageOps
 from PIL.Image import Image as ImageType # https://github.com/python-pillow/Pillow/issues/6676
 from torchvision.transforms import Compose, CenterCrop, ColorJitter, Normalize, RandomApply, \
     RandomCrop, RandomGrayscale, RandomHorizontalFlip, RandomResizedCrop, Resize, \
     ToTensor
+from torch import Tensor
+from torchvision.transforms.functional import InterpolationMode
 
 from evodenss.config.pydantic import PretextAugmentation
 from evodenss.misc.enums import TransformOperation
-
-if TYPE_CHECKING:
-    from torch import nn, Tensor
 
 
 __all__ = ['LegacyTransformer', 'BarlowTwinsTransformer']
@@ -69,7 +68,7 @@ class BaseTransformer(ABC):
         elif operation == TransformOperation.RANDOM_RESIZED_CROP:
             if "scale" in final_params.keys():
                 final_params['scale'] = tuple(map(float, final_params['scale'][1:-1].split(',')))
-            return RandomResizedCrop(**final_params, interpolation=Image.Resampling.BICUBIC)
+            return RandomResizedCrop(**final_params, interpolation=InterpolationMode.BICUBIC)
         elif operation == TransformOperation.RANDOM_GRAYSCALE:
             final_params['p'] = final_params.pop("probability")
             return RandomGrayscale(**final_params)
@@ -87,7 +86,7 @@ class BaseTransformer(ABC):
             raise ValueError(f"Cannot create transformation object from name {operation}")
 
     def _create_compose_transform(self, transform_details: dict[str, Any]) -> Compose:
-        augmentation_ops: list[nn.Module] = []
+        augmentation_ops: list[Any] = []
         operation: TransformOperation
         for name, params in transform_details.items():
             operation = TransformOperation(name)
@@ -112,10 +111,11 @@ class LegacyTransformer(BaseTransformer):
         super().__init__()
         self.transform: Compose = self._create_compose_transform(augmentation_params)
 
-    def __call__(self, img: ImageType) -> Any:
+    def __call__(self, img: ImageType) -> Tensor:
         if img.mode == 'RGBA':
-            return self.transform(img.convert('RGB')) # random grayscale fails when an image has 4 channels
-        return self.transform(img)
+            # random grayscale fails when an image has 4 channels
+            return cast(Tensor, self.transform(img.convert('RGB')))
+        return cast(Tensor, self.transform(img))
 
 
 class BarlowTwinsTransformer(BaseTransformer):
@@ -128,6 +128,6 @@ class BarlowTwinsTransformer(BaseTransformer):
     def __call__(self, img: ImageType) -> tuple[Tensor, Tensor]:
         if img.mode == 'RGBA':
             img = img.convert('RGB') # random grayscale fails when an image has 4 channels
-        aug_input_a = self.transform_a(img)
-        aug_input_b = self.transform_b(img)
+        aug_input_a = cast(Tensor, self.transform_a(img))
+        aug_input_b = cast(Tensor, self.transform_b(img))
         return aug_input_a, aug_input_b

@@ -86,14 +86,14 @@ class DatasetProcessor:
     def load_partitioned_dataset(self,
                                  dataset_name: str,
                                  proportions: DataSplits,
-                                 seed: int) -> dict[DatasetType, Subset]:
+                                 seed: int) -> dict[DatasetType, Subset[ConcreteDataset]]:
 
-        unlabelled_data: Optional[Dataset]
-        train_labelled_data: Dataset
-        evaluation_labelled_data: Dataset
-        test_data: Dataset
-        subset_idxs_dict: dict[DatasetType, np.ndarray] = {}
-        subsets_dict: dict[DatasetType, Subset] = {}
+        unlabelled_data: Optional[Dataset[ConcreteDataset]]
+        train_labelled_data: Dataset[ConcreteDataset]
+        evaluation_labelled_data: Dataset[ConcreteDataset]
+        test_data: Dataset[ConcreteDataset]
+        subset_idxs_dict: dict[DatasetType, NDArray[np.int_]] = {}
+        subsets_dict: dict[DatasetType, Subset[ConcreteDataset]] = {}
 
         (unlabelled_data, train_labelled_data, evaluation_labelled_data, test_data) = \
             self._load_dataset(dataset_name)
@@ -167,7 +167,7 @@ class DatasetProcessor:
                                                        stratify=targets[idxs],
                                                        random_state=seed_to_use)
             subsets_dict[dataset_type] = Subset(dataset_to_use, idxs_to_use.tolist())
-        subsets_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
+        subsets_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets))))
         return subsets_dict
 
 
@@ -209,11 +209,11 @@ class DatasetProcessor:
 
     @classmethod
     def get_data_loaders(cls,
-                         dataset: dict[DatasetType, Subset],
+                         dataset: dict[DatasetType, Subset[ConcreteDataset]],
                          partitions_to_get: list[DatasetType],
-                         batch_size: int) -> dict[DatasetType, DataLoader]:
+                         batch_size: int) -> dict[DatasetType, DataLoader[ConcreteDataset]]:
         is_drop_last: bool
-        loaders_dict: dict[DatasetType, DataLoader] = {}
+        loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]] = {}
         g = Generator()
         for p in partitions_to_get:
             g.manual_seed(DEFAULT_SEED)

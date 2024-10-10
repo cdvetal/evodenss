@@ -4,9 +4,12 @@ import unittest
 import warnings
 
 from evodenss.config.pydantic import ArchitectureConfig, ModuleConfig, MutationConfig, NetworkStructure
+from evodenss.evolution.genotype import Genotype
+from evodenss.evolution.grammar import Derivation
 from evodenss.evolution.operators import mutation
 from evodenss.evolution.individual import Individual
-from evodenss.evolution.grammar import Genotype, Grammar, NonTerminal
+from evodenss.evolution.grammar import Grammar, NonTerminal
+from evodenss.misc.utils import LayerId
 from evodenss.networks.module import Module
 from tests.resources.genotype_examples import mutation_added_layer_genotype, simple_sample1
 
@@ -31,7 +34,7 @@ class Test(unittest.TestCase):
                                original_layers: list[Genotype],
                                added_layers_idx: list[int],
                                added_layers: list[Genotype],
-                               removed_layers_idx: list[int]):
+                               removed_layers_idx: list[int]) -> None:
         expected_layers: list[Genotype] = deepcopy(original_layers)
         for idx, l in zip(added_layers_idx, added_layers):
             expected_layers = expected_layers[:idx] + [l] + expected_layers[idx:]
@@ -40,7 +43,7 @@ class Test(unittest.TestCase):
         self.assertEqual(obtained_layers, expected_layers)
 
 
-    def count_unique_layers(self, modules: dict[str, Module]):
+    def count_unique_layers(self, modules: dict[str, Module]) -> int:
         unique_layers = []
         for module in modules.values():
             for layer in module.layers:
@@ -49,7 +52,7 @@ class Test(unittest.TestCase):
         return len(set(unique_layers))
 
 
-    def count_layers(self, modules: dict[str, Module]):
+    def count_layers(self, modules: dict[str, Module]) -> int:
         return sum([len(module.layers) for module in modules.values()])
 
 
@@ -75,7 +78,7 @@ class Test(unittest.TestCase):
         return ind, grammar
 
 
-    def test_add_layer_random(self):
+    def test_add_layer_random(self) -> None:
         random.seed(0)
         self.mutation_config.add_layer = 1.0
         ind, grammar = self.create_individual()
@@ -96,7 +99,7 @@ class Test(unittest.TestCase):
                          "Error: add layer wrong size")
 
 
-    def test_add_layer_replicate(self):
+    def test_add_layer_replicate(self) -> None:
         random.seed(0)
         self.mutation_config.add_layer = 1.0
         self.mutation_config.reuse_layer = 1.0
@@ -124,7 +127,7 @@ class Test(unittest.TestCase):
                          "Error: duplicate layer wrong size")
 
 
-    def test_remove_layer(self):
+    def test_remove_layer(self) -> None:
         random.seed(0)
         self.mutation_config.remove_layer = 1.0
         ind, grammar = self.create_individual()
@@ -135,7 +138,7 @@ class Test(unittest.TestCase):
         original_layers = ind.individual_genotype.modules_dict['features'].layers
 
         obtained_connections = new_ind.individual_genotype.modules_dict['features'].connections
-        connections.pop(1)
+        connections.pop(LayerId(1))
 
         self.assert_layers_mutation(obtained_layers,
                                     original_layers,
@@ -148,12 +151,12 @@ class Test(unittest.TestCase):
                          "Error: remove layer wrong size")
 
 
-    def test_dsge_mutation(self):
+    def test_dsge_mutation(self) -> None:
         random.seed(0)
         grammar = Grammar("tests/resources/simple_grammar.grammar")
         sample_to_mutate = deepcopy(simple_sample1)
         expected_sample = deepcopy(simple_sample1)
-        expected_sample.expansions[NonTerminal(name='value')][1] = [NonTerminal(name='var')]
+        expected_sample.expansions[NonTerminal(name='value')][1] = Derivation([NonTerminal(name='var')])
         expected_sample.codons[NonTerminal(name='value')][1] = 1
         mutation._mutation_dsge(sample_to_mutate, grammar)
 

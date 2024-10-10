@@ -16,6 +16,6 @@ old_factory = logging.getLogRecordFactory()
 def logger_record_factory(run: int) -> Callable[..., logging.LogRecord]:
     def record_factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
         record = old_factory(*args, **kwargs)
-        record.run = run # type: ignore
+        record.run = run
         return record
     return record_factory
