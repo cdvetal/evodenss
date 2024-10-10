@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from torch.utils.data import Subset
 
 from evodenss.networks.phenotype_parser import Optimiser, Pretext
-from evodenss.dataset.dataset_loader import DatasetType
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
 from evodenss.train.learning_parameters import LearningParams
 
 
@@ -34,7 +34,7 @@ class MetadataInfo(BaseModel):
     @classmethod
     def new_instance(cls,
                      dataset_name: str,
-                     dataset: dict[DatasetType, Subset],
+                     dataset: dict[DatasetType, Subset[ConcreteDataset]],
                      optimiser: Optimiser,
                      learning_params: LearningParams,
                      pretext_task: Optional[Pretext]) -> 'MetadataInfo':

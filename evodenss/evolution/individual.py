@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import cast, Optional, TYPE_CHECKING
+from typing import Callable, cast, Optional, TYPE_CHECKING
 
 import numpy as np
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from evodenss.config.pydantic import ArchitectureConfig
     from evodenss.evolution.grammar import Grammar
     from evodenss.metrics.fitness_metrics import Fitness
-    from evodenss.dataset.dataset_loader import DatasetType
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from evodenss.networks.evaluators import BaseEvaluator
     from torch.utils.data import Subset
 
@@ -54,7 +54,7 @@ class Individual:
     def _decode(self, grammar: Grammar, static_projector_config: Optional[list[int]]) -> str:
         phenotype: str = ''
         static_projector_phenotype: str = ''
-        module_offset: int
+        module_offset: int = 0
 
         for module_idx, module in enumerate(self.individual_genotype.modules_dict.values()):
             for layer_idx, layer_genotype in enumerate(module.layers):
@@ -76,8 +76,10 @@ class Individual:
         # Build phenotype for projector network if this is static
         # (if it is dynamic, then it was already decoded above)
         if static_projector_config is not None:
-            dense = lambda out, act, i: f"projector_layer:fc act:{act} out_features:{out} bias:True input:{i}" # noqa: E731
-            batch = lambda act, i: f"projector_layer:batch_norm_proj act:{act} input:{i}" # noqa: E731
+            dense: Callable[..., str] = \
+                lambda out, act, i: f"projector_layer:fc act:{act} out_features:{out} bias:True input:{i}" # noqa: E731
+            batch: Callable[..., str] = \
+                lambda act, i: f"projector_layer:batch_norm_proj act:{act} input:{i}" # noqa: E731
             for i in range(len(static_projector_config)*2):
                 activation: str = "linear" if i >= len(static_projector_config)*2-2 else "relu"
                 if i % 2 == 0:
@@ -124,7 +126,7 @@ class Individual:
 
     def evaluate(self,
                  grammar: Grammar,
-                 dataset: dict['DatasetType', 'Subset'],
+                 dataset: dict['DatasetType', 'Subset[ConcreteDataset]'],
                  cnn_eval: BaseEvaluator,
                  static_projector_config: Optional[list[int]],
                  model_saving_dir: str,

@@ -12,8 +12,8 @@ from evodenss.misc.enums import AttributeType
 
 
 class Comparable(Protocol):
-    def __le__(self: 'T', other: 'T') -> bool: ...
-    def __ge__(self: 'T', other: 'T') -> bool: ...
+    def __le__(self: 'T', __other: 'T') -> bool: ...
+    def __ge__(self: 'T', __other: 'T') -> bool: ...
 
 T = TypeVar('T', bound=Comparable)
 K = TypeVar('K')
@@ -27,7 +27,7 @@ class Attribute(Generic[T]):
                  min_value: T,
                  max_value: T,
                  generator: Callable[[int,T,T], list[T]]) -> None:
-        self.var_type = var_type
+        self.var_type: str = var_type
         self.num_values: int = num_values
         self.min_value: T = min_value
         self.max_value: T = max_value
@@ -39,7 +39,6 @@ class Attribute(Generic[T]):
         assert self.values is not None
 
     def override_value(self, values_to_override: list[T]) -> None:
-        self.values = values_to_override
         for v in values_to_override:
             assert v >= self.min_value, f"error overriding value for attribute. {v} < {self.min_value}"
             assert v <= self.max_value, f"error overriding value for attribute. {v} > {self.max_value}"
@@ -81,7 +80,7 @@ class Symbol:
             symbol_name = symbol_str.replace('<', '').replace('>', '').rstrip().lstrip()
             return NonTerminal(symbol_name)
         elif "[" in symbol_str and "]" in symbol_str:
-            attribute: Attribute
+            attribute: Attribute[int]|Attribute[float]
             symbol_name, attribute_type, num_values, min_value, max_value = \
                 symbol_str.replace('[', '')\
                           .replace(']', '')\
@@ -134,7 +133,7 @@ class NonTerminal(Symbol):
 
 @dataclass
 class Terminal(Symbol):
-    attribute: Optional['Attribute'] = field(default=None)
+    attribute: Optional[Attribute[int]|Attribute[float]] = field(default=None)
 
     def __hash__(self) -> int:
         return hash(repr(self))

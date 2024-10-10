@@ -10,7 +10,7 @@ from typing import Any, Optional, TYPE_CHECKING
 import evodenss
 
 from evodenss.config.pydantic import AugmentationConfig, ConfigBuilder, get_config
-from evodenss.dataset.dataset_loader import DatasetProcessor, DatasetType
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, DatasetType
 from evodenss.evolution.individual import Individual
 from evodenss.misc.constants import DATASETS_INFO, MODEL_FILENAME, WEIGHTS_FILENAME
 from evodenss.misc.enums import Device, OptimiserType
@@ -46,7 +46,7 @@ def compute_time_elapsed_human(time_elapsed: int) -> str:
 
 
 
-def compute_metric(model: nn.Module, data_loader: DataLoader, device: Device) -> float:
+def compute_metric(model: nn.Module, data_loader: DataLoader[ConcreteDataset], device: Device) -> float:
     model.eval()
     correct_guesses: float = 0
     size: int = 0
@@ -75,9 +75,9 @@ def recreate_dataset_partitioning(
         metadata_info: MetadataInfo,
         ssl_transformer: Optional[BarlowTwinsTransformer],
         train_transformer: LegacyTransformer,
-        test_transformer: LegacyTransformer) -> dict[DatasetType, Subset]:
+        test_transformer: LegacyTransformer) -> dict[DatasetType, Subset[ConcreteDataset]]:
     dataset_processor: DatasetProcessor = DatasetProcessor(ssl_transformer, train_transformer, test_transformer)
-    dataset_partitioning: dict[DatasetType, Subset] = {}
+    dataset_partitioning: dict[DatasetType, Subset[ConcreteDataset]] = {}
     dataset_name: str
 
     if metadata_info.pretext_training_info is not None:
@@ -111,7 +111,7 @@ def recreate_dataset_partitioning(
 
 
 def extend_supervised_train(model: EvaluationBarlowTwinsNetwork | EvolvedNetwork,
-                            dataset: dict[DatasetType, Subset],
+                            dataset: dict[DatasetType, Subset[ConcreteDataset]],
                             metadata_info: TrainingInfo,
                             model_output_dir: str,
                             downstream_epochs: int,
@@ -138,7 +138,7 @@ def extend_supervised_train(model: EvaluationBarlowTwinsNetwork | EvolvedNetwork
 
     if isinstance(model, EvaluationBarlowTwinsNetwork) is True:
         #params_to_tune = iter([param for name, param in model.named_parameters() if 'final_layer' in name])
-        params_to_tune = iter([param for name, param in model.named_parameters()])
+        params_to_tune = iter([param for _, param in model.named_parameters()])
     else:
         params_to_tune = model.parameters()
     #learning_params = ModelBuilder.assemble_optimiser(
@@ -185,7 +185,7 @@ def extend_supervised_train(model: EvaluationBarlowTwinsNetwork | EvolvedNetwork
 
 
 def extend_barlow_twins_train(model: BarlowTwinsNetwork | EvaluationBarlowTwinsNetwork,
-                              dataset: dict[DatasetType, Subset],
+                              dataset: dict[DatasetType, Subset[ConcreteDataset]],
                               metadata_info: MetadataInfo,
                               model_output_dir: str,
                               pretext_epochs: int,
@@ -255,10 +255,11 @@ def main(model_path: str,
 
 
     (ssl_transformer, train_transformer, test_transformer) = recreate_transformers(augmentation_params)
-    dataset: dict[DatasetType, Subset] = recreate_dataset_partitioning(metadata_info,
-                                                                       ssl_transformer,
-                                                                       train_transformer,
-                                                                       test_transformer)
+    dataset: dict[DatasetType, Subset[ConcreteDataset]] = \
+        recreate_dataset_partitioning(metadata_info,
+                                      ssl_transformer,
+                                      train_transformer,
+                                      test_transformer)
     if metadata_info.pretext_training_info is not None:
         extend_barlow_twins_train(model,
                                   dataset,

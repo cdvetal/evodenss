@@ -10,7 +10,7 @@ from evodenss.misc import persistence
 
 if TYPE_CHECKING:
     from evodenss.networks.evaluators import BaseEvaluator
-    from evodenss.dataset.dataset_loader import DatasetType
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from torch.utils.data import Subset
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def select_fittest(method: str,
                    population: list[Individual],
                    grammar: Grammar,
-                   dataset: dict['DatasetType', 'Subset'],
+                   dataset: dict['DatasetType', 'Subset[ConcreteDataset]'],
                    cnn_eval: 'BaseEvaluator',
                    static_projector_config: Optional[list[int]],
                    run: int,

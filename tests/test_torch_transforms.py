@@ -6,6 +6,7 @@ from PIL import Image
 import torch
 from torchvision.transforms import Compose, ColorJitter, Normalize, \
     RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop , Resize, ToTensor
+from torchvision.transforms.functional import InterpolationMode
 
 from evodenss.misc.enums import TransformOperation
 from evodenss.networks.transformers import LegacyTransformer, \
@@ -138,7 +139,7 @@ class Test(unittest.TestCase):
             Resize(size=32),
             RandomHorizontalFlip(p=0.0),
             RandomApply([ColorJitter(brightness=0.4, contrast=0.4, saturation=0.2, hue=0.1)], p=0.1),
-            RandomResizedCrop(size=28, scale=(0.8, 0.9), interpolation=Image.BICUBIC),
+            RandomResizedCrop(size=28, scale=(0.8, 0.9), interpolation=InterpolationMode.BICUBIC),
             RandomGrayscale(p=0.1),
             GaussianBlur(p=0.1),
             Solarization(p=0.1),

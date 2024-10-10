@@ -8,7 +8,7 @@ import types
 
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split # pyright: ignore
 from torch import Generator, Tensor
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10, CIFAR100, FashionMNIST, MNIST
@@ -75,25 +75,25 @@ class DatasetProcessor:
             subset_a_idxs = superset_idxs
             subset_b_idxs = np.array([], dtype=np.int8)
         else:
-            subset_a_idxs, subset_b_idxs = train_test_split(superset_idxs,
+            subset_a_idxs, subset_b_idxs = train_test_split(superset_idxs, # pyright: ignore
                                                             test_size=ratio,
                                                             shuffle=True,
                                                             stratify=stratify,
                                                             random_state=DEFAULT_SEED)
-        return subset_a_idxs, subset_b_idxs
+        return subset_a_idxs, subset_b_idxs # pyright: ignore
 
 
     def load_partitioned_dataset(self,
                                  dataset_name: str,
                                  proportions: DataSplits,
-                                 seed: int) -> dict[DatasetType, Subset]:
+                                 seed: int) -> dict[DatasetType, Subset[ConcreteDataset]]:
 
-        unlabelled_data: Optional[Dataset]
-        train_labelled_data: Dataset
-        evaluation_labelled_data: Dataset
-        test_data: Dataset
-        subset_idxs_dict: dict[DatasetType, np.ndarray] = {}
-        subsets_dict: dict[DatasetType, Subset] = {}
+        unlabelled_data: Optional[Dataset[ConcreteDataset]]
+        train_labelled_data: Dataset[ConcreteDataset]
+        evaluation_labelled_data: Dataset[ConcreteDataset]
+        test_data: Dataset[ConcreteDataset]
+        subset_idxs_dict: dict[DatasetType, NDArray[np.int_]] = {}
+        subsets_dict: dict[DatasetType, Subset[ConcreteDataset]] = {}
 
         (unlabelled_data, train_labelled_data, evaluation_labelled_data, test_data) = \
             self._load_dataset(dataset_name)
@@ -209,11 +209,11 @@ class DatasetProcessor:
 
     @classmethod
     def get_data_loaders(cls,
-                         dataset: dict[DatasetType, Subset],
+                         dataset: dict[DatasetType, Subset[ConcreteDataset]],
                          partitions_to_get: list[DatasetType],
-                         batch_size: int) -> dict[DatasetType, DataLoader]:
+                         batch_size: int) -> dict[DatasetType, DataLoader[ConcreteDataset]]:
         is_drop_last: bool
-        loaders_dict: dict[DatasetType, DataLoader] = {}
+        loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]] = {}
         g = Generator()
         for p in partitions_to_get:
             g.manual_seed(DEFAULT_SEED)

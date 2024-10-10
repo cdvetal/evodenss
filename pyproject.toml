@@ -74,7 +74,24 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 follow_imports_for_stubs = false
 ignore_missing_imports = true
+strict= true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+########################################
+#############   PYLANCE   ##############
+########################################
+
+[tool.pyright]
+root = ['.']
+include = ["evodenss", "tests"]
+exclude = ["**/__pycache__"]
+
+useLibraryCodeForTypes = true
+
+typeCheckingMode = "basic"
+
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"

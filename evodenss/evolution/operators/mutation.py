@@ -4,16 +4,17 @@ import random
 from typing import cast, TYPE_CHECKING, Any, Optional
 
 from evodenss.config.pydantic import MutationConfig
-from evodenss.evolution.grammar import Derivation, Genotype, Grammar, NonTerminal, Terminal
+from evodenss.evolution.grammar import Attribute, Derivation, Grammar, NonTerminal, Terminal
+from evodenss.evolution.genotype import Genotype
 from evodenss.evolution.individual import Individual
 from evodenss.evolution.operators.mutation_tracker import enable_tracking
-from evodenss.misc.enums import MutationType
+from evodenss.misc.enums import AttributeType, MutationType
 from evodenss.misc.utils import InputLayerId, LayerId
 from evodenss.networks.module import Module
 
 if TYPE_CHECKING:
     from evodenss.evolution.grammar import Symbol
-    from evodenss.evolution.individual import IndividualGenotype
+    from evodenss.evolution.genotype import IndividualGenotype
     from evodenss.networks.module import Module
 
 
@@ -112,7 +113,7 @@ def mutation_remove_layer(individual: Individual,
     else:
         for _key_ in sorted(module.connections.keys()):
             if _key_ > remove_idx:
-                if _key_ > remove_idx+1 and remove_idx in module.connections[_key_]:
+                if _key_ > remove_idx+1 and InputLayerId(remove_idx) in module.connections[_key_]:
                     module.connections[_key_].remove(InputLayerId(remove_idx))
 
                 for value_idx, value in enumerate(module.connections[_key_]):
@@ -177,7 +178,12 @@ def _mutation_dsge(layer: 'Genotype',
                 if isinstance(symbol, Terminal) and symbol.attribute is not None:
                     assert symbol.attribute.values is None
                     if symbol.name in attributes_to_override.keys():
-                        symbol.attribute.override_value(attributes_to_override[symbol.name])
+                        if AttributeType(symbol.attribute.var_type) == AttributeType.FLOAT:
+                            cast_attribute_f= cast(Attribute[float], symbol.attribute)
+                            cast_attribute_f.override_value(cast(list[float], attributes_to_override[symbol.name]))
+                        else:
+                            cast_attribute_i = cast(Attribute[int], symbol.attribute)
+                            cast_attribute_i.override_value(cast(list[int], attributes_to_override[symbol.name]))
                     else:
                         # this method has side-effects. The Derivation object is altered because of this
                         symbol.attribute.generate()
