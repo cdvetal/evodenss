@@ -7,7 +7,7 @@ from PIL import Image
 import torch
 from torch import Tensor
 from torchvision.transforms import Compose, ColorJitter, Normalize, \
-    RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop , Resize, ToTensor
+    RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop, Resize, ToTensor
 from torchvision.transforms.functional import InterpolationMode
 
 from evodenss.misc.enums import TransformOperation

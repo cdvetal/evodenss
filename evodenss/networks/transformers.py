@@ -4,20 +4,18 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 import logging
 import random
-from typing import cast, Any, TYPE_CHECKING
+from typing import cast, Any
 
 from PIL import ImageFilter, ImageOps
 from PIL.Image import Image as ImageType # https://github.com/python-pillow/Pillow/issues/6676
 from torchvision.transforms import Compose, CenterCrop, ColorJitter, Normalize, RandomApply, \
     RandomCrop, RandomGrayscale, RandomHorizontalFlip, RandomResizedCrop, Resize, \
     ToTensor
+from torch import Tensor
 from torchvision.transforms.functional import InterpolationMode
 
 from evodenss.config.pydantic import PretextAugmentation
 from evodenss.misc.enums import TransformOperation
-
-if TYPE_CHECKING:
-    from torch import Tensor
 
 
 __all__ = ['LegacyTransformer', 'BarlowTwinsTransformer']
