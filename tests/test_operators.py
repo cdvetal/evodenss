@@ -78,7 +78,7 @@ class Test(unittest.TestCase):
         return ind, grammar
 
 
-    def test_add_layer_random(self):
+    def test_add_layer_random(self) -> None:
         random.seed(0)
         self.mutation_config.add_layer = 1.0
         ind, grammar = self.create_individual()
@@ -99,7 +99,7 @@ class Test(unittest.TestCase):
                          "Error: add layer wrong size")
 
 
-    def test_add_layer_replicate(self):
+    def test_add_layer_replicate(self) -> None:
         random.seed(0)
         self.mutation_config.add_layer = 1.0
         self.mutation_config.reuse_layer = 1.0
@@ -127,7 +127,7 @@ class Test(unittest.TestCase):
                          "Error: duplicate layer wrong size")
 
 
-    def test_remove_layer(self):
+    def test_remove_layer(self) -> None:
         random.seed(0)
         self.mutation_config.remove_layer = 1.0
         ind, grammar = self.create_individual()
@@ -151,7 +151,7 @@ class Test(unittest.TestCase):
                          "Error: remove layer wrong size")
 
 
-    def test_dsge_mutation(self):
+    def test_dsge_mutation(self) -> None:
         random.seed(0)
         grammar = Grammar("tests/resources/simple_grammar.grammar")
         sample_to_mutate = deepcopy(simple_sample1)

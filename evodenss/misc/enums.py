@@ -15,7 +15,7 @@ class AttributeType(Enum):
 class ExtendedEnum(Enum):
     @classmethod
     def enum_values(cls) -> list[Any]:
-        return list(map(lambda c: c.value, cls)) # type: ignore
+        return list(map(lambda c: c.value, cls))
 
 
 @unique

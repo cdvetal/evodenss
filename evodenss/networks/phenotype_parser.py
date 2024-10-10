@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from functools import reduce
-from itertools import takewhile, dropwhile
-from typing import cast, Any, Optional, Set
+from itertools import chain, dropwhile, takewhile
+from typing import cast, Any, Optional
 
 from evodenss.misc.enums import Entity, LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import InputLayerId, LayerId
@@ -53,12 +52,9 @@ class ParsedNetwork:
 
     # It gets the layer id that corresponds to the final/output layer
     def get_output_layer_id(self) -> LayerId:
-        keyset: Set[int] = set(self.layers_connections.keys())
-        values_set: Set[int] = set(
-            list(reduce(lambda a, b: cast(list, a) + cast(list, b),
-                        self.layers_connections.values()))
-        )
-        result: Set[int] = keyset.difference(values_set)
+        keyset: set[int] = cast(set[int], set(self.layers_connections.keys()))
+        values_set: set[int] = cast(set[int], set(list(chain(*self.layers_connections.values()))))
+        result: set[int] = keyset.difference(values_set)
         assert len(result) == 1
         return LayerId(list(result)[0])
     

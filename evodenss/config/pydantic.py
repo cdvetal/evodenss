@@ -25,7 +25,7 @@ _init_context_var: ContextVar[dict[str, Any]] = ContextVar('_init_context_var', 
 
 @contextmanager
 def init_context(value: dict[str, Any]) -> Iterator[None]:
-    token = _init_context_var.set(value) # type: ignore
+    token = _init_context_var.set(value)
     try:
         yield
     finally:

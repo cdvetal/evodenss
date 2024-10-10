@@ -2,9 +2,10 @@ import os
 import shutil
 import unittest
 import time
+from typing import cast
 
 import torch
-from torch import nn, optim
+from torch import nn, optim, Tensor
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
@@ -16,18 +17,18 @@ from evodenss.train.trainers import Trainer
 
 
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.stop_training = False
         self.fc = nn.Sequential(nn.Flatten(), nn.Linear(28*28, 10))
 
-    def forward(self, x):
-        return self.fc(x)
+    def forward(self, x: Tensor) -> Tensor:
+        return cast(Tensor, self.fc(x))
 
 
 class Test(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         batch_size = 100
         dataset = datasets.MNIST(root="data", train=True, download=True, transform=ToTensor())
         self.data_loader = DataLoader(dataset,
@@ -37,9 +38,10 @@ class Test(unittest.TestCase):
                                       drop_last=True)
 
 
-    def test_time_stop(self):
+    def test_time_stop(self) -> None:
         callback_to_test = TimedStoppingCallback(max_seconds=10)
-        trainer = Trainer(None, None, None, None, None, None, None, None, callbacks=[callback_to_test])
+        trainer = Trainer(None, None, None, None, None, None, None, None, # type: ignore
+                          callbacks=[callback_to_test])
         callback_to_test.on_train_begin(trainer)
         time.sleep(5)
         callback_to_test.on_epoch_end(trainer)
@@ -49,7 +51,7 @@ class Test(unittest.TestCase):
         self.assertEqual(trainer.stop_training, True, "Error stop training")
 
 
-    def test_model_saving(self):
+    def test_model_saving(self) -> None:
         folder_name = "test_dir"
         os.makedirs(folder_name, exist_ok=True)
         callback_to_test = ModelCheckpointCallback(model_saving_dir=folder_name,

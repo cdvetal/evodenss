@@ -8,7 +8,8 @@ import warnings
 import numpy as np
 from parameterized import parameterized
 
-from evodenss.evolution.grammar import Genotype, Grammar
+from evodenss.evolution.genotype import Genotype
+from evodenss.evolution.grammar import Grammar
 from tests.resources.genotype_examples import simple_sample1, simple_sample2, simple_sample3, \
     nn_sample1, nn_sample2, dgse_mutated_simple_sample3
 from tests.resources.phenotype_examples import simple_phenotype1, simple_phenotype2, simple_phenotype3, \

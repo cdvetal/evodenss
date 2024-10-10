@@ -9,7 +9,7 @@ from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, D
 from evodenss.misc.enums import Device
 from evodenss.networks.transformers import BarlowTwinsTransformer, LegacyTransformer
 
-torch.set_printoptions(threshold=1e6)
+torch.set_printoptions(threshold=1e6) # type: ignore
 
 
 k = 200

@@ -1,9 +1,11 @@
 import random
+from typing import cast
 import unittest
 
 import numpy as np
 from PIL import Image
 import torch
+from torch import Tensor
 from torchvision.transforms import Compose, ColorJitter, Normalize, \
     RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop , Resize, ToTensor
 from torchvision.transforms.functional import InterpolationMode
@@ -20,7 +22,7 @@ class Test(unittest.TestCase):
         random.seed(seed)
         np.random.seed(seed)
 
-    def test_solarize(self):
+    def test_solarize(self) -> None:
         self._fix_seed(0)
         transformer = LegacyTransformer({TransformOperation.SOLARIZE.value: {'probability': 1.0}})
         to_tensor_transform = Compose([ToTensor()])
@@ -29,11 +31,11 @@ class Test(unittest.TestCase):
         expected_img = Image.open("tests/resources/images/solarized_mnist_seed=0_id=0.png")
 
         final_tensor = transformer(original_img)
-        expected_tensor = to_tensor_transform(expected_img)
+        expected_tensor = cast(Tensor, to_tensor_transform(expected_img))
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
 
-    def test_gaussian_blur(self):
+    def test_gaussian_blur(self) -> None:
         self._fix_seed(0)
         transformer = LegacyTransformer({TransformOperation.GAUSSIAN_BLUR.value: {'probability': 1.0}})
         to_tensor_transform = Compose([ToTensor()])
@@ -42,11 +44,11 @@ class Test(unittest.TestCase):
         expected_img = Image.open("tests/resources/images/gaussian_blur_mnist_seed=0_id=0.png")
 
         final_tensor = transformer(original_img)
-        expected_tensor = to_tensor_transform(expected_img)
+        expected_tensor = cast(Tensor, to_tensor_transform(expected_img))
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
 
-    def test_random_grayscale(self):
+    def test_random_grayscale(self) -> None:
         self._fix_seed(0)
         transformer = LegacyTransformer({TransformOperation.RANDOM_GRAYSCALE.value: {'probability': 1.0}})
         to_tensor_transform = Compose([ToTensor()])
@@ -55,12 +57,11 @@ class Test(unittest.TestCase):
         expected_img = Image.open("tests/resources/images/random_grayscale_original_imagenet_dog.png")
 
         final_tensor = transformer(original_img)
-        expected_tensor = to_tensor_transform(expected_img)
-
+        expected_tensor = cast(Tensor, to_tensor_transform(expected_img))
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
 
-    def test_random_resized_crop(self):
+    def test_random_resized_crop(self) -> None:
         self._fix_seed(0)
         transformer = LegacyTransformer({TransformOperation.RANDOM_RESIZED_CROP.value: {'size': 28}})
         to_tensor_transform = Compose([ToTensor()])
@@ -69,11 +70,11 @@ class Test(unittest.TestCase):
         expected_img = Image.open("tests/resources/images/random_resized_crop_mnist_seed=0_id=0.png")
 
         final_tensor = transformer(original_img)
-        expected_tensor = to_tensor_transform(expected_img)
+        expected_tensor: Tensor = cast(Tensor, to_tensor_transform(expected_img))
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
 
-    def test_horizontal_flip(self):
+    def test_horizontal_flip(self) -> None:
         self._fix_seed(0)
         transformer = LegacyTransformer({TransformOperation.HORIZONTAL_FLIPPING.value: {'probability': 1.0}})
         to_tensor_transform = Compose([ToTensor()])
@@ -82,11 +83,11 @@ class Test(unittest.TestCase):
         expected_img = Image.open("tests/resources/images/horizontal_flip_mnist_seed=0_id=0.png")
 
         final_tensor = transformer(original_img)
-        expected_tensor = to_tensor_transform(expected_img)
+        expected_tensor = cast(Tensor, to_tensor_transform(expected_img))
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
 
-    def test_normalize(self):
+    def test_normalize(self) -> None:
         self._fix_seed(0)
         transformer = LegacyTransformer({
             TransformOperation.NORMALIZE.value:{'mean': [0.485], 'std': [0.09]}
@@ -95,11 +96,11 @@ class Test(unittest.TestCase):
         original_img = Image.open("tests/resources/images/original_mnist_seed=0_id=0.png")
         expected_img = Image.open("tests/resources/images/normalize_mnist_seed=0_id=0.png")
         final_tensor = torch.round((transformer(original_img).clamp(0, 1) * 255)).int()
-        expected_tensor = (to_tensor_transform(expected_img) * 255).int()
+        expected_tensor = (cast(Tensor, to_tensor_transform(expected_img)) * 255).int()
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
 
-    def test_color_jitter(self):
+    def test_color_jitter(self)-> None:
         self._fix_seed(0)
         transformer = LegacyTransformer(
             {
@@ -118,12 +119,11 @@ class Test(unittest.TestCase):
         expected_img = Image.open("tests/resources/images/color_jitter_mnist_seed=0_id=0.png")
 
         final_tensor = transformer(original_img)
-        expected_tensor = to_tensor_transform(expected_img)
-
+        expected_tensor = cast(Tensor, to_tensor_transform(expected_img))
         self.assertEqual(final_tensor.numpy().tolist(), expected_tensor.numpy().tolist())
 
 
-    def test_transform_pipeline_creation(self):
+    def test_transform_pipeline_creation(self) -> None:
         transformations = {
             'resize': {'size': 32},
             'normalize': {'mean': [0.485], 'std': [0.229]},
