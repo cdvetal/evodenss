@@ -12,9 +12,9 @@ import torch
 from torch import Generator, nn, Size
 from torch.utils.data import DataLoader, Subset
 
-from evodenss.config.pydantic import LearningType, PriorRepresentationsConfig, get_config, get_fitness_extra_params
+from evodenss.config.pydantic import PriorRepresentationsConfig, get_config, get_fitness_extra_params
 from evodenss.misc.constants import DATASETS_INFO, DEFAULT_SEED, MODEL_FILENAME, WEIGHTS_FILENAME
-from evodenss.misc.enums import Device, DownstreamMode, FitnessMetricName
+from evodenss.misc.enums import Device, DownstreamMode, FitnessMetricName, LearningType
 from evodenss.metrics.evaluation_metrics import EvaluationMetrics
 from evodenss.metrics.fitness_metrics import AccuracyMetric, DownstreamAccuracyMetric, Fitness, \
     FitnessMetric, KNNAccuracyMetric
@@ -114,7 +114,7 @@ class BaseEvaluator(ABC):
     @abstractmethod
     def evaluate(self,
                  phenotype: str,
-                 dataset: dict[DatasetType, Subset],
+                 dataset: dict[DatasetType, Subset[ConcreteDataset]],
                  model_saving_dir: str,
                  parent_dir: Optional[str],
                  reuse_parent_weights: bool,
@@ -155,7 +155,7 @@ class BaseEvaluator(ABC):
 
 
     def testing_performance(self,
-                            dataset: dict[DatasetType, Subset],
+                            dataset: dict[DatasetType, Subset[ConcreteDataset]],
                             model_dir: str,
                             fitness_metric_name: FitnessMetricName,
                             **kwargs: Any) -> float:
@@ -193,8 +193,8 @@ class BaseEvaluator(ABC):
         test_set = dataset[DatasetType.TEST]
         assert test_set is not None
         batch_size: int = 64
-        test_loader: DataLoader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
-        loaders_to_use: dict[DatasetType, DataLoader] = {DatasetType.EVO_TEST: test_loader}
+        test_loader: DataLoader[ConcreteDataset] = DataLoader(test_set, batch_size=batch_size, shuffle=True)
+        loaders_to_use: dict[DatasetType, DataLoader[ConcreteDataset]] = {DatasetType.EVO_TEST: test_loader}
         if fitness_metric_name in [FitnessMetricName.DOWNSTREAM_ACCURACY, FitnessMetricName.KNN_ACCURACY]:
             g = Generator()
             g.manual_seed(DEFAULT_SEED)
@@ -259,7 +259,7 @@ class LegacyEvaluator(BaseEvaluator):
 
     def evaluate(self,
                  phenotype: str,
-                 dataset: dict[DatasetType, Subset],
+                 dataset: dict[DatasetType, Subset[ConcreteDataset]],
                  model_saving_dir: str,
                  parent_dir: Optional[str],
                  reuse_parent_weights: bool,
@@ -305,7 +305,7 @@ class LegacyEvaluator(BaseEvaluator):
                 training_parameters,
                 optimiser
             )
-            loaders_dict: dict[DatasetType, DataLoader] = DatasetProcessor.get_data_loaders(
+            loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]] = DatasetProcessor.get_data_loaders(
                 dataset,
                 [DatasetType.DOWNSTREAM_TRAIN, DatasetType.VALIDATION, DatasetType.EVO_TEST, DatasetType.TEST],
                 learning_params.batch_size)
@@ -371,7 +371,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
 
     def evaluate(self,
                  phenotype: str,
-                 dataset: dict[DatasetType, Subset],
+                 dataset: dict[DatasetType, Subset[ConcreteDataset]],
                  model_saving_dir: str,
                  parent_dir: Optional[str],
                  reuse_parent_weights: bool,
@@ -404,7 +404,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                 ModelBuilder.assemble_optimiser(list(torch_model.parameters()), optimiser)
             assert learning_params.batch_size > 1, \
                 "batch size should be > 1, otherwise the BatchNorm1D layer won't work"
-            loaders_dict: dict[DatasetType, DataLoader] = DatasetProcessor.get_data_loaders(
+            loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]] = DatasetProcessor.get_data_loaders(
                 dataset,
                 [DatasetType.PRETEXT_TRAIN, DatasetType.DOWNSTREAM_TRAIN, DatasetType.EVO_TEST, DatasetType.TEST],
                 learning_params.batch_size)

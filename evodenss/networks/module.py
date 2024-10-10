@@ -5,7 +5,8 @@ from evodenss.config.pydantic import ModuleConfig
 from evodenss.misc.utils import InputLayerId, LayerId
 
 if TYPE_CHECKING:
-    from evodenss.evolution.grammar import Genotype, Grammar
+    from evodenss.evolution.genotype import Genotype
+    from evodenss.evolution.grammar import Grammar
 
 
 class Module:

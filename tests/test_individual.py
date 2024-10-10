@@ -32,7 +32,7 @@ class Test(unittest.TestCase):
         grammar_path: str = "tests/resources/example_full.grammar"
         self.grammar: Grammar = Grammar(grammar_path)
 
-
+    
     @parameterized.expand([
         (0, ind_test_output1, ind_test_learning1),
         (1, ind_test_output2, ind_test_learning2)

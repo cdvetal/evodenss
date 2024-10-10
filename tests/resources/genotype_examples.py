@@ -1,4 +1,5 @@
-from evodenss.evolution.grammar import Attribute, Derivation, Genotype, NonTerminal, Terminal
+from evodenss.evolution.genotype import Genotype
+from evodenss.evolution.grammar import Attribute, Derivation, NonTerminal, Terminal
 
 
 def generate_attribute(genotype: Genotype,

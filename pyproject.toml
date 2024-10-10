@@ -69,16 +69,12 @@ files = [
     "tests/"
 ]
 enable_incomplete_feature = ["Unpack"]
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
+
+strict = true
+disallow-untyped-decorators = false
 follow_imports_for_stubs = false
 ignore_missing_imports = true
-strict= true
 
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
 
 ########################################
 #############   PYLANCE   ##############

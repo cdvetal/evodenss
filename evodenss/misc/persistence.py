@@ -14,9 +14,12 @@ from evodenss.misc.constants import MODEL_FILENAME
 from evodenss.metrics.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
 
+
 if TYPE_CHECKING:
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from evodenss.evolution.grammar import Grammar
     from evodenss.misc.checkpoint import Checkpoint
+    from torch.utils.data import Subset
 
 
 __all__ = ['RestoreCheckpoint', 'SaveCheckpoint', 'save_overall_best_individual',
@@ -24,8 +27,9 @@ __all__ = ['RestoreCheckpoint', 'SaveCheckpoint', 'save_overall_best_individual'
 
 class RestoreCheckpoint:
 
-    def __init__(self, f: Callable) -> None:
-        self.f: Callable = f
+    def __init__(self,
+                 f: Callable[[int, str, Grammar, Config, bool, Optional[Checkpoint]], Checkpoint]) -> None:
+        self.f: Callable[[int, str, Grammar, Config, bool, Optional[Checkpoint]], Checkpoint] = f
 
     def __call__(self,
                  run: int,
@@ -38,7 +42,7 @@ class RestoreCheckpoint:
                grammar,
                config,
                is_gpu_run,
-               possible_checkpoint=self.restore_checkpoint(config.checkpoints_path, run))
+               self.restore_checkpoint(config.checkpoints_path, run))
 
     def restore_checkpoint(self, save_path: str, run: int) -> Optional[Checkpoint]:
         if os.path.exists(os.path.join(save_path, f"run_{run}", "checkpoint.pkl")):
@@ -52,8 +56,11 @@ class RestoreCheckpoint:
 
 class SaveCheckpoint:
 
-    def __init__(self, f: Callable) -> None:
-        self.f: Callable = f
+    def __init__(self,
+                 f: Callable[[int, int, dict[DatasetType, Subset[ConcreteDataset]], Grammar, Checkpoint],
+                             Checkpoint]) -> None:
+        self.f: Callable[[int, int, dict[DatasetType, Subset[ConcreteDataset]], Grammar, Checkpoint],
+                         Checkpoint] = f
 
     def __call__(self, *args: Any, **kwargs: Any) -> Checkpoint:
         new_checkpoint: Checkpoint = self.f(*args)
