@@ -8,7 +8,7 @@ import types
 
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.model_selection import train_test_split # pyright: ignore
+from sklearn.model_selection import train_test_split
 from torch import Generator, Tensor
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10, CIFAR100, FashionMNIST, MNIST
@@ -75,12 +75,12 @@ class DatasetProcessor:
             subset_a_idxs = superset_idxs
             subset_b_idxs = np.array([], dtype=np.int8)
         else:
-            subset_a_idxs, subset_b_idxs = train_test_split(superset_idxs, # pyright: ignore
+            subset_a_idxs, subset_b_idxs = train_test_split(superset_idxs,
                                                             test_size=ratio,
                                                             shuffle=True,
                                                             stratify=stratify,
                                                             random_state=DEFAULT_SEED)
-        return subset_a_idxs, subset_b_idxs # pyright: ignore
+        return subset_a_idxs, subset_b_idxs
 
 
     def load_partitioned_dataset(self,
@@ -167,7 +167,7 @@ class DatasetProcessor:
                                                        stratify=targets[idxs],
                                                        random_state=seed_to_use)
             subsets_dict[dataset_type] = Subset(dataset_to_use, idxs_to_use.tolist())
-        subsets_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets)))) # type: ignore
+        subsets_dict[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets))))
         return subsets_dict
 
 
