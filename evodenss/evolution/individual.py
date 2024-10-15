@@ -5,9 +5,9 @@ from typing import Callable, cast, Optional, TYPE_CHECKING
 
 import numpy as np
 
+from evodenss.evolution.genotype import IndividualGenotype
 from evodenss.metrics.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.utils import InputLayerId, LayerId
-from evodenss.evolution.genotype import IndividualGenotype
 
 
 if TYPE_CHECKING:

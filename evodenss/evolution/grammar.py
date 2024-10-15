@@ -282,8 +282,6 @@ class Grammar:
                          unconsumed_geno: Genotype,
                          extra_genotype: Genotype) -> list[str]:
         phenotype: list[str] = []
-        #print(f"-- symbol: {symbol} == unconsumed_geno: {unconsumed_geno}")
-        #print(f"-- symbol: {symbol} == extra_genotype: {extra_genotype}")
         if isinstance(symbol, NonTerminal):
             # consume expansion
             expansion: Optional[Derivation] = None
@@ -304,9 +302,7 @@ class Grammar:
                 return [f"{symbol.name}"]
             else:
                 if symbol.attribute.values is None:
-                    #print(symbol.attribute.values)
                     symbol.attribute.generate()
-                    #print(symbol.attribute.values)
                 assert symbol.attribute.values is not None
                 return [f"{symbol.name}:{','.join(map(str, symbol.attribute.values))}"]
         return phenotype
