@@ -50,10 +50,10 @@ class DatasetType(Enum):
 class DatasetProcessor:
 
     def __init__(self,
-                 ssl_transformer: Optional[BarlowTwinsTransformer],
+                 ssl_transformer: BarlowTwinsTransformer,
                  train_transformer: LegacyTransformer,
                  test_transformer: LegacyTransformer) -> None:
-        self.ssl_transformer: Optional[BarlowTwinsTransformer] = ssl_transformer # pretext
+        self.ssl_transformer: BarlowTwinsTransformer = ssl_transformer # pretext
         self.train_transformer: LegacyTransformer = train_transformer # downstream
         self.test_transformer: LegacyTransformer = test_transformer # downstream
 
