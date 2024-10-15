@@ -5,7 +5,7 @@ import dill
 import json
 import logging
 import time
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import evodenss
 
@@ -73,7 +73,7 @@ def recreate_transformers(augmentation_params: AugmentationConfig) -> tuple[Barl
 
 def recreate_dataset_partitioning(
         metadata_info: MetadataInfo,
-        ssl_transformer: Optional[BarlowTwinsTransformer],
+        ssl_transformer: BarlowTwinsTransformer,
         train_transformer: LegacyTransformer,
         test_transformer: LegacyTransformer) -> dict[DatasetType, Subset[ConcreteDataset]]:
     dataset_processor: DatasetProcessor = DatasetProcessor(ssl_transformer, train_transformer, test_transformer)
