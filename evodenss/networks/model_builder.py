@@ -142,11 +142,7 @@ class ModelBuilder():
                                           connections_to_use,
                                           self.parsed_network.get_output_layer_id(),
                                           self.layer_shapes,
-                                          self.projector_layer_shapes,
-                                          self.parsed_projector_network.get_output_layer_id(),
-                                          projector_model,
-                                          self.device,
-                                          **pretext_task.pretext_parameters)
+                                          projector_model)
             else:
                 raise ValueError(f"Unexpected network type: {evaluation_type}")
         except InvalidNetwork as e:

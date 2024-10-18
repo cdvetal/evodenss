@@ -117,11 +117,7 @@ class BarlowTwinsNetwork(EvolvedNetwork):
                  layers_connections: dict[LayerId, list[InputLayerId]],
                  output_layer_id: LayerId,
                  layer_shapes: dict[InputLayerId, Dimensions],
-                 projector_layer_shapes: dict[InputLayerId, Dimensions],
-                 projector_output_layer_id: LayerId,
-                 projector_model: nn.Module,
-                 device: Device,
-                 lamb: float):
+                 projector_model: nn.Module):
 
         super().__init__(evolved_layers, layers_connections, output_layer_id)
         last_layer_name: str = self.id_layername_map[self.output_layer_id]
