@@ -49,7 +49,7 @@ network:
         levels_back: 1
     extra_components:
       - learning
-      - pretext 
+      - pretext
   learning:
     data_splits:
       labelled:

@@ -27,9 +27,8 @@ evolutionary:
         beta2: 0.999
 
 network:
-
   architecture:
-    reuse_layer: 0.2
+    reuse_layer: 0.15
     output: identity
     modules:
       - name: features
@@ -51,7 +50,6 @@ network:
     extra_components:
       - learning
       - pretext
-    
   learning:
     data_splits:
       labelled:
