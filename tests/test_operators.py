@@ -1,17 +1,17 @@
-from copy import deepcopy
 import random
 import unittest
 import warnings
+from copy import deepcopy
 
 from evodenss.config.pydantic import ArchitectureConfig, ModuleConfig, MutationConfig, NetworkStructure
 from evodenss.evolution.genotype import Genotype
-from evodenss.evolution.grammar import Derivation
-from evodenss.evolution.operators import mutation
+from evodenss.evolution.grammar import Derivation, Grammar, NonTerminal
 from evodenss.evolution.individual import Individual
-from evodenss.evolution.grammar import Grammar, NonTerminal
+from evodenss.evolution.operators import mutation
 from evodenss.misc.utils import LayerId
 from evodenss.networks.module import Module
 from tests.resources.genotype_examples import mutation_added_layer_genotype, simple_sample1
+
 
 class Test(unittest.TestCase):
 

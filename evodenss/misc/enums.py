@@ -1,4 +1,4 @@
-from enum import unique, Enum
+from enum import Enum, unique
 from typing import Any
 
 import torch

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from evodenss.misc.enums import LayerType
 
-
 if TYPE_CHECKING:
     from evodenss.networks.phenotype_parser import Layer
 

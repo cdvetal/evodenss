@@ -1,23 +1,24 @@
-from copy import deepcopy
 import logging
 import random
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
 from evodenss.config.pydantic import get_config, get_fitness_extra_params
-from evodenss.evolution.operators import mutation, selection
 from evodenss.evolution.grammar import Grammar
 from evodenss.evolution.individual import Individual
+from evodenss.evolution.operators import mutation, selection
 from evodenss.misc import persistence
 from evodenss.misc.checkpoint import Checkpoint
 from evodenss.misc.enums import DownstreamMode, FitnessMetricName, OptimiserType
 
 if TYPE_CHECKING:
-    from evodenss.metrics.fitness_metrics import Fitness
-    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from torch.utils.data import Subset
+
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
+    from evodenss.metrics.fitness_metrics import Fitness
 
 logger = logging.getLogger(__name__)
 

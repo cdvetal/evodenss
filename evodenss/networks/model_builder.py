@@ -1,24 +1,23 @@
 from __future__ import annotations
 
-from collections import Counter
 import logging
-from math import ceil
 import warnings
-from typing import Iterable, Optional, TYPE_CHECKING
+from collections import Counter
+from math import ceil
+from typing import TYPE_CHECKING, Iterable, Optional
 
 import torch
-from torch import Size, nn, optim, Tensor
+from torch import Size, Tensor, nn, optim
 
 from evodenss.misc.constants import SEPARATOR_CHAR
 from evodenss.misc.enums import ActivationType, Device, LayerType, OptimiserType
-from evodenss.networks.phenotype_parser import Layer
-from evodenss.misc.utils import InvalidNetwork, InputLayerId, LayerId
+from evodenss.misc.utils import InputLayerId, InvalidNetwork, LayerId
 from evodenss.networks.dimensions import Dimensions
+from evodenss.networks.evaluators import BarlowTwinsEvaluator, BaseEvaluator, LegacyEvaluator
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork, EvolvedNetwork, LegacyNetwork
+from evodenss.networks.phenotype_parser import Layer
 from evodenss.train.lars import LARS
 from evodenss.train.learning_parameters import LearningParams
-from evodenss.networks.evaluators import BaseEvaluator, BarlowTwinsEvaluator, LegacyEvaluator
-
 
 warnings.filterwarnings("ignore")
 
@@ -142,11 +141,7 @@ class ModelBuilder():
                                           connections_to_use,
                                           self.parsed_network.get_output_layer_id(),
                                           self.layer_shapes,
-                                          self.projector_layer_shapes,
-                                          self.parsed_projector_network.get_output_layer_id(),
-                                          projector_model,
-                                          self.device,
-                                          **pretext_task.pretext_parameters)
+                                          projector_model)
             else:
                 raise ValueError(f"Unexpected network type: {evaluation_type}")
         except InvalidNetwork as e:

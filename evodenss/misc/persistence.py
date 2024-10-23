@@ -4,22 +4,21 @@ import csv
 import glob
 import os
 import shutil
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import dill
 
 from evodenss.config.pydantic import Config, get_config
 from evodenss.evolution.individual import Individual
-from evodenss.misc.constants import MODEL_FILENAME
 from evodenss.metrics.evaluation_metrics import EvaluationMetrics
-from evodenss.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
-
+from evodenss.misc.constants import MODEL_FILENAME, OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
 
 if TYPE_CHECKING:
+    from torch.utils.data import Subset
+
     from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from evodenss.evolution.grammar import Grammar
     from evodenss.misc.checkpoint import Checkpoint
-    from torch.utils.data import Subset
 
 
 __all__ = ['RestoreCheckpoint', 'SaveCheckpoint', 'save_overall_best_individual',

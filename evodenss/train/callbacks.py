@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import json
 import logging
 import os
+from abc import ABC, abstractmethod
 from time import time
-from typing import Any, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 import torch
 
 from evodenss.misc.constants import METADATA_FILENAME, MODEL_FILENAME, WEIGHTS_FILENAME
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork
-
 
 if TYPE_CHECKING:
     from evodenss.misc.metadata_info import MetadataInfo
@@ -154,23 +153,30 @@ class EarlyStoppingCallback(Callback):
         self.patience: int = patience
         self.best_score: float = 999999999.9
         self.counter: int = 0
+        self.is_warning_msg_shown: bool = False
 
     def on_train_begin(self, trainer: Trainer) -> None:
         self.counter = 0
 
     def on_train_end(self, trainer: Trainer) -> None:
-        pass
+        self.is_warning_msg_shown = False
 
     def on_epoch_begin(self, trainer: Trainer) -> None:
         pass
 
     def on_epoch_end(self, trainer: Trainer) -> None:
-        if trainer.validation_loss[-1] >= self.best_score:
-            self.counter += 1
-            logger.info(f"EarlyStopping counter: {self.counter} out of {self.patience}. "
-                         f"Best score {self.best_score}, current: {trainer.validation_loss[-1]}")
-            if self.counter >= self.patience:
-                trainer.stop_training = True
+        if len(trainer.validation_loss) == 0:
+            if self.is_warning_msg_shown is False:
+                logger.warning("Early stop callback will not work because you have no validation loss records. "
+                               "Perhaps your validation set is empty.")
+                self.is_warning_msg_shown = True
         else:
-            self.best_score = trainer.validation_loss[-1]
-            self.counter = 0
+            if trainer.validation_loss[-1] >= self.best_score:
+                self.counter += 1
+                logger.info(f"EarlyStopping counter: {self.counter} out of {self.patience}. "
+                            f"Best score {self.best_score}, current: {trainer.validation_loss[-1]}")
+                if self.counter >= self.patience:
+                    trainer.stop_training = True
+            else:
+                self.best_score = trainer.validation_loss[-1]
+                self.counter = 0

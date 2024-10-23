@@ -1,6 +1,6 @@
 import logging
-from typing import OrderedDict
 import unittest
+from typing import OrderedDict
 
 import torch
 from torch import Size, Tensor, nn, optim
@@ -8,10 +8,10 @@ from torch import Size, Tensor, nn, optim
 import evodenss
 from evodenss.misc.enums import Device, LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import InputLayerId, LayerId
-from evodenss.networks.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext
-from evodenss.train.learning_parameters import LearningParams
 from evodenss.networks.evaluators import BarlowTwinsEvaluator, LegacyEvaluator
 from evodenss.networks.model_builder import ModelBuilder
+from evodenss.networks.phenotype_parser import Layer, Optimiser, ParsedNetwork, Pretext
+from evodenss.train.learning_parameters import LearningParams
 
 
 class Test(unittest.TestCase):

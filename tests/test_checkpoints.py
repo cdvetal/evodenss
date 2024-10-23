@@ -1,18 +1,17 @@
-import random
 import os
+import random
 import shutil
 import unittest
 
 import dill
 
-from evodenss.config.pydantic import ArchitectureConfig, NetworkStructure, init_context
-from evodenss.evolution.individual import Individual
+from evodenss.config.pydantic import ArchitectureConfig, ModuleConfig, NetworkStructure, init_context
 from evodenss.evolution.grammar import Grammar
+from evodenss.evolution.individual import Individual
 from evodenss.misc.checkpoint import Checkpoint
 from evodenss.misc.constants import OVERALL_BEST_FOLDER, STATS_FOLDER_NAME
 from evodenss.misc.enums import LearningType
-from evodenss.misc.persistence import build_individual_path, build_overall_best_path, RestoreCheckpoint, SaveCheckpoint
-from evodenss.config.pydantic import ModuleConfig
+from evodenss.misc.persistence import RestoreCheckpoint, SaveCheckpoint, build_individual_path, build_overall_best_path
 
 
 class Test(unittest.TestCase):

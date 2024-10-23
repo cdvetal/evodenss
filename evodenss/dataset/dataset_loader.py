@@ -1,25 +1,21 @@
 from __future__ import annotations
 
-from enum import unique, Enum
 import importlib
 import logging
-from typing import Any, Optional, TypeAlias, TYPE_CHECKING
 import types
+from enum import Enum, unique
+from typing import Any, Optional, TypeAlias
 
 import numpy as np
 from numpy.typing import NDArray
 from sklearn.model_selection import train_test_split
 from torch import Generator, Tensor
 from torch.utils.data import DataLoader, Subset
-from torchvision.datasets import CIFAR10, CIFAR100, FashionMNIST, MNIST
+from torchvision.datasets import CIFAR10, CIFAR100, MNIST, FashionMNIST
 
 from evodenss.config.pydantic import AugmentationConfig, DataSplits, Labelled, Unlabelled
-from evodenss.networks.transformers import LegacyTransformer, BarlowTwinsTransformer
 from evodenss.misc.constants import DEFAULT_SEED
-
-
-if TYPE_CHECKING:
-    from torch.utils.data import Dataset
+from evodenss.networks.transformers import BarlowTwinsTransformer, LegacyTransformer
 
 ConcreteDataset: TypeAlias = CIFAR10 | CIFAR100 | FashionMNIST | MNIST
 
@@ -50,10 +46,10 @@ class DatasetType(Enum):
 class DatasetProcessor:
 
     def __init__(self,
-                 ssl_transformer: Optional[BarlowTwinsTransformer],
+                 ssl_transformer: BarlowTwinsTransformer,
                  train_transformer: LegacyTransformer,
                  test_transformer: LegacyTransformer) -> None:
-        self.ssl_transformer: Optional[BarlowTwinsTransformer] = ssl_transformer # pretext
+        self.ssl_transformer: BarlowTwinsTransformer = ssl_transformer # pretext
         self.train_transformer: LegacyTransformer = train_transformer # downstream
         self.test_transformer: LegacyTransformer = test_transformer # downstream
 
@@ -88,10 +84,10 @@ class DatasetProcessor:
                                  proportions: DataSplits,
                                  seed: int) -> dict[DatasetType, Subset[ConcreteDataset]]:
 
-        unlabelled_data: Optional[Dataset[ConcreteDataset]]
-        train_labelled_data: Dataset[ConcreteDataset]
-        evaluation_labelled_data: Dataset[ConcreteDataset]
-        test_data: Dataset[ConcreteDataset]
+        unlabelled_data: Optional[ConcreteDataset]
+        train_labelled_data: ConcreteDataset
+        evaluation_labelled_data: ConcreteDataset
+        test_data: ConcreteDataset
         subset_idxs_dict: dict[DatasetType, NDArray[np.int_]] = {}
         subsets_dict: dict[DatasetType, Subset[ConcreteDataset]] = {}
 

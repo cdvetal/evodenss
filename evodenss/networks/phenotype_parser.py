@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from itertools import chain, dropwhile, takewhile
-from typing import cast, Any, Optional
+from typing import Any, Optional, cast
 
 from evodenss.misc.enums import Entity, LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import InputLayerId, LayerId
+
 
 class Layer:
 
