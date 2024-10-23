@@ -1,42 +1,38 @@
 from __future__ import annotations
 
-import logging
-import os
-import traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
+import logging
+import os
 from time import time
-from typing import TYPE_CHECKING, Any, Optional, cast
+import traceback
+from typing import Any, Optional, TYPE_CHECKING, cast
 
 import torch
-from torch import Generator, Size, nn
+from torch import Generator, nn, Size
 from torch.utils.data import DataLoader, Subset
 
 from evodenss.config.pydantic import PriorRepresentationsConfig, get_config, get_fitness_extra_params
-from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, DatasetType
-from evodenss.metrics.evaluation_metrics import EvaluationMetrics
-from evodenss.metrics.fitness_metrics import (
-    AccuracyMetric,
-    DownstreamAccuracyMetric,
-    Fitness,
-    FitnessMetric,
-    KNNAccuracyMetric,
-)
 from evodenss.misc.constants import DATASETS_INFO, DEFAULT_SEED, MODEL_FILENAME, WEIGHTS_FILENAME
 from evodenss.misc.enums import Device, DownstreamMode, FitnessMetricName, LearningType
+from evodenss.metrics.evaluation_metrics import EvaluationMetrics
+from evodenss.metrics.fitness_metrics import AccuracyMetric, DownstreamAccuracyMetric, Fitness, \
+    FitnessMetric, KNNAccuracyMetric
 from evodenss.misc.metadata_info import MetadataInfo
 from evodenss.misc.utils import InvalidNetwork
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork
-from evodenss.networks.phenotype_parser import Optimiser, Pretext, parse_phenotype
+from evodenss.networks.phenotype_parser import Pretext, parse_phenotype, Optimiser
 from evodenss.networks.transformers import LegacyTransformer
-from evodenss.train.callbacks import Callback, EarlyStoppingCallback, ModelCheckpointCallback, TimedStoppingCallback
+from evodenss.train.callbacks import Callback, EarlyStoppingCallback, \
+    ModelCheckpointCallback, TimedStoppingCallback
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, DatasetType
 from evodenss.train.losses import BarlowTwinsLoss
 from evodenss.train.trainers import Trainer
 
 if TYPE_CHECKING:
-    from evodenss.networks.model_builder import ModelBuilder
     from evodenss.networks.phenotype_parser import ParsedNetwork
     from evodenss.train.learning_parameters import LearningParams
+    from evodenss.networks.model_builder import ModelBuilder
 
 __all__ = ['BaseEvaluator', 'BarlowTwinsEvaluator', 'LegacyEvaluator']
 
