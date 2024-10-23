@@ -307,7 +307,7 @@ class LegacyEvaluator(BaseEvaluator):
             )
             loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]] = DatasetProcessor.get_data_loaders(
                 dataset,
-                [DatasetType.DOWNSTREAM_TRAIN, DatasetType.VALIDATION, DatasetType.EVO_TEST, DatasetType.TEST],
+                [DatasetType.DOWNSTREAM_TRAIN, DatasetType.VALIDATION, DatasetType.EVO_TEST],
                 learning_params.batch_size)
             metadata_info: MetadataInfo = \
                 MetadataInfo.new_instance(self.dataset_name, dataset, optimiser, learning_params, None)
@@ -406,7 +406,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
                 "batch size should be > 1, otherwise the BatchNorm1D layer won't work"
             loaders_dict: dict[DatasetType, DataLoader[ConcreteDataset]] = DatasetProcessor.get_data_loaders(
                 dataset,
-                [DatasetType.PRETEXT_TRAIN, DatasetType.DOWNSTREAM_TRAIN, DatasetType.EVO_TEST, DatasetType.TEST],
+                [DatasetType.PRETEXT_TRAIN, DatasetType.DOWNSTREAM_TRAIN, DatasetType.EVO_TEST],
                 learning_params.batch_size)
             metadata_info: MetadataInfo = \
                 MetadataInfo.new_instance(self.dataset_name, dataset, optimiser, learning_params, pretext_task)
