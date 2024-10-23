@@ -4,14 +4,15 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from evodenss.evolution.individual import Individual
 from evodenss.evolution.grammar import Grammar
+from evodenss.evolution.individual import Individual
 from evodenss.misc import persistence
 
 if TYPE_CHECKING:
-    from evodenss.networks.evaluators import BaseEvaluator
-    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from torch.utils.data import Subset
+
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
+    from evodenss.networks.evaluators import BaseEvaluator
 
 logger = logging.getLogger(__name__)
 

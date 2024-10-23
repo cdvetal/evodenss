@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import astuple, dataclass, fields
-from typing import Any, Iterator, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 if TYPE_CHECKING:
     from evodenss.metrics.fitness_metrics import Fitness

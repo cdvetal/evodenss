@@ -1,11 +1,11 @@
-from copy import deepcopy
-from dataclasses import dataclass, field
 import filecmp
 import os
-from random import randint, uniform
 import shutil
 import sys
-from typing import Callable, Generic, NewType, Protocol, Optional, TypeVar
+from copy import deepcopy
+from dataclasses import dataclass, field
+from random import randint, uniform
+from typing import Callable, Generic, NewType, Optional, Protocol, TypeVar
 
 from evodenss.evolution.genotype import Genotype
 from evodenss.misc.enums import AttributeType
@@ -219,9 +219,6 @@ class Grammar:
     def initialise(self, start_symbol_name: str) -> Genotype:
         start_symbol: NonTerminal = NonTerminal(start_symbol_name)
         genotype: Genotype = self.initialise_recursive(start_symbol)
-        #print("===============================================================")
-        #print(genotype)
-        #print("===============================================================")
         return genotype
 
 

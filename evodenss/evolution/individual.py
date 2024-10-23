@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, cast, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Optional, cast
 
 import numpy as np
 
@@ -9,14 +9,14 @@ from evodenss.evolution.genotype import IndividualGenotype
 from evodenss.metrics.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.utils import InputLayerId, LayerId
 
-
 if TYPE_CHECKING:
+    from torch.utils.data import Subset
+
     from evodenss.config.pydantic import ArchitectureConfig
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from evodenss.evolution.grammar import Grammar
     from evodenss.metrics.fitness_metrics import Fitness
-    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from evodenss.networks.evaluators import BaseEvaluator
-    from torch.utils.data import Subset
 
 __all__ = ['Individual']
 

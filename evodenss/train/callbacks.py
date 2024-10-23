@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import json
 import logging
 import os
+from abc import ABC, abstractmethod
 from time import time
-from typing import Any, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 import torch
 
 from evodenss.misc.constants import METADATA_FILENAME, MODEL_FILENAME, WEIGHTS_FILENAME
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork
-
 
 if TYPE_CHECKING:
     from evodenss.misc.metadata_info import MetadataInfo

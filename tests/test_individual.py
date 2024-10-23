@@ -5,12 +5,10 @@ from typing import Optional
 from parameterized import parameterized
 
 from evodenss.config.pydantic import ArchitectureConfig, ModuleConfig, NetworkStructure
-from evodenss.evolution.grammar import Grammar
 from evodenss.evolution.genotype import Genotype
+from evodenss.evolution.grammar import Grammar
 from evodenss.evolution.individual import Individual
-
-from tests.resources.genotype_examples import ind_test_output1, ind_test_output2, \
-    ind_test_learning1, ind_test_learning2
+from tests.resources.genotype_examples import ind_test_learning1, ind_test_learning2, ind_test_output1, ind_test_output2
 from tests.resources.phenotype_examples import ind_phenotype1, ind_phenotype2, ind_phenotype3, ind_phenotype4
 
 

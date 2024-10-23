@@ -1,8 +1,8 @@
-from dataclasses import dataclass
 import logging
 import time
 import traceback
-from typing import Any, Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional
 
 import torch
 from torch import nn, optim
@@ -15,7 +15,6 @@ from evodenss.networks.phenotype_parser import Optimiser
 from evodenss.train.callbacks import Callback
 from evodenss.train.lars import LARS
 from evodenss.train.learning_parameters import LearningParams
-
 
 if TYPE_CHECKING:
     from torch.optim.lr_scheduler import LRScheduler
@@ -125,7 +124,7 @@ class Trainer:
                 logger.debug(f"Loss: {round(float(total_loss.data), 3)}")
                 logger.debug("=============================================================")
 
-                if self.validation_data_loader is not None:
+                if self.validation_data_loader is not None and len(self.validation_data_loader) > 0:
                     with torch.no_grad():
                         self.model.eval()
                         total_loss = torch.zeros(size=(1,), device=self.device.value)

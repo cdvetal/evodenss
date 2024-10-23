@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
 import filecmp
 import os
 import shutil
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Annotated, Any, Iterator, Optional, cast, no_type_check
 
+import yaml  # type: ignore
 from pydantic import BaseModel, ConfigDict, Field, FilePath, PositiveInt, ValidationInfo, field_validator
-import yaml # type: ignore
 
 from evodenss.misc.enums import DownstreamMode, FitnessMetricName, LearningType, OptimiserType
 from evodenss.misc.utils import ConfigPair
-
 
 # -------------------------------------------
 # ----------   EXTRA DEFINITIONS   ----------
@@ -248,7 +247,6 @@ class LearningConfig(BaseModel):
     @field_validator('learning_type', mode='after')
     @classmethod
     def add_context(cls, v: LearningType, info: ValidationInfo) -> LearningType:
-        print("context ", info.context)
         if info.context is not None:
             info.context.update({'learning_type': v})
         return v

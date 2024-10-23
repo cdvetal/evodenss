@@ -5,8 +5,8 @@ from typing import Any, Optional, Sequence
 from pydantic import BaseModel
 from torch.utils.data import Subset
 
-from evodenss.networks.phenotype_parser import Optimiser, Pretext
 from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
+from evodenss.networks.phenotype_parser import Optimiser, Pretext
 from evodenss.train.learning_parameters import LearningParams
 
 

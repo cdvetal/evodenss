@@ -2,8 +2,8 @@ import math
 from typing import Any, no_type_check
 
 import torch
-from torch.nn.parameter import Parameter
 from torch import optim
+from torch.nn.parameter import Parameter
 
 
 class LARS(optim.Optimizer):

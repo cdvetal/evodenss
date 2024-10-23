@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from argparse import ArgumentParser
-import dill
 import json
 import logging
 import time
-from typing import Any, TYPE_CHECKING
+from argparse import ArgumentParser
+from typing import TYPE_CHECKING, Any
+
+import dill
+import torch
+from torch import nn, optim
+from torch.utils.data import DataLoader, Subset
 
 import evodenss
-
 from evodenss.config.pydantic import AugmentationConfig, ConfigBuilder, get_config
 from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, DatasetType
 from evodenss.evolution.individual import Individual
@@ -16,17 +19,12 @@ from evodenss.misc.constants import DATASETS_INFO, MODEL_FILENAME, WEIGHTS_FILEN
 from evodenss.misc.enums import Device, OptimiserType
 from evodenss.misc.metadata_info import MetadataInfo, PretextTrainingInfo, TrainingInfo
 from evodenss.misc.utils import is_valid_file
-from evodenss.networks.phenotype_parser import Optimiser
-from evodenss.networks.evolved_networks import BarlowTwinsNetwork, \
-    EvaluationBarlowTwinsNetwork, EvolvedNetwork
+from evodenss.networks.evolved_networks import BarlowTwinsNetwork, EvaluationBarlowTwinsNetwork, EvolvedNetwork
 from evodenss.networks.model_builder import ModelBuilder
-from evodenss.networks.transformers import LegacyTransformer, BarlowTwinsTransformer
+from evodenss.networks.phenotype_parser import Optimiser
+from evodenss.networks.transformers import BarlowTwinsTransformer, LegacyTransformer
 from evodenss.train.callbacks import ModelCheckpointCallback
 from evodenss.train.trainers import Trainer
-
-import torch
-from torch import nn, optim
-from torch.utils.data import DataLoader, Subset
 
 if TYPE_CHECKING:
     from evodenss.train.learning_parameters import LearningParams

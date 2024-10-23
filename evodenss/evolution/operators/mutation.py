@@ -1,11 +1,11 @@
-from copy import deepcopy
 import logging
 import random
-from typing import cast, TYPE_CHECKING, Any, Optional
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from evodenss.config.pydantic import MutationConfig
-from evodenss.evolution.grammar import Attribute, Derivation, Grammar, NonTerminal, Terminal
 from evodenss.evolution.genotype import Genotype
+from evodenss.evolution.grammar import Attribute, Derivation, Grammar, NonTerminal, Terminal
 from evodenss.evolution.individual import Individual
 from evodenss.evolution.operators.mutation_tracker import enable_tracking
 from evodenss.misc.enums import AttributeType, MutationType
@@ -13,8 +13,8 @@ from evodenss.misc.utils import InputLayerId, LayerId
 from evodenss.networks.module import Module
 
 if TYPE_CHECKING:
-    from evodenss.evolution.grammar import Symbol
     from evodenss.evolution.genotype import IndividualGenotype
+    from evodenss.evolution.grammar import Symbol
     from evodenss.networks.module import Module
 
 
