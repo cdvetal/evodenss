@@ -1,4 +1,4 @@
-checkpoints_path: ../../results/bt_projector_100_freeze_projector_alternative_da
+checkpoints_path: ../../results/bt_100_freeze_alternative_da
 
 evolutionary:
   generations: 100
@@ -30,6 +30,9 @@ network:
   architecture:
     reuse_layer: 0.15
     output: identity
+    projector:
+      - 512
+      - 128
     modules:
       - name: features
         network_structure_init:
@@ -38,14 +41,6 @@ network:
         network_structure:
           min_expansions: 4
           max_expansions: 30
-        levels_back: 1
-      - name: projector
-        network_structure_init:
-          min_expansions: 2
-          max_expansions: 2
-        network_structure:
-          min_expansions: 2
-          max_expansions: 6
         levels_back: 1
     extra_components:
       - learning
