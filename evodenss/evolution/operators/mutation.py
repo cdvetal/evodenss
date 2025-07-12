@@ -333,12 +333,6 @@ def mutate(individual: Individual,
     individual_copy.reset_keys('current_time', 'num_epochs', 'metrics')
 
     for m_idx, module in enumerate(individual_copy.individual_genotype.modules_dict.values()):
-        # TODO: this outer cycle is very dodgy and needs to be reviewed in the future
-        for _ in range(random.randint(1, 2)):
-            if should_mutate(mutation_rates.remove_layer) is True:
-                mutation_remove_layer(individual_copy, m_idx, grammar, generation)
-            if should_mutate(mutation_rates.add_layer) is True:
-                mutation_add_layer(individual_copy, m_idx, grammar, mutation_rates.reuse_layer, generation)
         for layer_idx in range(len(module.layers)):
             if should_mutate(mutation_rates.dsge_topological) is True:
                 mutation_dsge_topological(individual_copy, m_idx, LayerId(layer_idx), grammar, generation)
@@ -346,6 +340,12 @@ def mutate(individual: Individual,
                 mutation_add_connection(individual_copy, m_idx, LayerId(layer_idx), generation)
             if should_mutate(mutation_rates.remove_connection) is True:
                 mutation_remove_connection(individual_copy, m_idx, LayerId(layer_idx), generation)
+        # TODO: this outer cycle is very dodgy and needs to be reviewed in the future
+        for _ in range(random.randint(1, 2)):
+            if should_mutate(mutation_rates.remove_layer) is True:
+                mutation_remove_layer(individual_copy, m_idx, grammar, generation)
+            if should_mutate(mutation_rates.add_layer) is True:
+                mutation_add_layer(individual_copy, m_idx, grammar, mutation_rates.reuse_layer, generation)
 
     ind_genotype: IndividualGenotype = individual_copy.individual_genotype
     for symbol_name, genotype in zip(ind_genotype.extra_genotype_start_symbol_names,
