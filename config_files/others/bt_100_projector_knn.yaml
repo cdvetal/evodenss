@@ -1,0 +1,114 @@
+checkpoints_path: ../../results/dry_run_bt_knn
+
+evolutionary:
+  generations: 100
+  lambda: 6
+  max_epochs: 100000
+  mutation:
+    add_connection: 0.0
+    remove_connection: 0.0
+    add_layer: 0.3
+    reuse_layer: 0.15
+    remove_layer: 0.3
+    dsge_topological: 0.15
+    dsge_non_topological: 0.3
+    train_longer: 0.03
+  fitness:
+    metric_name: knn_accuracy
+    parameters:
+      k: 200
+      t: 0.1
+
+network:
+
+  architecture:
+    reuse_layer: 0.2
+    output: identity
+    modules:
+      - name: features
+        network_structure_init:
+          min_expansions: 4
+          max_expansions: 7
+        network_structure:
+          min_expansions: 4
+          max_expansions: 30
+        levels_back: 1
+      - name: projector
+        network_structure_init:
+          min_expansions: 2
+          max_expansions: 2
+        network_structure:
+          min_expansions: 2
+          max_expansions: 6
+        levels_back: 1
+    extra_components:
+      - learning
+      - pretext
+    
+  learning:
+    data_splits:
+      labelled:
+        percentage: 100 # downstream_train + validation + evo_test = percentage
+        downstream_train:
+          partition_ratio: 0.8
+          amount_to_use: 1.0
+          replacement: false
+        validation:
+          partition_ratio: 0.0
+          amount_to_use: 1.0
+          replacement: false
+        evo_test:
+          partition_ratio: 0.2
+          amount_to_use: 1.0
+          replacement: false
+      unlabelled:
+        # pretext_train + downstream_train <= percentage
+        pretext_train:
+          amount_to_use: 1.0
+          replacement: false
+    learning_type: self-supervised
+    default_train_time: 120
+    augmentation:
+      pretext:
+        input_a:
+          random_crop:
+            size: 32
+            padding: 4
+          random_resized_crop:
+            size: 32
+          random_horizontal_flip:
+            probability: 0.5
+          color_jitter:
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.4
+            hue: 0.1
+            probability: 0.8
+          random_grayscale:
+            probability: 0.2
+          normalize:
+            mean: [0.4914, 0.4822, 0.4465]
+            std: [0.2023, 0.1994, 0.2010]
+        input_b:
+          random_resized_crop:
+            size: 32
+          random_horizontal_flip:
+            probability: 0.5
+          color_jitter:
+            brightness: 0.4
+            contrast: 0.4
+            saturation: 0.4
+            hue: 0.1
+            probability: 0.8
+          random_grayscale:
+            probability: 0.2
+          normalize:
+            mean: [0.4914, 0.4822, 0.4465]
+            std: [0.2023, 0.1994, 0.2010]
+      downstream:
+        random_crop:
+          size: 32
+          padding: 4
+        random_horizontal_flip:
+          probability: 0.5
+      test:
