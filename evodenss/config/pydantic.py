@@ -149,7 +149,6 @@ class KNNAccuracyParams(BaseModel):
 class DownstreamAccuracyParams(BaseModel):
     downstream_mode: DownstreamMode
     downstream_epochs: PositiveInt
-    batch_size: PositiveInt
     optimiser_type: OptimiserType
     optimiser_parameters: dict[str, Any]
 
