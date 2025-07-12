@@ -87,6 +87,7 @@ def evolve(run: int,
 
         # evaluate population
         for idx, ind in enumerate(population):
+            logging.debug(f"Evaluating individual {ind.id} based on parent {checkpoint.parent.id}")
             population_fits.append(
                 ind.evaluate(
                     grammar,
@@ -128,6 +129,9 @@ def evolve(run: int,
                                                                   generation,
                                                                   parent.id)
     if checkpoint.best_fitness is None or parent.fitness > checkpoint.best_fitness:
+        logger.debug(f"New best individual found: {parent.id} with fitness {parent.fitness}. "
+                     f"Better than {checkpoint.best_fitness}")
+        logger.debug(f"Moving best individual from {best_individual_path} to overall best individual path")
         checkpoint.best_fitness = parent.fitness
         persistence.save_overall_best_individual(best_individual_path, parent)
     fitness_metric_name: FitnessMetricName = get_config().evolutionary.fitness.metric_name
@@ -147,8 +151,8 @@ def evolve(run: int,
                 fitness_metric_name=FitnessMetricName.DOWNSTREAM_ACCURACY,
                 dataset_name=checkpoint.evaluator.dataset_name,
                 batch_size=2048,
-                downstream_mode=DownstreamMode.finetune,
-                downstream_epochs=50,
+                downstream_mode=DownstreamMode.freeze,
+                downstream_epochs=30,
                 optimiser_type=OptimiserType.ADAM,
                 optimiser_parameters={'lr': 0.001, 'weight_decay': 0.000001, 'beta1': 0.9, 'beta2': 0.999},
                 **get_fitness_extra_params()
