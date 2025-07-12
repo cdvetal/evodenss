@@ -213,7 +213,7 @@ class EvaluationBarlowTwinsNetwork(nn.Module):
         layers = [] if last_layer_type is LayerType.FC else [nn.Flatten()]
         self.final_layer = nn.Sequential(
             *layers,
-            nn.Linear(in_features=last_layer_out_features, out_features=10, bias=True, device=device.value)
+            nn.Linear(in_features=last_layer_out_features, out_features=n_neurons, bias=True, device=device.value)
         )
         self.last_fc_layer_index = len(layers)
 
