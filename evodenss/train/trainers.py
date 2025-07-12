@@ -98,7 +98,7 @@ class Trainer:
                 n_batches_validation = len(self.validation_data_loader)
             self.model.train()
             self._call_on_train_begin_callbacks()
-
+            self.trained_epochs = 0
             while epoch < self.n_epochs and self.stop_training is False:
                 logger.debug(f"Starting Downstream Epoch {epoch}")
                 self._call_on_epoch_begin_callbacks()
@@ -143,10 +143,10 @@ class Trainer:
                 if self.scheduler is not None:
                     self.scheduler.step()
                 epoch += 1
+                self.trained_epochs += 1
                 self._call_on_epoch_end_callbacks()
 
             self._call_on_train_end_callbacks()
-            self.trained_epochs = epoch - self.initial_epoch
         except RuntimeError as e:
             logger.warning(traceback.format_exc())
             raise InvalidNetwork(str(e)) from e
