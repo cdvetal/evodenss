@@ -7,10 +7,10 @@ evolutionary:
   mutation:
     add_connection: 0.0
     remove_connection: 0.0
-    add_layer: 0.3
-    reuse_layer: 0.15
-    remove_layer: 0.3
-    dsge_topological: 0.15
+    add_layer: 0.35
+    reuse_layer: 0.2
+    remove_layer: 0.35
+    dsge_topological: 0.2
     dsge_non_topological: 0.3
     train_longer: 0.03
   fitness:
@@ -18,7 +18,6 @@ evolutionary:
     parameters:
       downstream_mode: freeze
       downstream_epochs: 30
-      batch_size: 2048
       optimiser_type: "adam"
       optimiser_parameters:
         lr: 0.001
@@ -28,7 +27,7 @@ evolutionary:
 
 network:
   architecture:
-    reuse_layer: 0.15
+    reuse_layer: 0.2
     output: identity
     projector:
       - 512
@@ -111,4 +110,4 @@ network:
           padding: 4
         random_horizontal_flip:
           probability: 0.5
-      test:
+      test: null
