@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import csv
 import json
 import logging
 import os
 from abc import ABC, abstractmethod
 from time import time
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING
 
 import torch
 
+from evodenss.dataset.dataset_loader import ConcreteDataset
 from evodenss.misc.constants import METADATA_FILENAME, MODEL_FILENAME, WEIGHTS_FILENAME
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork
 
 if TYPE_CHECKING:
+    from torch import nn
+    from torch.utils.data import DataLoader
+
+    from evodenss.misc.enums import Device
     from evodenss.misc.metadata_info import MetadataInfo
     from evodenss.train.trainers import Trainer
 
@@ -42,7 +48,6 @@ class Callback(ABC):
         raise NotImplementedError()
 
 
-# Needs tweak to save individual with lowest validation error
 class ModelCheckpointCallback(Callback):
 
     def __init__(self,
@@ -81,49 +86,6 @@ class ModelCheckpointCallback(Callback):
 
     def on_epoch_end(self, trainer: Trainer) -> None:
         pass
-
-    def _build_structured_metadata_json(self,
-                                        metadata_info: Dict[str, Any],
-                                        trained_epochs: int) -> Dict[str, Any]:
-        return {
-            'dataset': {
-                'name': metadata_info['dataset_name'],
-                'pretext': {
-                    'train': metadata_info.get("pretext_train"),
-                    'validation': metadata_info.get("pretext_validation"),
-                    'test': metadata_info.get("pretext_test"),
-                },
-                'downstream':
-                {
-                    'train': metadata_info.get("downstream_train"),
-                    'validation': metadata_info.get("downstream_validation"),
-                    'test': metadata_info.get("downstream_test")
-                }
-            },
-            'learning': {
-                'pretext': {
-                    'algorithm': {
-                        'name': metadata_info.get("pretext_algorithm"),
-                        'params': metadata_info.get("pretext_algorithm_params")
-                    },
-                    'optimiser': {
-                        'name': metadata_info.get("pretext_optimiser"),
-                        'params': metadata_info.get("pretext_optimiser_params")
-                    },
-                    'batch_size': metadata_info.get("pretext_batch_size")
-                },
-                'downstream':
-                {
-                    'optimiser': {
-                        'name': metadata_info.get("downstream_optimiser"),
-                        'params': metadata_info.get("downstream_optimiser_params")
-                    },
-                    'batch_size':  metadata_info.get("downstream_batch_size")
-                }
-            },
-            'trained_pretext_epochs': metadata_info.get("trained_pretext_epochs", trained_epochs),
-            'trained_downstream_epochs': trained_epochs if "trained_pretext_epochs" in metadata_info.keys() else None
-        }
 
 
 
@@ -180,3 +142,55 @@ class EarlyStoppingCallback(Callback):
             else:
                 self.best_score = trainer.validation_loss[-1]
                 self.counter = 0
+
+
+class AccuracyTrackerCallback(Callback):
+
+    def __init__(self,
+                 test_data_loader: DataLoader[ConcreteDataset],
+                 device: Device,
+                 epochs_delta: int,
+                 filename: str) -> None:
+        self.test_data_loader: DataLoader[ConcreteDataset] = test_data_loader
+        self.device: Device = device
+        self.epochs_delta: int = epochs_delta # we measure accuracy every epochs_delta epochs
+        self.epochs_delta_counter: int = 0
+        self.file_handler = open(filename, 'w')
+        self.csv_writer = csv.writer(self.file_handler, delimiter='\t', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+
+        
+    def on_train_begin(self, trainer: Trainer) -> None:
+        self.csv_writer.writerow(["downstream_epochs", "accuracy"])
+        self.epochs_delta_counter = trainer.initial_epoch
+        if trainer.initial_epoch % self.epochs_delta == 0 and trainer.initial_epoch > 0:
+            accuracy = self.compute_metric(trainer.model, self.test_data_loader, self.device)
+            self.csv_writer.writerow([trainer.initial_epoch + trainer.trained_epochs, accuracy])
+
+    def on_train_end(self, trainer: Trainer) -> None:
+        self.file_handler.close()
+
+    def on_epoch_begin(self, trainer: Trainer) -> None:
+        self.accuracy = 0.0
+
+    def on_epoch_end(self, trainer: Trainer) -> None:
+        self.epochs_delta_counter += 1
+        if self.epochs_delta_counter % self.epochs_delta == 0:
+            self.epochs_delta_counter = 0
+            accuracy = self.compute_metric(trainer.model, self.test_data_loader, self.device)
+            self.csv_writer.writerow([trainer.initial_epoch + trainer.trained_epochs, accuracy])
+
+    def compute_metric(self, model: nn.Module, data_loader: DataLoader[ConcreteDataset], device: Device) -> float:
+        model.eval()
+        correct_guesses: float = 0
+        size: int = 0
+        # since we're not training, we don't need to calculate the gradients for our outputs
+        with torch.no_grad():
+            for data in data_loader:
+                inputs, labels = data[0].to(device.value, non_blocking=True), \
+                    data[1].to(device.value, non_blocking=True)
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                correct_guesses += (predicted == labels).float().sum().item()
+                size += len(labels)
+        model.train()
+        return correct_guesses/size
