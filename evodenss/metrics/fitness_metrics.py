@@ -70,6 +70,8 @@ class FitnessMetric(ABC):
             fitness_metric = KNNAccuracyMetric(**class_kwargs)
         elif metric_name == FitnessMetricName.DOWNSTREAM_ACCURACY:
             # get parameter names from contructor and exclude the first one (self)
+            if "batch_size" in kwargs:
+                kwargs["optimiser_parameters"]["batch_size"] = kwargs["batch_size"]
             class_kwargs = \
                 {k: kwargs.get(k, None) for k in DownstreamAccuracyMetric.__init__.__code__.co_varnames[1:]}
             fitness_metric = DownstreamAccuracyMetric(**class_kwargs)
@@ -162,7 +164,6 @@ class DownstreamAccuracyMetric(FitnessMetric):
     def __init__(self,
                  dataset_name: str,
                  dataset: dict[DatasetType, Subset[ConcreteDataset]],
-                 batch_size: int,
                  downstream_mode: DownstreamMode,
                  downstream_epochs: int,
                  optimiser_type: OptimiserType,
@@ -175,7 +176,6 @@ class DownstreamAccuracyMetric(FitnessMetric):
         self.downstream_mode: DownstreamMode = downstream_mode
         self.optimiser_type: OptimiserType = optimiser_type
         self.optimiser_parameters: dict[str, str] = optimiser_parameters
-        self.optimiser_parameters['batch_size'] = str(batch_size)
         self.optimiser_parameters['epochs'] = str(downstream_epochs)
 
 
