@@ -11,11 +11,11 @@ class BarlowTwinsLoss(nn.Module):
 
     def forward(self, z_a: Tensor, z_b: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         # normalize repr. along the batch dimension
-        z_a_norm, z_b_norm = self._normalize(z_a, z_b)
+        #z_a_norm, z_b_norm = self._normalize(z_a, z_b)
         batch_size: int = z_a.size(0)
 
         # cross-correlation matrix
-        c = z_a_norm.T @ z_b_norm
+        c = z_a.T @ z_b
         c[c.isnan()] = 0.0
         valid_c = c[~c.isinf()]
         limit = 1e+30 if c.dtype == torch.float32 else 1e+4
