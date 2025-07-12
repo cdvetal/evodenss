@@ -17,7 +17,7 @@ class TrainingInfo(BaseModel):
     test_indices: Sequence[int]
     optimiser_name: str
     optimiser_parameters: dict[str, Any]
-    batch_size: int
+    batch_size: Optional[int]
     early_stop: Optional[int]
     trained_epochs: int
 
