@@ -138,13 +138,12 @@ class BaseEvaluator(ABC):
 	def prepare_torch_model(
 		self,
 		model_builder: "ModelBuilder",
-		pretext_task: Optional[Pretext],
 		reuse_parent_weights: bool,
 		parent_dir: Optional[str],
 		device: Device,
 	) -> tuple[nn.Module, bool]:
 		restart_train: bool = False
-		torch_model = model_builder.assemble_network(type(self), pretext_task)
+		torch_model = model_builder.assemble_network(type(self))
 		if reuse_parent_weights is True and parent_dir is not None and len(os.listdir(parent_dir)) > 0:
 			torch_model.load_state_dict(torch.load(os.path.join(parent_dir, WEIGHTS_FILENAME)))
 		else:
@@ -284,7 +283,7 @@ class LegacyEvaluator(BaseEvaluator):
 			torch_model: nn.Module
 			restart_train: bool
 			torch_model, restart_train = self.prepare_torch_model(
-				model_builder, None, reuse_parent_weights, parent_dir, device
+				model_builder, reuse_parent_weights, parent_dir, device
 			)
 
 			training_parameters: list[nn.Parameter] = list(torch_model.parameters())
@@ -397,7 +396,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
 			torch_model: nn.Module
 			restart_train: bool
 			torch_model, restart_train = self.prepare_torch_model(
-				model_builder, pretext_task, reuse_parent_weights, parent_dir, device
+				model_builder, reuse_parent_weights, parent_dir, device
 			)
 			learning_params: LearningParams = ModelBuilder.assemble_optimiser(list(torch_model.parameters()), optimiser)
 			assert (
@@ -433,6 +432,7 @@ class BarlowTwinsEvaluator(BaseEvaluator):
 				dataset_name=self.dataset_name,
 				dataset=dataset,
 				model_saving_dir=model_saving_dir,
+				batch_size=learning_params.batch_size,
 				**get_fitness_extra_params(),
 			)
 			fitness_value: Fitness
