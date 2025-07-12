@@ -36,7 +36,7 @@ class Device(Enum):
 class LayerType(ExtendedEnum):
     CONV = "conv"
     BATCH_NORM = "batch_norm"
-    BATCH_NORM_PROJ = "batch_norm_proj"
+    FC_PROJ = "projector_fc"
     POOL_AVG = "pool_avg"
     POOL_MAX = "pool_max"
     FC = "fc"
