@@ -233,16 +233,10 @@ class Test(unittest.TestCase):
         ]
         projector_layers: list[Layer] = [
             Layer(layer_id=LayerId(0),
-                  layer_type=LayerType.FC,
+                  layer_type=LayerType.FC_PROJ,
                   layer_parameters={'act':'linear', 'out_features':'20', 'bias':'True'}),
             Layer(layer_id=LayerId(1),
-                  layer_type=LayerType.BATCH_NORM_PROJ,
-                  layer_parameters={'act':'relu'}),
-            Layer(layer_id=LayerId(2),
-                  layer_type=LayerType.FC,
-                  layer_parameters={'act':'linear', 'out_features':'10', 'bias':'True'}),
-            Layer(layer_id=LayerId(3),
-                  layer_type=LayerType.BATCH_NORM_PROJ,
+                  layer_type=LayerType.FC_PROJ,
                   layer_parameters={'act':'relu'})
         ]
 
