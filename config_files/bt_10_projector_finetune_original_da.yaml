@@ -32,19 +32,19 @@ network:
     modules:
       - name: features
         network_structure_init:
-          min_expansions: 2
-          max_expansions: 4
-        network_structure:
-          min_expansions: 1
-          max_expansions: 30
-        levels_back: 1
-      - name: projector
-        network_structure_init:
           min_expansions: 4
           max_expansions: 7
         network_structure:
           min_expansions: 4
           max_expansions: 30
+        levels_back: 1
+      - name: projector
+        network_structure_init:
+          min_expansions: 1
+          max_expansions: 2
+        network_structure:
+          min_expansions: 1
+          max_expansions: 4
         levels_back: 1
     extra_components:
       - learning

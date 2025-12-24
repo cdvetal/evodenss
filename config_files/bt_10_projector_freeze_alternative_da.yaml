@@ -11,7 +11,7 @@ evolutionary:
     reuse_layer: 0.2
     remove_layer: 0.35
     dsge_topological: 0.2
-    dsge_non_topological: 0.3
+    dsge_non_topological: 0.35
     train_longer: 0.03
   fitness:
     metric_name: downstream_accuracy
