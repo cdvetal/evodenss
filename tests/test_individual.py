@@ -66,6 +66,7 @@ class Test(unittest.TestCase):
             ind_id=seed,
             track_mutations=True
         )
+
         phenotype: str = individual._decode(self.grammar, static_projector_config)
         self.assertEqual(phenotype, expected_phenotype)
 

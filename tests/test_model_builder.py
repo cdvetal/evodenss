@@ -234,10 +234,12 @@ class Test(unittest.TestCase):
         projector_layers: list[Layer] = [
             Layer(layer_id=LayerId(0),
                   layer_type=LayerType.FC_PROJ,
-                  layer_parameters={'act':'linear', 'out_features':'20', 'bias':'True'}),
+                  layer_parameters={'act':'linear','batch_norm_act':'relu',
+                                    'out_features':'20', 'bias':'True', 'affine':'True'}),
             Layer(layer_id=LayerId(1),
                   layer_type=LayerType.FC_PROJ,
-                  layer_parameters={'act':'relu'})
+                  layer_parameters={'act':'sigmoid','batch_norm_act':'relu',
+                                    'out_features':'10', 'bias':'True', 'affine':'False'})
         ]
 
         model_builder: ModelBuilder = ModelBuilder(
@@ -248,23 +250,25 @@ class Test(unittest.TestCase):
                                     LayerId(0): [InputLayerId(-1)]}),
             parsed_projector_network=ParsedNetwork(
                 layers=projector_layers,
-                layers_connections={LayerId(3): [InputLayerId(2)],
-                                    LayerId(2): [InputLayerId(1)],
-                                    LayerId(1): [InputLayerId(0)],
+                layers_connections={LayerId(1): [InputLayerId(0)],
                                     LayerId(0): [InputLayerId(-1)]}),
             input_shape=Size([1, 28, 28]),
             device=Device.CPU
         )
-        model = model_builder.assemble_network(BarlowTwinsEvaluator, Pretext(PretextType.BT, {'lamb': '0.01'}))
+        model = model_builder.assemble_network(BarlowTwinsEvaluator)
         expected_model_structure = OrderedDict([
             ('batch_norm-1', nn.BatchNorm2d(num_features=1)),
             ('dropout-1', nn.Dropout(p=0.48283254514084895, inplace=False)),
             ('pool_max-1', nn.Sequential(nn.MaxPool2d(kernel_size=5, stride=3, padding=0))),
             ('projector_model', OrderedDict([
-                ('fc-1', nn.Sequential(nn.Flatten(), nn.Linear(in_features=64, out_features=20, bias=True))),
-                ('batch_norm_proj-1', nn.Sequential(nn.Flatten(), nn.BatchNorm1d(20), nn.ReLU())),
-                ('fc-2', nn.Sequential(nn.Linear(in_features=20, out_features=10, bias=True))),
-                ('batch_norm_proj-2', nn.Sequential(nn.BatchNorm1d(10), nn.ReLU()))
+                ('projector_fc-1', nn.Sequential(nn.Flatten(),
+                                                 nn.Linear(in_features=64, out_features=20, bias=True),
+                                                 nn.BatchNorm1d(20, affine=True),
+                                                 nn.ReLU())),
+                ('projector_fc-2', nn.Sequential(nn.Linear(in_features=20, out_features=10, bias=True),
+                                                 nn.Sigmoid(),
+                                                 nn.BatchNorm1d(10, affine=False),
+                                                 nn.ReLU()))
             ]))
         ])
         projector_model = model._modules.pop('projector_model')
