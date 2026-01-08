@@ -1,7 +1,8 @@
 import random
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
+import numpy.typing as npt
 from PIL import Image, ImageEnhance, ImageOps
 
 
@@ -174,7 +175,7 @@ class SubPolicy(object):
                  p1: float, operation1: str, magnitude_idx1: int,
                  p2: float, operation2: str, magnitude_idx2: int,
                  fillcolor: tuple[int, int, int]=(128, 128, 128)) -> None:
-        ranges = {
+        ranges: dict[str, list[int] | npt.NDArray[np.floating[Any]] | npt.NDArray[np.int_]] = {
             "shearX": np.linspace(0, 0.3, 10),
             "shearY": np.linspace(0, 0.3, 10),
             "translateX": np.linspace(0, 150 / 331, 10),
@@ -196,7 +197,7 @@ class SubPolicy(object):
             rot = img.convert("RGBA").rotate(magnitude)
             return Image.composite(rot, Image.new("RGBA", rot.size, (128,) * 4), rot).convert(img.mode)
 
-        func = {
+        func: dict[str, Callable[[Image.Image, int], Image.Image]] = {
             "shearX": lambda img, magnitude: img.transform(
                 img.size, Image.Transform.AFFINE, (1, magnitude * random.choice([-1, 1]), 0, 0, 1, 0),
                 Image.Resampling.BICUBIC, fillcolor=fillcolor),
