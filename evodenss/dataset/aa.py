@@ -1,6 +1,8 @@
-from PIL import Image, ImageEnhance, ImageOps
-import numpy as np
 import random
+from typing import Callable
+
+import numpy as np
+from PIL import Image, ImageEnhance, ImageOps
 
 
 class ImageNetPolicy(object):
@@ -16,7 +18,7 @@ class ImageNetPolicy(object):
         >>>     ImageNetPolicy(),
         >>>     transforms.ToTensor()])
     """
-    def __init__(self, fillcolor=(128, 128, 128)):
+    def __init__(self, fillcolor: tuple[int, int, int]=(128, 128, 128)) -> None:
         self.policies = [
             SubPolicy(0.4, "posterize", 8, 0.6, "rotate", 9, fillcolor),
             SubPolicy(0.6, "solarize", 5, 0.6, "autocontrast", 5, fillcolor),
@@ -49,11 +51,11 @@ class ImageNetPolicy(object):
         ]
 
 
-    def __call__(self, img):
-        policy_idx = random.randint(0, len(self.policies) - 1)
+    def __call__(self, img: Image.Image) -> Image.Image:
+        policy_idx: int = random.randint(0, len(self.policies) - 1)
         return self.policies[policy_idx](img)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "AutoAugment ImageNet Policy"
 
 
@@ -70,7 +72,7 @@ class CIFAR10Policy(object):
         >>>     CIFAR10Policy(),
         >>>     transforms.ToTensor()])
     """
-    def __init__(self, fillcolor=(128, 128, 128)):
+    def __init__(self, fillcolor: tuple[int, int, int]=(128, 128, 128)) -> None:
         self.policies = [
             SubPolicy(0.1, "invert", 7, 0.2, "contrast", 6, fillcolor),
             SubPolicy(0.7, "rotate", 2, 0.3, "translateX", 9, fillcolor),
@@ -104,11 +106,11 @@ class CIFAR10Policy(object):
         ]
 
 
-    def __call__(self, img):
-        policy_idx = random.randint(0, len(self.policies) - 1)
+    def __call__(self, img: Image.Image) -> Image.Image:
+        policy_idx: int = random.randint(0, len(self.policies) - 1)
         return self.policies[policy_idx](img)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "AutoAugment CIFAR10 Policy"
 
 
@@ -125,7 +127,7 @@ class SVHNPolicy(object):
         >>>     SVHNPolicy(),
         >>>     transforms.ToTensor()])
     """
-    def __init__(self, fillcolor=(128, 128, 128)):
+    def __init__(self, fillcolor: tuple[int, int, int]=(128, 128, 128)) -> None:
         self.policies = [
             SubPolicy(0.9, "shearX", 4, 0.2, "invert", 3, fillcolor),
             SubPolicy(0.9, "shearY", 8, 0.7, "invert", 5, fillcolor),
@@ -159,16 +161,19 @@ class SVHNPolicy(object):
         ]
 
 
-    def __call__(self, img):
-        policy_idx = random.randint(0, len(self.policies) - 1)
+    def __call__(self, img: Image.Image) -> Image.Image:
+        policy_idx: int = random.randint(0, len(self.policies) - 1)
         return self.policies[policy_idx](img)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "AutoAugment SVHN Policy"
 
 
 class SubPolicy(object):
-    def __init__(self, p1, operation1, magnitude_idx1, p2, operation2, magnitude_idx2, fillcolor=(128, 128, 128)):
+    def __init__(self,
+                 p1: float, operation1: str, magnitude_idx1: int,
+                 p2: float, operation2: str, magnitude_idx2: int,
+                 fillcolor: tuple[int, int, int]=(128, 128, 128)) -> None:
         ranges = {
             "shearX": np.linspace(0, 0.3, 10),
             "shearY": np.linspace(0, 0.3, 10),
@@ -176,7 +181,7 @@ class SubPolicy(object):
             "translateY": np.linspace(0, 150 / 331, 10),
             "rotate": np.linspace(0, 30, 10),
             "color": np.linspace(0.0, 0.9, 10),
-            "posterize": np.round(np.linspace(8, 4, 10), 0).astype(np.int),
+            "posterize": np.round(np.linspace(8, 4, 10), 0).astype(np.int_),
             "solarize": np.linspace(256, 0, 10),
             "contrast": np.linspace(0.0, 0.9, 10),
             "sharpness": np.linspace(0.0, 0.9, 10),
@@ -187,22 +192,22 @@ class SubPolicy(object):
         }
 
         # from https://stackoverflow.com/questions/5252170/specify-image-filling-color-when-rotating-in-python-with-pil-and-setting-expand
-        def rotate_with_fill(img, magnitude):
+        def rotate_with_fill(img: Image.Image, magnitude: int) -> Image.Image:
             rot = img.convert("RGBA").rotate(magnitude)
             return Image.composite(rot, Image.new("RGBA", rot.size, (128,) * 4), rot).convert(img.mode)
 
         func = {
             "shearX": lambda img, magnitude: img.transform(
-                img.size, Image.AFFINE, (1, magnitude * random.choice([-1, 1]), 0, 0, 1, 0),
-                Image.BICUBIC, fillcolor=fillcolor),
+                img.size, Image.Transform.AFFINE, (1, magnitude * random.choice([-1, 1]), 0, 0, 1, 0),
+                Image.Resampling.BICUBIC, fillcolor=fillcolor),
             "shearY": lambda img, magnitude: img.transform(
-                img.size, Image.AFFINE, (1, 0, 0, magnitude * random.choice([-1, 1]), 1, 0),
-                Image.BICUBIC, fillcolor=fillcolor),
+                img.size, Image.Transform.AFFINE, (1, 0, 0, magnitude * random.choice([-1, 1]), 1, 0),
+                Image.Resampling.BICUBIC, fillcolor=fillcolor),
             "translateX": lambda img, magnitude: img.transform(
-                img.size, Image.AFFINE, (1, 0, magnitude * img.size[0] * random.choice([-1, 1]), 0, 1, 0),
+                img.size, Image.Transform.AFFINE, (1, 0, magnitude * img.size[0] * random.choice([-1, 1]), 0, 1, 0),
                 fillcolor=fillcolor),
             "translateY": lambda img, magnitude: img.transform(
-                img.size, Image.AFFINE, (1, 0, 0, 0, 1, magnitude * img.size[1] * random.choice([-1, 1])),
+                img.size, Image.Transform.AFFINE, (1, 0, 0, 0, 1, magnitude * img.size[1] * random.choice([-1, 1])),
                 fillcolor=fillcolor),
             "rotate": lambda img, magnitude: rotate_with_fill(img, magnitude),
             # "rotate": lambda img, magnitude: img.rotate(magnitude * random.choice([-1, 1])),
@@ -224,14 +229,16 @@ class SubPolicy(object):
         #     operation1, ranges[operation1][magnitude_idx1],
         #     operation2, ranges[operation2][magnitude_idx2])
         self.p1 = p1
-        self.operation1 = func[operation1]
+        self.operation1: Callable[[Image.Image, int], Image.Image] = func[operation1]
         self.magnitude1 = ranges[operation1][magnitude_idx1]
         self.p2 = p2
-        self.operation2 = func[operation2]
+        self.operation2:  Callable[[Image.Image, int], Image.Image] = func[operation2]
         self.magnitude2 = ranges[operation2][magnitude_idx2]
 
 
-    def __call__(self, img):
-        if random.random() < self.p1: img = self.operation1(img, self.magnitude1)
-        if random.random() < self.p2: img = self.operation2(img, self.magnitude2)
+    def __call__(self, img: Image.Image) -> Image.Image:
+        if random.random() < self.p1:
+            img = self.operation1(img, self.magnitude1)
+        if random.random() < self.p2:
+            img = self.operation2(img, self.magnitude2)
         return img
