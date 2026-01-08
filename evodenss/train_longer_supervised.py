@@ -102,7 +102,7 @@ def recreate_dataset_partitioning(
                                                               metadata_info.downstream_training_info.validation_indices)
         dataset_partitioning[DatasetType.EVO_TEST] = Subset(train_labelled_data,
                                                             metadata_info.downstream_training_info.test_indices)
-    dataset_partitioning[DatasetType.TEST] = Subset(evaluation_labelled_data, list(range(len(test_data.targets))))
+    dataset_partitioning[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets))))
     return dataset_partitioning
 
 
