@@ -228,12 +228,12 @@ class SubPolicy(object):
         # self.name = "{}_{:.2f}_and_{}_{:.2f}".format(
         #     operation1, ranges[operation1][magnitude_idx1],
         #     operation2, ranges[operation2][magnitude_idx2])
-        self.p1 = p1
+        self.p1: float = p1
         self.operation1: Callable[[Image.Image, int], Image.Image] = func[operation1]
-        self.magnitude1 = ranges[operation1][magnitude_idx1]
+        self.magnitude1: int = ranges[operation1][magnitude_idx1]
         self.p2 = p2
         self.operation2:  Callable[[Image.Image, int], Image.Image] = func[operation2]
-        self.magnitude2 = ranges[operation2][magnitude_idx2]
+        self.magnitude2: int = ranges[operation2][magnitude_idx2]
 
 
     def __call__(self, img: Image.Image) -> Image.Image:
