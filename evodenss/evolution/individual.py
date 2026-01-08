@@ -158,7 +158,7 @@ class Individual:
                                                                   self.num_epochs)
         if self.metrics is None:
             self.metrics = evaluation_metrics
-        else:
+        elif evaluation_metrics.is_valid_solution is True:
             self.metrics += evaluation_metrics
         self.fitness = self.metrics.fitness
         self.num_epochs += self.metrics.n_epochs
