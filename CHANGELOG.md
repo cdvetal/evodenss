@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 5.0.1 (2026-01-09)
+
+
+Features:
+
+- Added scripts to refine best individuals, as a post-evolutionary mechanism, both for supervised and self-supervised training
+
+
 ## 4.0.1 (2024-10-10)
 
 
