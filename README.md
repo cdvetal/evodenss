@@ -98,7 +98,7 @@ EvoDENSS can be run using the supervised learning mode behaviour and the self-su
 ###### 1. Supervised learning mode
 
 Config files that should be used:
-- ``supervised_10.yaml to evaluate evolved networks by training them on 10% labelled data
+- `supervised_10.yaml` to evaluate evolved networks by training them on 10% labelled data
 - `supervised_100.yaml` to evaluate evolved networks by training them on 100% labelled data
 
 Grammar files that should be used:
