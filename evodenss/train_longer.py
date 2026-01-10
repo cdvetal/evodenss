@@ -59,7 +59,6 @@ def compute_metric(model: nn.Module, data_loader: DataLoader[ConcreteDataset], d
                 data[1].to(device.value, non_blocking=True)
             outputs = model(inputs)
             _, predicted = torch.max(outputs.data, 1)
-            print(f"Predicted: {predicted}, Labels: {labels}")
             correct_guesses += (predicted == labels).float().sum().item()
             size += len(labels)
     return correct_guesses/size
@@ -112,7 +111,7 @@ def recreate_dataset_partitioning(
         dataset_partitioning[DatasetType.VALIDATION] = Subset(train_labelled_data,
                                                               complete_metadata_info.downstream_training_info.validation_indices)
 
-    dataset_partitioning[DatasetType.TEST] = Subset(evaluation_labelled_data, list(range(len(test_data.targets))))
+    dataset_partitioning[DatasetType.TEST] = Subset(test_data, list(range(len(test_data.targets))))
     
     return dataset_partitioning
 
@@ -324,34 +323,9 @@ def main(model_path: str,
     logger.info("Dataset partition sizes:")
     for partition, subset in dataset.items():
         logger.info(f"{partition} size -- {len(subset.indices)}")
-
     if metadata_info.pretext_training_info is not None:
         # this is a stupid hack because the metadata_info is not saving epochs correctly
         metadata_info.pretext_training_info.trained_epochs = trained_pretext_epochs
-
-        assert complete_metadata_info.downstream_training_info is not None
-        logger.info("Doing preliminary checks...")
-        final_test_data_loader = DataLoader(
-            dataset[DatasetType.TEST],
-            batch_size=complete_metadata_info.downstream_training_info.batch_size,
-            shuffle=False,
-            num_workers=4,
-            drop_last=False,
-            pin_memory=True
-        )
-        
-        n_neurons: int = DATASETS_INFO[metadata_info.pretext_training_info.dataset_name]['classes']
-        print(f"Number of neurons in the final layer: {n_neurons}")
-        extend_supervised_train(EvaluationBarlowTwinsNetwork(model, n_neurons, device),
-                                dataset,
-                                complete_metadata_info.downstream_training_info,
-                                model_output_dir,
-                                30,
-                                downstream_mode,
-                                device)
-        test_accuracy: float = compute_metric(model, final_test_data_loader, device)
-        logger.info(f"Accuracy of best evolved model on final test set: {test_accuracy}")
-
         extend_barlow_twins_train(model,
                                   dataset,
                                   metadata_info,
