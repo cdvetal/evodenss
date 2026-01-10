@@ -254,13 +254,13 @@ generate_attribute(ind_test_learning2, NonTerminal("learning"), 0, 2)
 mutation_added_layer_genotype = Genotype(
     expansions={
         NonTerminal(name='padding'): [
-            Derivation([Terminal(name='padding:valid', attribute=None)])
+            Derivation([Terminal(name='padding:same', attribute=None)])
         ],
         NonTerminal(name='activation_function'): [
-            Derivation([Terminal(name='act:relu', attribute=None)])
+            Derivation([Terminal(name='act:sigmoid', attribute=None)])
         ],
         NonTerminal(name='bias'): [
-            Derivation([Terminal(name='bias:True', attribute=None)])
+            Derivation([Terminal(name='bias:False', attribute=None)])
         ],
         NonTerminal(name='convolution'): [Derivation(
             [Terminal(name='layer:conv', attribute=None),
@@ -269,19 +269,19 @@ mutation_added_layer_genotype = Genotype(
                                           num_values=1,
                                           min_value=32,
                                           max_value=256,
-                                          generator=lambda x,y,z: [213])),
+                                          generator=lambda x,y,z: [80])),
              Terminal(name='kernel_size',
                       attribute=Attribute(var_type='int',
                                           num_values=1,
                                           min_value=2,
                                           max_value=5,
-                                          generator=lambda x,y,z: [2])),
+                                          generator=lambda x,y,z: [3])),
              Terminal(name='stride',
                       attribute=Attribute(var_type='int',
                                           num_values=1,
                                           min_value=1,
                                           max_value=3,
-                                          generator=lambda x,y,z: [3])),
+                                          generator=lambda x,y,z: [1])),
              NonTerminal(name='padding'), NonTerminal(name='activation_function'), NonTerminal(name='bias')])
         ],
         NonTerminal(name='features'): [
@@ -289,9 +289,9 @@ mutation_added_layer_genotype = Genotype(
         ]
     },
     codons={
-        NonTerminal(name='padding'): [1],
-        NonTerminal(name='activation_function'): [1],
-        NonTerminal(name='bias'): [0],
+        NonTerminal(name='padding'): [0],
+        NonTerminal(name='activation_function'): [2],
+        NonTerminal(name='bias'): [1],
         NonTerminal(name='convolution'): [0],
         NonTerminal(name='features'): [0]
     }

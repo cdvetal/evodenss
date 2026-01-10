@@ -1,5 +1,5 @@
 import random
-from typing import cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from evodenss.config.pydantic import ModuleConfig
 from evodenss.misc.utils import InputLayerId, LayerId

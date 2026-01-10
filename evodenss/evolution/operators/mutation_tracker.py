@@ -1,11 +1,11 @@
-from dataclasses import astuple, dataclass
 import logging
+from dataclasses import astuple, dataclass
 from typing import Any, Callable, Iterator, Optional, ParamSpec, cast
+
 from typing_extensions import TypeVar
 
-from evodenss.misc.enums import MutationType
 from evodenss.evolution.individual import Individual
-
+from evodenss.misc.enums import MutationType
 
 logger = logging.getLogger(__name__)
 

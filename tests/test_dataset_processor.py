@@ -4,11 +4,11 @@ import numpy as np
 from numpy.typing import NDArray
 from parameterized import parameterized
 
-from evodenss.config.pydantic import DataSplits, Labelled, SubsetDefinition, init_context
+from evodenss.config.pydantic import DataSplits, Labelled, PretextAugmentation, SubsetDefinition, init_context
 from evodenss.dataset.dataset_loader import DatasetProcessor, DatasetType
 from evodenss.misc.constants import DEFAULT_SEED
 from evodenss.misc.enums import LearningType
-from evodenss.networks.transformers import LegacyTransformer
+from evodenss.networks.transformers import BarlowTwinsTransformer, LegacyTransformer
 
 
 class Test(unittest.TestCase):
@@ -35,7 +35,7 @@ class Test(unittest.TestCase):
 
     def test_load_partitioned_dataset(self) -> None:
         dataset_processor = DatasetProcessor(
-            ssl_transformer=None,
+            ssl_transformer=BarlowTwinsTransformer(PretextAugmentation(input_a={}, input_b={})),
             train_transformer=LegacyTransformer({}),
             test_transformer=LegacyTransformer({})
         )

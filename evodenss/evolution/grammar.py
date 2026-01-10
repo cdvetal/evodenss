@@ -1,11 +1,11 @@
-from copy import deepcopy
-from dataclasses import dataclass, field
 import filecmp
 import os
-from random import randint, uniform
 import shutil
 import sys
-from typing import Callable, Generic, NewType, Protocol, Optional, TypeVar
+from copy import deepcopy
+from dataclasses import dataclass, field
+from random import randint, uniform
+from typing import Callable, Generic, NewType, Optional, Protocol, TypeVar
 
 from evodenss.evolution.genotype import Genotype
 from evodenss.misc.enums import AttributeType
@@ -219,9 +219,6 @@ class Grammar:
     def initialise(self, start_symbol_name: str) -> Genotype:
         start_symbol: NonTerminal = NonTerminal(start_symbol_name)
         genotype: Genotype = self.initialise_recursive(start_symbol)
-        #print("===============================================================")
-        #print(genotype)
-        #print("===============================================================")
         return genotype
 
 
@@ -282,8 +279,6 @@ class Grammar:
                          unconsumed_geno: Genotype,
                          extra_genotype: Genotype) -> list[str]:
         phenotype: list[str] = []
-        #print(f"-- symbol: {symbol} == unconsumed_geno: {unconsumed_geno}")
-        #print(f"-- symbol: {symbol} == extra_genotype: {extra_genotype}")
         if isinstance(symbol, NonTerminal):
             # consume expansion
             expansion: Optional[Derivation] = None
@@ -304,9 +299,7 @@ class Grammar:
                 return [f"{symbol.name}"]
             else:
                 if symbol.attribute.values is None:
-                    #print(symbol.attribute.values)
                     symbol.attribute.generate()
-                    #print(symbol.attribute.values)
                 assert symbol.attribute.values is not None
                 return [f"{symbol.name}:{','.join(map(str, symbol.attribute.values))}"]
         return phenotype

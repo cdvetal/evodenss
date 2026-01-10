@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Optional, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, TypeVar
 
 from evodenss.config.pydantic import ArchitectureConfig
 from evodenss.networks.module import Module

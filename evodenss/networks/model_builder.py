@@ -1,30 +1,29 @@
 from __future__ import annotations
 
-from collections import Counter
 import logging
-from math import ceil
 import warnings
-from typing import Iterable, Optional, TYPE_CHECKING
+from collections import Counter
+from math import ceil
+from typing import TYPE_CHECKING, Iterable, Optional
 
 import torch
-from torch import Size, nn, optim, Tensor
+from torch import Size, Tensor, nn, optim
 
 from evodenss.misc.constants import SEPARATOR_CHAR
 from evodenss.misc.enums import ActivationType, Device, LayerType, OptimiserType
-from evodenss.networks.phenotype_parser import Layer
-from evodenss.misc.utils import InvalidNetwork, InputLayerId, LayerId
+from evodenss.misc.utils import InputLayerId, InvalidNetwork, LayerId
 from evodenss.networks.dimensions import Dimensions
+from evodenss.networks.evaluators import BarlowTwinsEvaluator, BaseEvaluator, LegacyEvaluator
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork, EvolvedNetwork, LegacyNetwork
+from evodenss.networks.phenotype_parser import Layer
 from evodenss.train.lars import LARS
 from evodenss.train.learning_parameters import LearningParams
-from evodenss.networks.evaluators import BaseEvaluator, BarlowTwinsEvaluator, LegacyEvaluator
-
 
 warnings.filterwarnings("ignore")
 
 
 if TYPE_CHECKING:
-    from evodenss.networks.phenotype_parser import Optimiser, ParsedNetwork, Pretext
+    from evodenss.networks.phenotype_parser import Optimiser, ParsedNetwork
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -69,6 +68,7 @@ class ModelBuilder():
             )
             torch_optimiser = optim.Adam(params=model_parameters, **optimiser.optimiser_parameters)
         elif optimiser.optimiser_type == OptimiserType.LARS:
+            assert batch_size is not None
             param_weights = []
             param_biases = []
             for param in model_parameters:
@@ -94,8 +94,7 @@ class ModelBuilder():
 
 
     def assemble_network(self,
-                         evaluation_type: type[BaseEvaluator],
-                         pretext_task: Optional[Pretext]=None) -> EvolvedNetwork:
+                         evaluation_type: type[BaseEvaluator]) -> EvolvedNetwork:
         layer_to_add: nn.Module
         torch_layers: list[tuple[str, nn.Module]] = []
         connections_to_use: dict[LayerId, list[InputLayerId]] = self.parsed_network.layers_connections
@@ -136,17 +135,12 @@ class ModelBuilder():
                                      self.parsed_network.get_output_layer_id())
             elif evaluation_type is BarlowTwinsEvaluator:
                 assert self.parsed_projector_network is not None
-                assert pretext_task is not None
                 projector_model = self._assemble_projector()
                 return BarlowTwinsNetwork(torch_layers + collected_extra_torch_layers,
                                           connections_to_use,
                                           self.parsed_network.get_output_layer_id(),
                                           self.layer_shapes,
-                                          self.projector_layer_shapes,
-                                          self.parsed_projector_network.get_output_layer_id(),
-                                          projector_model,
-                                          self.device,
-                                          **pretext_task.pretext_parameters)
+                                          projector_model)
             else:
                 raise ValueError(f"Unexpected network type: {evaluation_type}")
         except InvalidNetwork as e:
@@ -281,8 +275,8 @@ class ModelBuilder():
             layer_to_add = self._build_convolutional_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.BATCH_NORM:
             layer_to_add = self._build_batch_norm_layer(layer, expected_input_dimensions)
-        elif layer.layer_type == LayerType.BATCH_NORM_PROJ:
-            layer_to_add = self._build_batch_norm_projector_layer(layer, layer_name, expected_input_dimensions)
+        elif layer.layer_type == LayerType.FC_PROJ:
+            layer_to_add = self._build_projector_layer(layer, layer_name, expected_input_dimensions)
         elif layer.layer_type == LayerType.POOL_AVG:
             layer_to_add = self._build_avg_pooling_layer(layer, expected_input_dimensions)
         elif layer.layer_type == LayerType.POOL_MAX:
@@ -334,24 +328,35 @@ class ModelBuilder():
                                       device=self.device.value)
         return layer_to_add
 
-    def _build_batch_norm_projector_layer(self,
-                                          layer: Layer,
-                                          layer_name: str,
-                                          input_dimensions: Dimensions) -> nn.Module:
+    def _build_projector_layer(self,
+                               layer: Layer,
+                               layer_name: str,
+                               input_dimensions: Dimensions) -> nn.Module:
         torch_layers_to_add: list[nn.Module] = []
         activation: ActivationType = ActivationType(layer.layer_parameters.pop("act"))
-        if layer_name.endswith(f"{LayerType.BATCH_NORM_PROJ.value}{SEPARATOR_CHAR}1"):
+        batch_norm_activation: ActivationType = ActivationType(layer.layer_parameters.pop("batch_norm_act"))
+        batch_norm_affine: bool = layer.layer_parameters.pop("affine")
+        if layer_name.endswith(f"{LayerType.FC_PROJ.value}{SEPARATOR_CHAR}1"):
             torch_layers_to_add.append(nn.Flatten())
-            torch_layers_to_add.append(nn.BatchNorm1d(**layer.layer_parameters,
-                                                      num_features=input_dimensions.flatten(),
-                                                      device=self.device.value))
+            
+            torch_layers_to_add.append(nn.Linear(**layer.layer_parameters,
+                                                 in_features=input_dimensions.flatten(),
+                                                 device=self.device.value))
         else:
-            layer_to_add = nn.BatchNorm1d(**layer.layer_parameters,
-                                          num_features=input_dimensions.channels,
-                                          device=self.device.value)
+            layer_to_add = nn.Linear(**layer.layer_parameters,
+                                     in_features=input_dimensions.channels,
+                                     device=self.device.value)
             torch_layers_to_add.append(layer_to_add)
         if activation != ActivationType.LINEAR:
             torch_layers_to_add.append(self._create_activation_layer(activation))
+
+        
+        batch_layer_to_add = nn.BatchNorm1d(num_features=layer.layer_parameters['out_features'],
+                                            affine=batch_norm_affine,
+                                            device=self.device.value)
+        torch_layers_to_add.append(batch_layer_to_add)
+        if batch_norm_activation != ActivationType.LINEAR:
+            torch_layers_to_add.append(self._create_activation_layer(batch_norm_activation))
         return nn.Sequential(*torch_layers_to_add)
 
     def _build_avg_pooling_layer(self, layer: Layer, input_dimensions: Dimensions) -> nn.Module:

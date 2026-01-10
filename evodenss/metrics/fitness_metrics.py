@@ -1,23 +1,22 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
-from typing import Any, Iterator, Optional, TYPE_CHECKING, cast
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Iterator, Optional, cast
 
 import torch
-from torch import Tensor, nn
 import torch.nn.functional as F
+from torch import Tensor, nn
 
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
 from evodenss.misc.constants import DATASETS_INFO, METADATA_FILENAME, MODEL_FILENAME, WEIGHTS_FILENAME
 from evodenss.misc.enums import Device, DownstreamMode, FitnessMetricName, OptimiserType
 from evodenss.misc.metadata_info import MetadataInfo
 from evodenss.misc.utils import InvalidNetwork
 from evodenss.networks.evolved_networks import BarlowTwinsNetwork, EvaluationBarlowTwinsNetwork
 from evodenss.networks.phenotype_parser import Optimiser
-from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
 from evodenss.train.callbacks import Callback, ModelCheckpointCallback
 from evodenss.train.learning_parameters import LearningParams
 from evodenss.train.trainers import Trainer
-
 
 if TYPE_CHECKING:
     from torch.utils.data import DataLoader, Subset
@@ -71,6 +70,8 @@ class FitnessMetric(ABC):
             fitness_metric = KNNAccuracyMetric(**class_kwargs)
         elif metric_name == FitnessMetricName.DOWNSTREAM_ACCURACY:
             # get parameter names from contructor and exclude the first one (self)
+            if "batch_size" in kwargs:
+                kwargs["optimiser_parameters"]["batch_size"] = kwargs["batch_size"]
             class_kwargs = \
                 {k: kwargs.get(k, None) for k in DownstreamAccuracyMetric.__init__.__code__.co_varnames[1:]}
             fitness_metric = DownstreamAccuracyMetric(**class_kwargs)
@@ -163,7 +164,6 @@ class DownstreamAccuracyMetric(FitnessMetric):
     def __init__(self,
                  dataset_name: str,
                  dataset: dict[DatasetType, Subset[ConcreteDataset]],
-                 batch_size: int,
                  downstream_mode: DownstreamMode,
                  downstream_epochs: int,
                  optimiser_type: OptimiserType,
@@ -176,7 +176,6 @@ class DownstreamAccuracyMetric(FitnessMetric):
         self.downstream_mode: DownstreamMode = downstream_mode
         self.optimiser_type: OptimiserType = optimiser_type
         self.optimiser_parameters: dict[str, str] = optimiser_parameters
-        self.optimiser_parameters['batch_size'] = str(batch_size)
         self.optimiser_parameters['epochs'] = str(downstream_epochs)
 
 
@@ -231,14 +230,14 @@ class DownstreamAccuracyMetric(FitnessMetric):
                     metadata_info=metadata_info)
                 )
             last_layer_trainer = Trainer(model=complete_model,
-                                        optimiser=downstream_learning_params.torch_optimiser,
-                                        loss_function=nn.CrossEntropyLoss(),
-                                        train_data_loader=loaders_dict[DatasetType.DOWNSTREAM_TRAIN],
-                                        validation_data_loader=loaders_dict.get(DatasetType.VALIDATION, None),
-                                        n_epochs=downstream_learning_params.epochs,
-                                        initial_epoch=0,
-                                        device=device,
-                                        callbacks=callbacks)
+                                         optimiser=downstream_learning_params.torch_optimiser,
+                                         loss_function=nn.CrossEntropyLoss(),
+                                         train_data_loader=loaders_dict[DatasetType.DOWNSTREAM_TRAIN],
+                                         validation_data_loader=loaders_dict.get(DatasetType.VALIDATION, None),
+                                         n_epochs=downstream_learning_params.epochs,
+                                         initial_epoch=0,
+                                         device=device,
+                                         callbacks=callbacks)
             last_layer_trainer.train()
         elif isinstance(model, EvaluationBarlowTwinsNetwork) is True:
             complete_model = cast(EvaluationBarlowTwinsNetwork, model)

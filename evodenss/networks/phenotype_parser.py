@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from itertools import chain, dropwhile, takewhile
-from typing import cast, Any, Optional
+from typing import Any, Optional, cast
 
 from evodenss.misc.enums import Entity, LayerType, OptimiserType, PretextType
 from evodenss.misc.utils import InputLayerId, LayerId
+
 
 class Layer:
 
@@ -16,13 +17,13 @@ class Layer:
         self.layer_parameters: dict[str, Any] = dict(self._convert(k, v) for k,v in layer_parameters.items())
 
     def _convert(self, key: str, value: str) -> tuple[str, Any]:
-        if key == "bias":
+        if key in ["bias", "affine"]:
             return key, value.title() == "True"
         elif key in ["rate"]:
             return key, float(value)
         elif key in ["out_channels", "out_features", "kernel_size", "stride"]:
             return key, int(value)
-        elif key in ["act", "padding"]:
+        elif key in ["act", "padding" ,"batch_norm_act"]:
             return key, value
         elif key == "input":
             return key, list(map(int, value))

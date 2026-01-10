@@ -93,21 +93,67 @@ coverage report
 
 #### Framework modes
 
-EvoDENSS can be run using the supervised learning mode (to mimic [Fast-DENSER](https://github.com/fillassuncao/fast-denser) behaviour) and the self-supervised learning mode. In the case of self-supervised learning there are a few variations that influence which components are targeted by Evolutionary Computation.
+EvoDENSS can be run using the supervised learning mode behaviour and the self-supervised learning mode. In the case of self-supervised learning there are a few variations that influence which components are targeted by Evolutionary Computation.
 
 ###### 1. Supervised learning mode
 
+Config files that should be used:
+- `supervised_10.yaml` to evaluate evolved networks by training them on 10% labelled data
+- `supervised_100.yaml` to evaluate evolved networks by training them on 100% labelled data
+
+Grammar files that should be used:
+- `supervised.grammar` for CIFAR-10
+- `supervised_cifar100.grammar` for CIFAR-100
+
 ###### 2. Self-Supervised learning mode
 
-###### 2. Self-Supervised learning mode with evolvable projector
-TBD in an upcoming version
+Config files that should be used:
+- Any config file that starts with `bt_`
 
-## Versioning
+Grammar files that should be used:
+- `bt_with_projector.grammar` can be used without problems because the projector related grammar derivations will never be expanded by the evolutionary engine if the right config file is provided.
 
-Versioning is done according to the [Semantic Versioning guidelines](https://semver.org/). Given a version number MAJOR.MINOR.PATCH, increment the:
+###### 3. Self-Supervised learning mode with evolvable projector
 
-MAJOR version is incremented whenever a breaking change is added.
-MINOR version is incremented whenever new features are added with backwards compatibility.
-PATCH version is incremented whenever bug fixes are done with backwards compatibility.
+Config files that should be used:
+- Any config file that starts with contains `projector`
 
-Numbers are updated by semi-automatically by `autosemver` library, according to the commit messages that are passed. For more information about this, please read [autosemver](https://autosemver.readthedocs.io/en/latest/usage.html) documentation.
+Grammar files that should be used:
+- `bt_with_projector.grammar`
+
+
+#### Extending train to best individuals
+
+##### Command-line flags
+
+This small cli was create to refine a specific SSL model that was evolved and it takes advantages of the evolution outputs from EvoDeNSS
+
+- `--model-path`: Path to the model file created by Pytorch;
+- `--weights-path`: Path to the weights file created by Pytorch;
+- `--metadata-path`: Path to the metadata file created by EvoDeNSS with relevant details/params used to evaluate the individual;
+- `--output-model-path`: The output folder destination for the refined model;
+- `--pretext-epochs`: Number of training epochs for the pretext task. If this number is lower than the number of epochs already trained by a certain individual in the pretext task, it skips the pretext task;
+- `--downstream-epochs`: Number of training epochs for the downstream task;
+- `--gpu-enabled`: When used, it enables GPU processing;
+- `--config-path`: Path to the config file used during the evolution phase;
+- `--individual-path`: Path the to the individual pickle file;
+- `--downstream-mode`: Decides whether to `freeze` representation weights or `finetune`;
+- `-r`: Identifies the run id and seed to be used. 
+
+##### Example
+```
+python3 -m evodenss.train_longer  \
+    --model-path path_to_model.pt  \
+    --weights-path path_to_weightsweights.pt  \
+    --metadata-path path_to_metadata \
+    --output-model-path output_path_of_refined_model \
+    --pretext-epochs 100 \
+    --downstream-epochs 600 \
+    --gpu-enabled \
+    --config-path path_to_config_used_to_evolve_the_model.yaml \
+    --individual-path path_to_the_individual_pickle_obj.pkl \
+    --downstream-mode freeze \
+    -r $i
+```
+
+Note: To refine models using a supervised learning paradigm, use evodenss.train_longer_supervised

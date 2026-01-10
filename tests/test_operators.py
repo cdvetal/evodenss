@@ -1,21 +1,22 @@
-from copy import deepcopy
 import random
 import unittest
 import warnings
+from copy import deepcopy
 
 from evodenss.config.pydantic import ArchitectureConfig, ModuleConfig, MutationConfig, NetworkStructure
 from evodenss.evolution.genotype import Genotype
-from evodenss.evolution.grammar import Derivation
-from evodenss.evolution.operators import mutation
+from evodenss.evolution.grammar import Derivation, Grammar, NonTerminal
 from evodenss.evolution.individual import Individual
-from evodenss.evolution.grammar import Grammar, NonTerminal
+from evodenss.evolution.operators import mutation
 from evodenss.misc.utils import LayerId
 from evodenss.networks.module import Module
 from tests.resources.genotype_examples import mutation_added_layer_genotype, simple_sample1
 
+
 class Test(unittest.TestCase):
 
     def setUp(self) -> None:
+        self.maxDiff = None
         self.mutation_config = MutationConfig(
             add_connection=0.0,
             remove_connection=0.0,
@@ -90,7 +91,7 @@ class Test(unittest.TestCase):
         obtained_connections = new_ind.individual_genotype.modules_dict['features'].connections
         self.assert_layers_mutation(obtained_layers,
                                     original_layers,
-                                    [2],
+                                    [0],
                                     [mutation_added_layer_genotype],
                                     [])
         self.assertEqual(obtained_connections, {**connections, **{2: [1]}})
@@ -116,7 +117,7 @@ class Test(unittest.TestCase):
         self.assert_layers_mutation(obtained_layers,
                                     original_layers,
                                     [2],
-                                    [original_layers[0]],
+                                    [original_layers[1]],
                                     [])
         self.assertEqual(obtained_connections, {**connections, **{2: [1]}})
         self.assertEqual(self.count_unique_layers(ind.individual_genotype.modules_dict),
@@ -144,8 +145,9 @@ class Test(unittest.TestCase):
                                     original_layers,
                                     [],
                                     [],
-                                    [0])
+                                    [1])
         self.assertEqual(obtained_connections, connections)
+
         self.assertEqual(self.count_layers(ind.individual_genotype.modules_dict)-1,
                          self.count_layers(new_ind.individual_genotype.modules_dict),
                          "Error: remove layer wrong size")

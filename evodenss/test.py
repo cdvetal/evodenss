@@ -1,8 +1,8 @@
 import torch
-from torch import Tensor
 import torch.nn.functional as F
+from torch import Tensor
 from torch.utils.data import DataLoader, Subset
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import ResNet50_Weights, resnet50
 
 from evodenss.config.pydantic import AugmentationConfig, DataSplits, Labelled, SubsetDefinition
 from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, DatasetType

@@ -1,31 +1,31 @@
 from __future__ import annotations
 
-from argparse import ArgumentParser
-import os
 import logging
+import os
 import random
 import time
-from typing import Any, Optional, TYPE_CHECKING
+from argparse import ArgumentParser
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import torch
 
 import evodenss
 from evodenss.config.pydantic import Config, ConfigBuilder, DataSplits, get_config, get_fitness_extra_params
+from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, create_dataset_processor
 from evodenss.evolution import engine
 from evodenss.evolution.grammar import Grammar
 from evodenss.misc.checkpoint import Checkpoint
-from evodenss.misc.constants import DATASETS_INFO, DEFAULT_SEED, STATS_FOLDER_NAME, START_FROM_SCRATCH
+from evodenss.misc.constants import DATASETS_INFO, DEFAULT_SEED, START_FROM_SCRATCH, STATS_FOLDER_NAME
 from evodenss.misc.enums import DownstreamMode, FitnessMetricName, OptimiserType
 from evodenss.misc.persistence import RestoreCheckpoint, build_overall_best_path
 from evodenss.misc.utils import ConfigPairAction, is_valid_file, is_yaml_file
-from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetProcessor, create_dataset_processor
 from evodenss.networks.evaluators import BaseEvaluator
 
-
 if TYPE_CHECKING:
-    from evodenss.dataset.dataset_loader import DatasetType
     from torch.utils.data import Subset
+
+    from evodenss.dataset.dataset_loader import DatasetType
 
 logger: logging.Logger
 

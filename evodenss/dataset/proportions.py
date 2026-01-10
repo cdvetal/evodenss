@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Any, Iterator, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any, Iterator
 
 if TYPE_CHECKING:
     from evodenss.dataset.dataset_loader import DatasetType

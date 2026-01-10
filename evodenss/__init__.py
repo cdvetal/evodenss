@@ -1,6 +1,7 @@
 import logging
 import os
 from typing import Any, Callable
+
 # from .main import main as search
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'

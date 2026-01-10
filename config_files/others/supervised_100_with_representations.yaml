@@ -1,15 +1,15 @@
 checkpoints_path: ../../results/experiment_supervised100_with_representation
 
 evolutionary:
-  generations: 75
+  generations: 100
   lambda: 6
   max_epochs: 100000
   mutation:
     add_connection: 0.0
     remove_connection: 0.0
-    add_layer: 0.3
+    add_layer: 0.25
     reuse_layer: 0.15
-    remove_layer: 0.3
+    remove_layer: 0.25
     dsge_topological: 0.15
     dsge_non_topological: 0.3
     train_longer: 0.03
@@ -49,7 +49,7 @@ network:
           amount_to_use: 1.0
           replacement: false
     learning_type: "supervised"
-    default_train_time: 60
+    default_train_time: 120
     augmentation:
       downstream:
         random_crop:

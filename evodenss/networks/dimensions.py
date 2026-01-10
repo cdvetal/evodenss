@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from evodenss.misc.enums import LayerType
 
-
 if TYPE_CHECKING:
     from evodenss.networks.phenotype_parser import Layer
 
@@ -69,9 +68,9 @@ class Dimensions:
             return cls(out_channels, height, width)
         elif layer.layer_type in [LayerType.BATCH_NORM, LayerType.DROPOUT, LayerType.IDENTITY, LayerType.RELU_AGG]:
             return input_dimensions
-        elif layer.layer_type == LayerType.BATCH_NORM_PROJ:
-            return cls(input_dimensions.flatten(), height=1, width=1)
-        elif layer.layer_type == LayerType.FC:
+        #elif layer.layer_type == LayerType.BATCH_NORM_PROJ:
+        #    return cls(input_dimensions.flatten(), height=1, width=1)
+        elif layer.layer_type in [LayerType.FC, LayerType.FC_PROJ]:
             return cls(layer.layer_parameters['out_features'], height=1, width=1)
         else:
             raise ValueError(f"Can't create Dimensions object for layer [{layer.layer_type}]")
