@@ -1,22 +1,23 @@
-from dataclasses import dataclass
 import logging
 import time
 import traceback
-from typing import Any, Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional
 
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
+from evodenss.config.pydantic import get_config
 from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
-from evodenss.misc.enums import Device
+from evodenss.misc.enums import Device, AdversarialTrainingType
 from evodenss.misc.utils import InvalidNetwork
 from evodenss.networks.phenotype_parser import Optimiser
 from evodenss.train.callbacks import Callback
 from evodenss.train.lars import LARS
 from evodenss.train.learning_parameters import LearningParams
 
-
+import copy
 if TYPE_CHECKING:
     from torch.optim.lr_scheduler import LRScheduler
 
@@ -54,6 +55,13 @@ class Trainer:
         self.train_data_loader: DataLoader[ConcreteDataset] = train_data_loader
         self.validation_data_loader: Optional[DataLoader[ConcreteDataset]] = validation_data_loader
         self.n_epochs: int = n_epochs
+        self.warm_up_stage: int = max(1, self.n_epochs // 3)
+        self.adversarial_training: AdversarialTrainingType = AdversarialTrainingType.NONE
+        self.pgd_epsilon: float = 8.0 / 255.0
+        self.pgd_alpha: float = 2.0 / 255.0
+        self.pgd_steps_pretext: int = 5
+        self.pgd_steps_downstream: int = 20
+        self.adv_loss_weight: float = 1.0
         self.initial_epoch: int = initial_epoch
         self.device: Device = device
         self.callbacks: list[Callback] = callbacks
@@ -64,6 +72,18 @@ class Trainer:
         self.representation_model: Optional[nn.Module] = representation_model
 
         self.scheduler: Optional['LRScheduler'] = scheduler
+
+        try:
+            adversarial_config = get_config().network.learning.adversarial
+            if adversarial_config is not None:
+                self.adversarial_training = adversarial_config.training_type
+                self.pgd_epsilon = adversarial_config.pgd_epsilon
+                self.pgd_alpha = adversarial_config.pgd_alpha
+                self.pgd_steps_pretext = adversarial_config.pgd_steps_pretext
+                self.pgd_steps_downstream = adversarial_config.pgd_steps_downstream
+                self.adv_loss_weight = adversarial_config.loss_weight
+        except Exception:
+            logger.debug("Config not initialized while creating Trainer; using default adversarial settings")
 
         # cuda stuff
         torch.cuda.empty_cache()
@@ -86,6 +106,84 @@ class Trainer:
         for c in self.callbacks:
             c.on_epoch_end(self)
 
+    def _pgd_attack_pretext(self,
+                        original_inputs: torch.Tensor,
+                        epsilon: float,
+                        alpha: float,
+                        steps: int) -> torch.Tensor:
+        
+        # PGD attack over input space [0, 1] for pretext objective RANDOM START
+        x_orig = original_inputs.clone().detach()
+        x_adv = x_orig.clone().detach()
+        x_adv = x_adv + torch.empty_like(x_adv).uniform_(-epsilon, epsilon)
+        x_adv = x_adv.clamp(0.0, 1.0)
+        
+        self.model.eval()
+        with torch.no_grad():
+            z_orig = self.model.forward(x_orig)
+        for _ in range(steps):
+            x_adv.requires_grad_(True)
+            with torch.enable_grad():
+                z_adv = self.model.forward(x_adv)
+                adv_loss, _, _ = self.loss_function(z_adv, z_orig)
+            grad = torch.autograd.grad(adv_loss, x_adv, only_inputs=True)[0]
+            x_adv = x_adv.detach() + alpha * grad.sign()
+            perturbation = torch.clamp(x_adv - x_orig, min=-epsilon, max=epsilon)
+            x_adv = torch.clamp(x_orig + perturbation, min=0.0, max=1.0).detach()
+        self.model.train()
+        
+        return x_adv
+
+    def _pgd_attack_downstream(
+            self,
+            inputs: torch.Tensor,
+            targets: torch.Tensor,
+            epsilon: float,
+            alpha: float,
+            steps: int
+    ) -> torch.Tensor:
+
+        x_orig = inputs.clone().detach()
+
+        # random start inside epsilon-ball
+        x_adv = x_orig.clone().detach()
+        x_adv = x_adv + torch.empty_like(x_adv).uniform_(-epsilon, epsilon)
+        x_adv = torch.clamp(x_adv, 0.0, 1.0)
+
+        self.model.eval()
+
+        for _ in range(steps):
+            x_adv.requires_grad_(True)
+
+            with torch.enable_grad():
+                logits = self.model(x_adv)
+                loss = self.loss_function(logits, targets)
+
+            grad = torch.autograd.grad(loss, x_adv, only_inputs=True)[0]
+
+            # PGD step
+            x_adv = x_adv.detach() + alpha * grad.sign()
+
+            # project back to epsilon ball
+            perturbation = torch.clamp(x_adv - x_orig, min=-epsilon, max=epsilon)
+            x_adv = torch.clamp(x_orig + perturbation, min=0.0, max=1.0).detach()
+        
+        self.model.train()
+        return x_adv
+
+    def _weight_adv(self, epoch: int) -> float:
+
+        if self.warm_up_stage <= 0:
+            return 1.0
+
+        if epoch < self.warm_up_stage:
+            return 0.0
+
+        denom = max(1, self.n_epochs - self.warm_up_stage)
+        weight = min(1.0, (epoch - self.warm_up_stage) / denom)
+        logger.debug(f"Adversarial loss weight: {weight} at epoch {epoch}")
+        return weight
+    
     def train(self) -> None:
         #assert self.validation_data_loader is not None
 
@@ -99,7 +197,7 @@ class Trainer:
                 n_batches_validation = len(self.validation_data_loader)
             self.model.train()
             self._call_on_train_begin_callbacks()
-
+            self.trained_epochs = 0
             while epoch < self.n_epochs and self.stop_training is False:
                 logger.debug(f"Starting Downstream Epoch {epoch}")
                 self._call_on_epoch_begin_callbacks()
@@ -116,7 +214,22 @@ class Trainer:
                         inputs = self.representation_model(inputs)
                     outputs = self.model(inputs)
                     loss = self.loss_function(outputs, labels)
-                    total_loss += loss/n_batches_train
+
+                    if self.adversarial_training == AdversarialTrainingType.DOWNSTREAM:
+                        #logger.debug("adversarial training")
+                        adv_inputs = self._pgd_attack_downstream(
+                            inputs,
+                            labels,
+                            epsilon=self.pgd_epsilon,
+                            alpha=self.pgd_alpha,
+                            steps=self.pgd_steps_downstream
+                        )
+                        adv_outputs = self.model(adv_inputs)
+                        adv_loss = self.loss_function(adv_outputs, labels)
+
+                        loss = loss + self.adv_loss_weight * adv_loss 
+
+                    total_loss += loss.detach() / n_batches_train
                     loss.backward()
                     self.optimiser.step()
                 end = time.time() # noqa: F841
@@ -125,7 +238,7 @@ class Trainer:
                 logger.debug(f"Loss: {round(float(total_loss.data), 3)}")
                 logger.debug("=============================================================")
 
-                if self.validation_data_loader is not None:
+                if self.validation_data_loader is not None and len(self.validation_data_loader) > 0:
                     with torch.no_grad():
                         self.model.eval()
                         total_loss = torch.zeros(size=(1,), device=self.device.value)
@@ -144,10 +257,10 @@ class Trainer:
                 if self.scheduler is not None:
                     self.scheduler.step()
                 epoch += 1
+                self.trained_epochs += 1
                 self._call_on_epoch_end_callbacks()
 
             self._call_on_train_end_callbacks()
-            self.trained_epochs = epoch - self.initial_epoch
         except RuntimeError as e:
             logger.warning(traceback.format_exc())
             raise InvalidNetwork(str(e)) from e
@@ -178,21 +291,45 @@ class Trainer:
                 total_offdiagonal_loss = 0
 
                 self._call_on_epoch_begin_callbacks()
-                for step, ((y_a, y_b), _) in enumerate(self.train_data_loader, start=epoch * n_batches_train):
+                pretext_adversarial_weight = self._weight_adv(epoch)
+                for step, ((orig, y_a, y_b), _) in enumerate(self.train_data_loader, start=epoch * n_batches_train):
+                    inputs_orig = orig.to(self.device.value, non_blocking=True)
                     inputs_a = y_a.to(self.device.value, non_blocking=True)
                     inputs_b = y_b.to(self.device.value, non_blocking=True)
 
                     if isinstance(self.optimiser, LARS):
                         self.optimiser.adjust_learning_rate(n_batches_train, self.n_epochs, step)
                     self.optimiser.zero_grad(set_to_none=True)
+
+                    adv_orig = self._pgd_attack_pretext(
+                        inputs_orig,
+                        epsilon=self.pgd_epsilon,
+                        alpha=self.pgd_alpha,
+                        steps=self.pgd_steps_pretext
+                    ) if self.adversarial_training != AdversarialTrainingType.NONE else None 
+                    
                     with torch.cuda.amp.autocast():
                         z_a = self.model.forward(inputs_a)
                         z_b = self.model.forward(inputs_b)
+                        z_original = self.model.forward(inputs_orig)
+
+                        #clean loss
                         loss, diagonal_loss, off_diagonal_loss = self.loss_function(z_a, z_b)
-                        total_loss += loss.item()
-                        total_diagonal_loss += diagonal_loss.item()
-                        total_offdiagonal_loss += off_diagonal_loss.item()
-                    scaler.scale(loss).backward()
+
+                        #adversarial loss, if activated on the pretext task
+                        if self.adversarial_training != AdversarialTrainingType.NONE:
+                            z_adv = self.model.forward(adv_orig)
+                            loss_adv, diagonal_loss_adv, off_diagonal_loss_adv = self.loss_function(z_adv, z_original) 
+                        else:
+                            loss_adv, diagonal_loss_adv, off_diagonal_loss_adv = (torch.zeros_like(loss), torch.zeros_like(diagonal_loss), torch.zeros_like(off_diagonal_loss))
+                        
+                        total_pretext_loss = loss + pretext_adversarial_weight*loss_adv
+                        
+                        total_loss += total_pretext_loss.item()
+                        total_diagonal_loss += (diagonal_loss.item() + pretext_adversarial_weight*diagonal_loss_adv.item())
+                        total_offdiagonal_loss += (off_diagonal_loss.item() + pretext_adversarial_weight*off_diagonal_loss_adv.item())
+                    
+                    scaler.scale(total_pretext_loss).backward()
                     scaler.step(self.optimiser)
                     scaler.update()
 

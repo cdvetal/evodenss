@@ -117,3 +117,11 @@ network:
         random_horizontal_flip:
           probability: 0.5
       test:
+    adversarial:
+      training_type: downstream
+      pgd_epsilon: 0.03137254901960784
+      pgd_alpha: 0.00784313725490196
+      pgd_steps_pretext: 5
+      pgd_steps_downstream: 20
+      warm_up_stage: 1
+      loss_weight: 0.5

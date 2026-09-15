@@ -1,8 +1,6 @@
-from argparse import _AppendAction
 import os
+from argparse import ArgumentParser, _AppendAction
 from typing import Any, NamedTuple, NewType, no_type_check
-
-from argparse import ArgumentParser
 
 InputLayerId = NewType('InputLayerId', int)
 LayerId = NewType('LayerId', int)

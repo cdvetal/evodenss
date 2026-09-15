@@ -29,13 +29,10 @@ ind_phenotype3: str = \
     "layer:conv out_channels:39 kernel_size:5 stride:2 padding:same act:sigmoid bias:False input:0 " + \
     "layer:conv out_channels:113 kernel_size:2 stride:1 padding:same act:sigmoid bias:True input:1 " + \
     "layer:conv out_channels:140 kernel_size:2 stride:3 padding:same act:relu bias:False input:2 " + \
-    "projector_layer:fc act:linear out_features:512 bias:True input:-1 " + \
-    "projector_layer:batch_norm_proj act:relu input:0 " + \
-    "projector_layer:fc act:linear out_features:32 bias:True input:1 " + \
-    "projector_layer:batch_norm_proj act:relu input:2 " + \
-    "projector_layer:fc act:linear out_features:10 bias:True input:3 " + \
-    "projector_layer:batch_norm_proj act:linear input:4 " + \
-    "projector_layer:identity input:5 " + \
+    "projector_layer:projector_fc act:linear out_features:512 bias:False affine:True batch_norm_act:relu input:-1 " + \
+    "projector_layer:projector_fc act:linear out_features:32 bias:False affine:True batch_norm_act:relu input:0 " + \
+    "projector_layer:projector_fc act:linear out_features:10 bias:False affine:False batch_norm_act:linear input:1 " + \
+    "projector_layer:identity input:2 " + \
     "learning:adam lr:0.09265801171620802 beta1:0.7080483514532836 beta2:0.9580432907690966 " + \
     "weight_decay:0.0009222663739074177 early_stop:12 batch_size:512 epochs:100"
 
@@ -44,8 +41,7 @@ ind_phenotype4: str = \
     "layer:conv out_channels:39 kernel_size:5 stride:2 padding:same act:sigmoid bias:False input:0 " + \
     "layer:conv out_channels:113 kernel_size:2 stride:1 padding:same act:sigmoid bias:True input:1 " + \
     "layer:conv out_channels:140 kernel_size:2 stride:3 padding:same act:relu bias:False input:2 " + \
-    "projector_layer:fc act:linear out_features:5 bias:True input:-1 " + \
-    "projector_layer:batch_norm_proj act:linear input:0 " + \
-    "projector_layer:identity input:1 " + \
+    "projector_layer:projector_fc act:linear out_features:5 bias:False affine:False batch_norm_act:linear input:-1 " + \
+    "projector_layer:identity input:0 " + \
     "learning:adam lr:0.09265801171620802 beta1:0.7080483514532836 beta2:0.9580432907690966 " + \
     "weight_decay:0.0009222663739074177 early_stop:12 batch_size:512 epochs:100"

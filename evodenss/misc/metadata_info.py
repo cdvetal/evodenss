@@ -5,8 +5,8 @@ from typing import Any, Optional, Sequence
 from pydantic import BaseModel
 from torch.utils.data import Subset
 
-from evodenss.networks.phenotype_parser import Optimiser, Pretext
 from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
+from evodenss.networks.phenotype_parser import Optimiser, Pretext
 from evodenss.train.learning_parameters import LearningParams
 
 
@@ -17,7 +17,7 @@ class TrainingInfo(BaseModel):
     test_indices: Sequence[int]
     optimiser_name: str
     optimiser_parameters: dict[str, Any]
-    batch_size: int
+    batch_size: Optional[int]
     early_stop: Optional[int]
     trained_epochs: int
 

@@ -1,4 +1,4 @@
-from enum import unique, Enum
+from enum import Enum, unique
 from typing import Any
 
 import torch
@@ -36,7 +36,7 @@ class Device(Enum):
 class LayerType(ExtendedEnum):
     CONV = "conv"
     BATCH_NORM = "batch_norm"
-    BATCH_NORM_PROJ = "batch_norm_proj"
+    FC_PROJ = "projector_fc"
     POOL_AVG = "pool_avg"
     POOL_MAX = "pool_max"
     FC = "fc"
@@ -115,3 +115,9 @@ class DownstreamMode(Enum):
 class LearningType(Enum):
     supervised = "supervised"
     self_supervised = "self-supervised"
+
+@unique
+class AdversarialTrainingType(Enum):
+    NONE = "none"
+    PRETEXT = "pretext"
+    DOWNSTREAM = "downstream"

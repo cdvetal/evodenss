@@ -1,18 +1,26 @@
 import random
-from typing import cast
 import unittest
+from typing import cast
 
 import numpy as np
-from PIL import Image
 import torch
+from PIL import Image
 from torch import Tensor
-from torchvision.transforms import Compose, ColorJitter, Normalize, \
-    RandomGrayscale, RandomApply, RandomHorizontalFlip, RandomResizedCrop, Resize, ToTensor
+from torchvision.transforms import (
+    ColorJitter,
+    Compose,
+    Normalize,
+    RandomApply,
+    RandomGrayscale,
+    RandomHorizontalFlip,
+    RandomResizedCrop,
+    Resize,
+    ToTensor,
+)
 from torchvision.transforms.functional import InterpolationMode
 
 from evodenss.misc.enums import TransformOperation
-from evodenss.networks.transformers import LegacyTransformer, \
-    GaussianBlur, Solarization
+from evodenss.networks.transformers import GaussianBlur, LegacyTransformer, Solarization
 
 
 class Test(unittest.TestCase):
