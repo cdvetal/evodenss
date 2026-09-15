@@ -1,19 +1,30 @@
-from copy import deepcopy
 import os
 import random
 import textwrap
 import unittest
 import warnings
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
 from evodenss.evolution.genotype import Genotype
 from evodenss.evolution.grammar import Grammar
-from tests.resources.genotype_examples import simple_sample1, simple_sample2, simple_sample3, \
-    nn_sample1, nn_sample2, dgse_mutated_simple_sample3
-from tests.resources.phenotype_examples import simple_phenotype1, simple_phenotype2, simple_phenotype3, \
-    nn_phenotype1, nn_phenotype2
+from tests.resources.genotype_examples import (
+    dgse_mutated_simple_sample3,
+    nn_sample1,
+    nn_sample2,
+    simple_sample1,
+    simple_sample2,
+    simple_sample3,
+)
+from tests.resources.phenotype_examples import (
+    nn_phenotype1,
+    nn_phenotype2,
+    simple_phenotype1,
+    simple_phenotype2,
+    simple_phenotype3,
+)
 
 
 class Test(unittest.TestCase):

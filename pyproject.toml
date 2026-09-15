@@ -47,6 +47,7 @@ line-ending = "auto"
 [tool.ruff.lint]
 select = ["F", "E", "W291", "W292"]
 ignore = ["E741"]
+extend-select = ["I"]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 120

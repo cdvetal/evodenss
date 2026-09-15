@@ -1,22 +1,31 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from copy import deepcopy
 import logging
 import random
-from typing import cast, Any
+from abc import ABC, abstractmethod
+from copy import deepcopy
+from typing import Any, cast
 
 from PIL import ImageFilter, ImageOps
-from PIL.Image import Image as ImageType # https://github.com/python-pillow/Pillow/issues/6676
-from torchvision.transforms import Compose, CenterCrop, ColorJitter, Normalize, RandomApply, \
-    RandomCrop, RandomGrayscale, RandomHorizontalFlip, RandomResizedCrop, Resize, \
-    ToTensor
+from PIL.Image import Image as ImageType  # https://github.com/python-pillow/Pillow/issues/6676
 from torch import Tensor
+from torchvision.transforms import (
+    CenterCrop,
+    ColorJitter,
+    Compose,
+    Normalize,
+    RandomApply,
+    RandomCrop,
+    RandomGrayscale,
+    RandomHorizontalFlip,
+    RandomResizedCrop,
+    Resize,
+    ToTensor,
+)
 from torchvision.transforms.functional import InterpolationMode
 
 from evodenss.config.pydantic import PretextAugmentation
 from evodenss.misc.enums import TransformOperation
-
 
 __all__ = ['LegacyTransformer', 'BarlowTwinsTransformer']
 
@@ -124,10 +133,12 @@ class BarlowTwinsTransformer(BaseTransformer):
         super().__init__()
         self.transform_a: Compose = self._create_compose_transform(augmentation_params.input_a)
         self.transform_b: Compose = self._create_compose_transform(augmentation_params.input_b)
+        self.to_tensor = ToTensor()
 
-    def __call__(self, img: ImageType) -> tuple[Tensor, Tensor]:
+    def __call__(self, img: ImageType) -> tuple[Tensor, Tensor, Tensor]:
         if img.mode == 'RGBA':
             img = img.convert('RGB') # random grayscale fails when an image has 4 channels
+        orig = cast(Tensor, self.to_tensor(img))
         aug_input_a = cast(Tensor, self.transform_a(img))
         aug_input_b = cast(Tensor, self.transform_b(img))
-        return aug_input_a, aug_input_b
+        return orig, aug_input_a, aug_input_b

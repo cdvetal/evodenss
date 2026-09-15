@@ -14,20 +14,29 @@ evolutionary:
     train_longer: 0.2
   fitness:
     metric_name: accuracy
+    parameters: null
 network:
   architecture:
     reuse_layer: 0.8
-    macro_structure:
+    extra_components:
       - learning
     output: softmax
     modules:
       - name: features
-        network_structure_init: [1]
-        network_structure: [1,2]
+        network_structure_init:
+          min_expansions: 1
+          max_expansions: 1
+        network_structure:
+          min_expansions: 1
+          max_expansions: 2
         levels_back: 1
       - name: classification
-        network_structure_init: [1]
-        network_structure: [1,2]
+        network_structure_init:
+          min_expansions: 1
+          max_expansions: 1
+        network_structure:
+          min_expansions: 1
+          max_expansions: 2
         levels_back: 1
   learning:
     data_splits:
@@ -47,13 +56,20 @@ network:
           replacement: false
     learning_type: supervised
     augmentation:
-      train:
+      downstream:
         random_crop:
           size: 32
           padding: 4
         random_horizontal_flip:
           probability: 0.5
-      last_layer_train: null
-      test: null
+      test:
+        resize:
+          size: 32
+    adversarial:
+      training_type: downstream
+      pgd_epsilon: 0.03137254901960784
+      pgd_alpha: 0.00784313725490196
+      pgd_steps: 4
+      warm_up_stage: 0
+      loss_weight: 1.0
     default_train_time: 5
-    fitness_metric: accuracy

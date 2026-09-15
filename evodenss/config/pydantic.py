@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
 import filecmp
 import os
 import shutil
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Annotated, Any, Iterator, Optional, cast, no_type_check
 
+import yaml  # type: ignore
 from pydantic import BaseModel, ConfigDict, Field, FilePath, PositiveInt, ValidationInfo, field_validator
-import yaml # type: ignore
 
-from evodenss.misc.enums import DownstreamMode, FitnessMetricName, LearningType, OptimiserType
+from evodenss.misc.enums import AdversarialTrainingType, DownstreamMode, FitnessMetricName, LearningType, OptimiserType
 from evodenss.misc.utils import ConfigPair
-
 
 # -------------------------------------------
 # ----------   EXTRA DEFINITIONS   ----------
@@ -150,7 +149,6 @@ class KNNAccuracyParams(BaseModel):
 class DownstreamAccuracyParams(BaseModel):
     downstream_mode: DownstreamMode
     downstream_epochs: PositiveInt
-    batch_size: PositiveInt
     optimiser_type: OptimiserType
     optimiser_parameters: dict[str, Any]
 
@@ -243,12 +241,12 @@ class LearningConfig(BaseModel):
     default_train_time: PositiveInt
     data_splits: DataSplits
     augmentation: AugmentationConfig
+    adversarial: Optional[AdversarialConfig] = None
     model_config = ConfigDict(extra='forbid')
 
     @field_validator('learning_type', mode='after')
     @classmethod
     def add_context(cls, v: LearningType, info: ValidationInfo) -> LearningType:
-        print("context ", info.context)
         if info.context is not None:
             info.context.update({'learning_type': v})
         return v
@@ -354,6 +352,16 @@ class AugmentationConfig(BaseModel):
         else:
             return value if value is not None else {}
 
+class AdversarialConfig(BaseModel):
+    training_type: AdversarialTrainingType = AdversarialTrainingType.NONE
+    pgd_epsilon: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] = 8.0 / 255.0
+    pgd_alpha: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] = 2.0 / 255.0
+    pgd_steps_pretext: PositiveInt = 5
+    pgd_steps_downstream: PositiveInt = 20
+    warm_up_stage: Annotated[int, Field(strict=True, ge=0)] = 0
+    loss_weight: Annotated[float, Field(strict=True, ge=0.0)] = 1.0
+    model_config = ConfigDict(extra='forbid')
+    
 
 def get_fitness_extra_params() -> dict[str, Any]:
     fitness_params: DownstreamAccuracyParams | KNNAccuracyParams | None = get_config().evolutionary.fitness.parameters
