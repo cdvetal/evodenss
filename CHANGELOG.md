@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 5.0.2 (2026-10-26)
+
+
+Other improvements:
+
+- Added statistical analysis scripts for the Scientific Reports article (`analysis/scientific_reports_2026/`): paired t-tests with Holm correction, 95% CIs and figure scripts that reproduce Table 5, Figure 4 and Supplementary Appendix D.
+
+
 ## 5.0.1 (2026-01-09)
 
 
