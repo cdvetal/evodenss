@@ -1,22 +1,22 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, cast, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Optional, cast
 
 import numpy as np
 
+from evodenss.evolution.genotype import IndividualGenotype
 from evodenss.metrics.evaluation_metrics import EvaluationMetrics
 from evodenss.misc.utils import InputLayerId, LayerId
-from evodenss.evolution.genotype import IndividualGenotype
-
 
 if TYPE_CHECKING:
+    from torch.utils.data import Subset
+
     from evodenss.config.pydantic import ArchitectureConfig
+    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from evodenss.evolution.grammar import Grammar
     from evodenss.metrics.fitness_metrics import Fitness
-    from evodenss.dataset.dataset_loader import ConcreteDataset, DatasetType
     from evodenss.networks.evaluators import BaseEvaluator
-    from torch.utils.data import Subset
 
 __all__ = ['Individual']
 
@@ -76,16 +76,23 @@ class Individual:
         # Build phenotype for projector network if this is static
         # (if it is dynamic, then it was already decoded above)
         if static_projector_config is not None:
-            dense: Callable[..., str] = \
-                lambda out, act, i: f"projector_layer:fc act:{act} out_features:{out} bias:True input:{i}" # noqa: E731
-            batch: Callable[..., str] = \
-                lambda act, i: f"projector_layer:batch_norm_proj act:{act} input:{i}" # noqa: E731
-            for i in range(len(static_projector_config)*2):
-                activation: str = "linear" if i >= len(static_projector_config)*2-2 else "relu"
-                if i % 2 == 0:
-                    static_projector_phenotype += " " + dense(static_projector_config[i//2], "linear", i-1)
+            proj: Callable[..., str] = \
+                lambda act, out, af, b_act ,i: \
+                    f"projector_layer:projector_fc act:{act} out_features:{out} " + \
+                    f"bias:False affine:{af} batch_norm_act:{b_act} input:{i}" # noqa: E731
+            for i in range(len(static_projector_config)):
+                if i == len(static_projector_config) - 1:
+                    static_projector_phenotype += " " + proj("linear",
+                                                             static_projector_config[i],
+                                                             False,
+                                                             "linear",
+                                                             i-1)
                 else:
-                    static_projector_phenotype += " " + batch(activation, i-1)
+                    static_projector_phenotype += " " + proj("linear",
+                                                             static_projector_config[i],
+                                                             True,
+                                                             "relu",
+                                                             i-1)
         phenotype += static_projector_phenotype
 
         # Build phenotype for output layer
@@ -100,7 +107,7 @@ class Individual:
                 # we are doing evolution using supervised learning
                 final_input_layer_id = module_offset - 1
             else:
-                final_input_layer_id = len(static_projector_config) * 2 - 1
+                final_input_layer_id = len(static_projector_config) - 1
         
         final_phenotype_layer: str = grammar.decode(self.individual_genotype.output_layer_start_symbol_name,
                                                     self.individual_genotype.output_layer)
@@ -151,7 +158,7 @@ class Individual:
                                                                   self.num_epochs)
         if self.metrics is None:
             self.metrics = evaluation_metrics
-        else:
+        elif evaluation_metrics.is_valid_solution is True:
             self.metrics += evaluation_metrics
         self.fitness = self.metrics.fitness
         self.num_epochs += self.metrics.n_epochs

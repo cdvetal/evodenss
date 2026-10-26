@@ -1,11 +1,11 @@
 import os
 import shutil
-import unittest
 import time
+import unittest
 from typing import cast
 
 import torch
-from torch import nn, optim, Tensor
+from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor

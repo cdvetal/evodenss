@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 5.0.2 (2026-10-26)
+
+
+Other improvements:
+
+- Added statistical analysis scripts for the Scientific Reports article (`analysis/scientific_reports_2026/`): paired t-tests with Holm correction, 95% CIs and figure scripts that reproduce Table 5, Figure 4 and Supplementary Appendix D.
+
+
+## 5.0.1 (2026-01-09)
+
+
+Features:
+
+- Added scripts to refine best individuals, as a post-evolutionary mechanism, for supervised learning case.
+
+Other improvements:
+
+- The atomic unit of the projector network is no longer single layer. Instead, we evolve pairs of dense + batch norm layers, to reduce the search space;
+- Warning message when using TimeStoppingCallback with an empty validation set can be ignored by the user via constructor parameter of the callback.
+
+Bug Fixes:
+
+- Fixed how the test set is created for the refinement script in the self-supervised learning case.
+
+
 ## 4.0.1 (2024-10-10)
 
 

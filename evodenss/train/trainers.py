@@ -1,8 +1,8 @@
-from dataclasses import dataclass
 import logging
 import time
 import traceback
-from typing import Any, Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional
 
 import torch
 from torch import nn, optim
@@ -15,7 +15,6 @@ from evodenss.networks.phenotype_parser import Optimiser
 from evodenss.train.callbacks import Callback
 from evodenss.train.lars import LARS
 from evodenss.train.learning_parameters import LearningParams
-
 
 if TYPE_CHECKING:
     from torch.optim.lr_scheduler import LRScheduler
@@ -99,7 +98,7 @@ class Trainer:
                 n_batches_validation = len(self.validation_data_loader)
             self.model.train()
             self._call_on_train_begin_callbacks()
-
+            self.trained_epochs = 0
             while epoch < self.n_epochs and self.stop_training is False:
                 logger.debug(f"Starting Downstream Epoch {epoch}")
                 self._call_on_epoch_begin_callbacks()
@@ -125,7 +124,7 @@ class Trainer:
                 logger.debug(f"Loss: {round(float(total_loss.data), 3)}")
                 logger.debug("=============================================================")
 
-                if self.validation_data_loader is not None:
+                if self.validation_data_loader is not None and len(self.validation_data_loader) > 0:
                     with torch.no_grad():
                         self.model.eval()
                         total_loss = torch.zeros(size=(1,), device=self.device.value)
@@ -144,10 +143,10 @@ class Trainer:
                 if self.scheduler is not None:
                     self.scheduler.step()
                 epoch += 1
+                self.trained_epochs += 1
                 self._call_on_epoch_end_callbacks()
 
             self._call_on_train_end_callbacks()
-            self.trained_epochs = epoch - self.initial_epoch
         except RuntimeError as e:
             logger.warning(traceback.format_exc())
             raise InvalidNetwork(str(e)) from e

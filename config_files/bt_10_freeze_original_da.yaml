@@ -1,4 +1,4 @@
-checkpoints_path: ../../results/experiment_bt_100
+checkpoints_path: ../../results/cifar100/bt_10_freeze_original_da2
 
 evolutionary:
   generations: 100
@@ -7,10 +7,10 @@ evolutionary:
   mutation:
     add_connection: 0.0
     remove_connection: 0.0
-    add_layer: 0.3
-    reuse_layer: 0.15
-    remove_layer: 0.3
-    dsge_topological: 0.15
+    add_layer: 0.35
+    reuse_layer: 0.2
+    remove_layer: 0.35
+    dsge_topological: 0.2
     dsge_non_topological: 0.3
     train_longer: 0.03
   fitness:
@@ -18,7 +18,6 @@ evolutionary:
     parameters:
       downstream_mode: freeze
       downstream_epochs: 30
-      batch_size: 2048
       optimiser_type: "adam"
       optimiser_parameters:
         lr: 0.001
@@ -28,7 +27,7 @@ evolutionary:
 
 network:
   architecture:
-    reuse_layer: 0.15
+    reuse_layer: 0.2
     output: identity
     projector:
       - 512
@@ -48,9 +47,9 @@ network:
   learning:
     data_splits:
       labelled:
-        percentage: 100 # downstream_train + validation + evo_test = percentage
+        percentage: 10
         downstream_train:
-          partition_ratio: 0.8
+          partition_ratio: 0.08
           amount_to_use: 1.0
           replacement: false
         validation:
@@ -58,7 +57,7 @@ network:
           amount_to_use: 1.0
           replacement: false
         evo_test:
-          partition_ratio: 0.2
+          partition_ratio: 0.02
           amount_to_use: 1.0
           replacement: false
       unlabelled:
